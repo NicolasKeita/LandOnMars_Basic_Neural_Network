@@ -2,24 +2,10 @@
     Path + Filename: src/index.js.ts
 */
 
-class Point {
-    x: number
-    y: number
-    constructor(x: number, y: number) {
-        this.x = x
-        this.y = y
-    }
-}
+import Point from './Point'
+import {mars} from './dataPoints'
 
-const mars = [
-    new Point(0, 100),
-    new Point(1000, 500),
-    new Point(1500, 1500),
-    new Point(3000, 1000),
-    new Point(4000, 150),
-    new Point(5500, 150),
-    new Point(6999, 800)
-];
-
+const landingArea = mars.find(({y}, i) => y === mars[i + 1]?.y)
+if (!landingArea) throw new Error('ERR: mars is not flat')
 
 console.log('helow world2')

@@ -2,7 +2,8 @@
   "name": "landing_on_mars",
   "version": "1.0.0",
   "description": "Land on Mars coding challenge",
-  "main": "index.js",
+  "main": "src/index.js",
+  "type": "commonjs",
   "scripts": {
     "build": "tsc",
     "rebuild": "rimraf ./build/ && tsc && node build/index.js",
