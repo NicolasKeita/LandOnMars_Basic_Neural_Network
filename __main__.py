@@ -1,13 +1,15 @@
 import sys
 import matplotlib.pyplot as plt
+from typing import List
+from src.Point2D import Point2D
 
 
-def parse_mars_surface():
-    return [{'x': int(x), 'y': int(y)} for x, y in (input().split(' ') for _ in range(int(input())))]
+def parse_mars_surface() -> List[Point2D]:
+    return [Point2D(int(x), int(y)) for x, y in (input().split(' ') for _ in range(int(input())))]
 
 
-def display_points_graph(points):
-    x_coords, y_coords = zip(*[(point['x'], point['y']) for point in points])
+def display_points_graph(points: List[Point2D]):
+    x_coords, y_coords = zip(*[(point.x, point.y) for point in points])
 
     plt.plot(x_coords, y_coords, marker='o')
     plt.xlabel('X Coordinate')
