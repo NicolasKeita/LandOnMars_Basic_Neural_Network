@@ -13,7 +13,7 @@ def parse_mars_surface() -> List[Point2D]:
     return [Point2D(int(x), int(y)) for x, y in (input().split(' ') for _ in range(int(input())))]
 
 
-def create_graph(points: List[Point2D], rocket_position: Point2D, title: str):
+def create_graph(points: List[Point2D], title: str):
     plt.xlim(0, 7000)
     plt.ylim(0, 3000)
     plt.xlabel('X Coordinate')
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     rocket = init_rocket
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
-    create_graph(mars, init_rocket.get_pos(), 'Landing on Mars')
+    create_graph(mars, 'Landing on Mars')
     while True:
         turn += 1
         x, y, hs, vs = compute_next_turn_rocket(rocket)
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         time.sleep(0.1)
         if rocket.y <= 0:
             break
-        print(turn, rocket.x, rocket.y)
+        print(f"Turn: {turn} nextX: {rocket.x} nextY: {rocket.y} My actions. Rocket Rotation: {rocket.r} Rocket Power: {rocket.p}")
         scatter.set_offsets([rocket.x, rocket.y])
         plt.pause(0.01)
 
