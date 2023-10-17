@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import matplotlib.pyplot as plt
 from typing import List
@@ -39,6 +41,7 @@ def compute_next_turn_rocket(rocket: Rocket):
 if __name__ == '__main__':
     turn = 0
     init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0)
+    print('INFO: this program is meant to be launched with an test-case as input.')
     mars = parse_mars_surface()
 
     rocket = init_rocket
