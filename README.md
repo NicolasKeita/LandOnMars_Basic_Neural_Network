@@ -2,3 +2,7 @@
 basic Simulated annealing and basic neural network is the initial goal but will probably endup with much more complex stuff -_-'
 
 Pivoting to Reinforcement Learning cuz Stanford Uni told me so
+
+
+Model, Policy, Value Function
+Markov Processes
