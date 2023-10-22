@@ -3,10 +3,14 @@
 import sys
 import matplotlib.pyplot as plt
 from typing import List
+
+import numpy as np
+
 from src.Point2D import Point2D
 import time
 import math
 from src.Rocket import Rocket
+from src.create_world import create_world
 
 gravity = 3.711
 
@@ -42,11 +46,12 @@ if __name__ == '__main__':
     turn = 0
     init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0)
     print('INFO: this program is meant to be launched with an test-case as input.')
-    mars = parse_mars_surface()
+    mars_surface = parse_mars_surface()
+    mars_2D = create_world(mars_surface, 7000, 3000)
 
     rocket = init_rocket
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
-    create_graph(mars, 'Landing on Mars')
+    create_graph(mars_surface, 'Landing on Mars')
     while True:
         turn += 1
         x, y, hs, vs = compute_next_turn_rocket(rocket)
@@ -54,8 +59,9 @@ if __name__ == '__main__':
         time.sleep(0.1)
         if rocket.y <= 0:
             break
-        print(f"Turn: {turn} nextX: {rocket.x} nextY: {rocket.y} My actions. Rocket Rotation: {rocket.r} Rocket Power: {rocket.p}")
+        print(
+            f"Turn: {turn} nextX: {rocket.x} nextY: {rocket.y} My actions. Rocket Rotation: {rocket.r} Rocket Power: {rocket.p}")
         scatter.set_offsets([rocket.x, rocket.y])
         plt.pause(0.01)
 
-    print(mars, file=sys.stderr)
+    print(mars_surface, file=sys.stderr)

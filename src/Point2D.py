@@ -1,3 +1,7 @@
+import math
+from typing import List, Tuple
+
+
 class Point2D:
     def __init__(self, x: float, y: float) -> None:
         self.x = x
@@ -9,5 +13,9 @@ class Point2D:
     def __repr__(self) -> str:
         return f"Point2D({self.x}, {self.y})"
 
+    @staticmethod
+    def to_tuples(list_point2d: List['Point2D']) -> List[Tuple[float, float]]:
+        return [(obj.x, obj.y) for obj in list_point2d]
+
     def distance_to(self, other_point: 'Point2D') -> float:
-        return ((self.x - other_point.x) ** 2 + (self.y - other_point.y) ** 2) ** 0.5
+        return math.sqrt((self.x - other_point.x) ** 2 + (self.y - other_point.y) ** 2)
