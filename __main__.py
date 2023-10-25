@@ -47,7 +47,11 @@ if __name__ == '__main__':
     init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0)
     print('INFO: this program is meant to be launched with an test-case as input.')
     mars_surface = parse_mars_surface()
-    mars_2D = create_world(mars_surface, 7000, 3000)
+
+    mars_2D = create_world(mars_surface, 7000, 3000)  # TODO unused
+    actions = []  # TODO unused
+    Q = {}  # TODO unused
+
 
     rocket = init_rocket
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
