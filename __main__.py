@@ -11,7 +11,7 @@ from src.Point2D import Point2D
 import time
 import math
 from src.Rocket import Rocket
-from src.create_world import create_world
+from src.create_environment import create_environment
 
 gravity = 3.711
 
@@ -57,7 +57,8 @@ if __name__ == '__main__':
     print('INFO: this program is meant to be launched with an test-case as input.')
     mars_surface = parse_mars_surface()
 
-    mars_2D = create_world(mars_surface, 7000, 3000)  # TODO unused
+    environment = create_environment(mars_surface, 7000, 3000)  # TODO unused
+    states = [(row, col) for row in range(len(environment)) for col in range(len(environment[0]))]  # TODO unused, include accelaration/hs/vs for it to be a Markrov system
     legal_actions = create_legal_actions()  # TODO unused
     Q = {}  # TODO unused
 
