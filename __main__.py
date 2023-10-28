@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import random
 import sys
 import matplotlib.pyplot as plt
 from typing import List
@@ -11,7 +11,7 @@ from src.Point2D import Point2D
 import time
 import math
 from src.Rocket import Rocket
-from src.create_environment import create_environment
+from src.create_Q_table import create_q_table
 
 gravity = 3.711
 
@@ -42,34 +42,30 @@ def compute_next_turn_rocket(rocket: Rocket):
     new_y = rocket.y + new_vertical_speed + y_acceleration * 0.5 + gravity
     return new_x, new_y, new_horizontal_speed, new_vertical_speed
 
-
-def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> List[Action]:
-    return [Action(power, rotation)
-            for rotation in range(-90, 90)
-            for power in range(4)
-            if (previous_rotation is None or abs(previous_rotation - rotation) <= 15)
-            and (previous_power is None or abs(previous_power - power) <= 1)]
-
-
+#
+# RL is
+#  - Optimization
+#  - Delayed consequences
+#  - Exploration
+#  - Generalization (my agent has been trained with a specific environment
+#       but I'd like it to be effective on future unknown environment as well
+#
 if __name__ == '__main__':
     turn = 0
     init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0)
+    rocket = init_rocket
     print('INFO: this program is meant to be launched with an test-case as input.')
     mars_surface = parse_mars_surface()
 
-    environment = create_environment(mars_surface, 7000, 3000)  # TODO unused
-    states = [(row, col) for row in range(len(environment)) for col in range(len(environment[0]))]  # TODO unused, include accelaration/hs/vs for it to be a Markrov system
-    legal_actions = create_legal_actions()  # TODO unused
-    Q = {}  # TODO unused
-
-    rocket = init_rocket
+    q_table = create_q_table(mars_surface)
+    exit(0)
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
     create_graph(mars_surface, 'Landing on Mars')
     while True:
         turn += 1
         x, y, hs, vs = compute_next_turn_rocket(rocket)
-        legal_actions = create_legal_actions(rocket.rotation, rocket.power)  # TODO unused
-        rocket = Rocket(x, y, hs, vs, rocket.fuel, rocket.rotation, rocket.power)
+        #legal_actions = create_legal_actions(rocket.rotation, rocket.power)  # TODO unused
+        rocket = Rocket(x, y, hs, vs, rocket.state.fuel, rocket.state.rotation, rocket.state.power)
         time.sleep(0.1)
         if rocket.y <= 0:
             break

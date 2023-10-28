@@ -2,7 +2,7 @@ from typing import List
 from src.Point2D import Point2D
 
 
-def create_environment(surface_points: list[Point2D], x_max: int, y_max: int) -> List[List[bool]]:
+def create_env(surface_points: list[Point2D], x_max: int, y_max: int) -> List[List[bool]]:
     def surface_function(x, sorted_points):
         for i in range(len(sorted_points) - 1):
             x1, y1 = sorted_points[i].x, sorted_points[i].y
