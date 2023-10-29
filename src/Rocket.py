@@ -1,21 +1,36 @@
+from typing import List, Any, Generator
+
 from src.Point2D import Point2D
 
 
-class RocketState:
-    def __init__(self, x: float, y: float, hs: float, vs: float, fuel: float, rotation: int, power: int):
-        # Features:
-        self.x = x
-        self.y = y
-        self.hs = hs  # hs: the horizontal speed (in m/s), can be negative.
-        self.vs = vs  # vs: the vertical speed (in m/s), can be negative.
-        self.fuel = fuel  # the quantity of remaining fuel in liters.
-        self.rotation = rotation  # the rotation angle in degrees (-90 to 90).
-        self.power = power  # the thrust power (0 to 4).
+class Feature:
+    def __init__(self, name: str, value: any, weight: float | None):
+        self.name = name
+        self.value = value
+        self.weight = weight  # TODO should I limit the weight to [-1, 1] (throwing error if not)?
+
+
+# class RocketState:
+#     def __init__(self, x: float | None, y: float | None, hs: float | None, vs: float | None, fuel: float | None, rotation: int | None, power: int | None):
+#         self.features: list[Feature] = []
+#         self.features.append(Feature('x', x, None))
+#         self.features.append(Feature('y', y, None))
+#         self.features.append(Feature('hs', hs, None))  # hs: the horizontal speed (in m/s), can be negative.
+#         self.features.append(Feature('vs', vs, None))  # vs: the vertical speed (in m/s), can be negative.
+#         self.features.append(Feature('fuel', fuel, None))  # the quantity of remaining fuel in liters.
+#         self.features.append(Feature('rotation', rotation, None))  # the rotation angle in degrees (-90 to 90).
+#         self.features.append(Feature('power', power, None))  # the thrust power (0 to 4).
+
+class State:
+    def __init__(self, **kwargs):
+        self.features = [Feature(key, value, None) for key, value in kwargs.items()]
 
 
 class Rocket:
     def __init__(self, x: float, y: float, hs: float, vs: float, fuel: float, rotation: int, power: int):
-        self.state = RocketState(x, y, hs, vs, fuel, rotation, power)
+        self.state = State(x=x, y=y, hs=hs, vs=vs, fuel=fuel, rotation=rotation, power=power)
 
     def get_pos(self):
-        return Point2D(self.state.x, self.state.y)
+        x = (feature.value for feature in self.state.features if feature.name == 'x')
+        y = (feature.value for feature in self.state.features if feature.name == 'y')
+        return Point2D(float(x), float(y))
