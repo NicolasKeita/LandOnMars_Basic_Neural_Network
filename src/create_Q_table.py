@@ -1,4 +1,5 @@
 import random
+import time
 from pprint import pprint
 from typing import List
 
@@ -27,24 +28,37 @@ def control_process():
 
 
 def create_q_table(mars_surface):
-    env = create_env(mars_surface, 7000, 3000)
+    x_max = 7000
+    y_max = 3000
+    env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
+
+    for x, row in enumerate(env):
+        for y, cell in enumerate(row):
+            pass
+    exit(0)
+
+
     num_episodes = 7000 * 3000
 
     for i in range(num_episodes):
+        start_time = time.time()  # Record the start time
         print(i)
 
-        states = []
-        for y in range(len(env)):
-            for x in range(len(env[0])):
-                state = State(x=x, y=y)
-                states.append(state)
-            print(y)
-
+        # states = [[None] * y_max for _ in range(x_max)]
+        array_2d = [(x, y) for y in range(y_max) for x in range(x_max)]
+        # array_2d = [None for y in range(y_max) for x in range(x_max)]
         # states = [
-        #     RocketState(x, y, None, None, None, None, None)
-        #     for y in range(len(env))
-        #     for x in range(len(env[0]))
+        #     State(x=x, y=y)
+        #     for y in range(y_max)
+        #     for x in range(x_max)
         # ]
+
+        end_time = time.time()  # Record the end time
+        elapsed_time_ms = (end_time - start_time) * 1000  # Calculate the execution time in milliseconds
+        elapsed_time_s = end_time - start_time  # Calculate the execution time in seconds
+
+        print("EPISODE " + str(i) + " FINISHED")
+        print(f"Episode {i} took {elapsed_time_ms:.2f} milliseconds ({elapsed_time_s:.2f} seconds)")
     exit(0)
 
     legal_actions = create_legal_actions()

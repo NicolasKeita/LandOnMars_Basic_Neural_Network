@@ -10,8 +10,11 @@ class Feature:
         self.weight = weight  # TODO should I limit the weight to [-1, 1] (throwing error if not)?
 
 
-# class RocketState:
-#     def __init__(self, x: float | None, y: float | None, hs: float | None, vs: float | None, fuel: float | None, rotation: int | None, power: int | None):
+# class State:
+#     # def __init__(self, x: float | None, y: float | None, hs: float | None, vs: float | None, fuel: float | None, rotation: int | None, power: int | None):
+#     def __init__(self, x: float | None = None, y: float | None = None, hs: float | None = None,
+#                  vs: float | None = None, fuel: float | None = None, rotation: int | None = None,
+#                  power: int | None = None):
 #         self.features: list[Feature] = []
 #         self.features.append(Feature('x', x, None))
 #         self.features.append(Feature('y', y, None))
@@ -20,6 +23,22 @@ class Feature:
 #         self.features.append(Feature('fuel', fuel, None))  # the quantity of remaining fuel in liters.
 #         self.features.append(Feature('rotation', rotation, None))  # the rotation angle in degrees (-90 to 90).
 #         self.features.append(Feature('power', power, None))  # the thrust power (0 to 4).
+#
+
+# class State:
+#     def __init__(self, x: float | None = None, y: float | None = None, hs: float | None = None,
+#                  vs: float | None = None, fuel: float | None = None, rotation: int | None = None,
+#                  power: int | None = None):
+#         self.features: list[Feature] = [
+#             Feature('x', x, None),
+#             Feature('y', y, None),
+#             Feature('hs', hs, None),
+#             Feature('vs', vs, None),
+#             Feature('fuel', fuel, None),
+#             Feature('rotation', rotation, None),
+#             Feature('power', power, None)
+#         ]
+
 
 class State:
     def __init__(self, **kwargs):
