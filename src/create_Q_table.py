@@ -7,6 +7,15 @@ from src.Action import Action
 from src.Rocket import State
 from src.create_environment import create_env
 
+# TODO move this info somewhere else:
+# RL framework chosen : MDP (Markov Decision Process).
+# because
+# I have access to a model,
+# a reward function
+# and there are (finite) actions the agent is able take.
+#
+# then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
+
 
 def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> List[Action]:
     rotation_max = 90
