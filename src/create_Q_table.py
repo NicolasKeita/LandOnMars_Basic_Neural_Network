@@ -8,14 +8,18 @@ from src.Rocket import State
 from src.create_environment import create_env
 
 # TODO move this info somewhere else:
-# RL framework chosen : MDP (Markov Decision Process).
+# RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
 # because
-# I have access to a model,
-# a reward function
+# I have access to a model (able to simulate next state),
+# a reward function (able to know immediate reward) but
+# I don't have access to a Value Function (no quick way to know the expected reward sum)
 # and there are (finite) actions the agent is able take.
 #
 # then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
 
+# Model to -> Policy = Planning
+
+# Policy-Based RL
 
 def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> List[Action]:
     rotation_max = 90
