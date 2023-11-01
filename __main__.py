@@ -11,7 +11,8 @@ from src.Point2D import Point2D
 import time
 import math
 from src.Rocket import Rocket
-from src.create_Q_table import create_q_table
+from src.create_environment import create_env
+from src.learn_weights import learn_weights
 
 gravity = 3.711
 
@@ -33,9 +34,9 @@ def create_graph(points: List[Point2D], title: str):
 
 
 def compute_next_turn_rocket(rocket: Rocket):
-    radians = rocket.rotation * (math.pi / 180)
-    x_acceleration = math.sin(radians) * rocket.power
-    y_acceleration = math.cos(radians) * rocket.power - gravity
+    radians = rocket.state.features['rotation'] * (math.pi / 180)
+    x_acceleration = math.sin(radians) * rocket.state.features['power']
+    y_acceleration = math.cos(radians) * rocket.state.features['power'] - gravity
     new_horizontal_speed = rocket.hs - x_acceleration
     new_vertical_speed = rocket.vs + y_acceleration
     new_x = rocket.x + new_horizontal_speed - x_acceleration * 0.5
@@ -52,12 +53,15 @@ def compute_next_turn_rocket(rocket: Rocket):
 #
 if __name__ == '__main__':
     turn = 0
-    init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0)
+    mars_surface = parse_mars_surface()
+    x_max = 7000
+    y_max = 3000
+    env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
+    init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0, env)
     rocket = init_rocket
     print('INFO: this program is meant to be launched with an test-case as input.')
-    mars_surface = parse_mars_surface()
 
-    q_table = create_q_table(mars_surface)
+    weights = learn_weights(mars_surface, init_rocket)
     exit(0)
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
     create_graph(mars_surface, 'Landing on Mars')

@@ -1,6 +1,10 @@
-from typing import List, Any, Generator
-
 from src.Point2D import Point2D
+
+
+class Weight:
+    def __init__(self, feature_name: str, weight: float):
+        self.feature_name = feature_name
+        self.weight = weight
 
 
 class Feature:
@@ -46,8 +50,12 @@ class State:
 
 
 class Rocket:
-    def __init__(self, x: float, y: float, hs: float, vs: float, fuel: float, rotation: int, power: int):
+    def __init__(self, x: float, y: float, hs: float, vs: float, fuel: float, rotation: int, power: int,
+                 env: list[list[bool]]):
         self.state = State(x=x, y=y, hs=hs, vs=vs, fuel=fuel, rotation=rotation, power=power)
+        for x, row in enumerate(env):
+            for y, value in enumerate(row):
+                self.state.features.append(Feature(f"{x},{y}", value, 0.0))
 
     def get_pos(self):
         x = (feature.value for feature in self.state.features if feature.name == 'x')
