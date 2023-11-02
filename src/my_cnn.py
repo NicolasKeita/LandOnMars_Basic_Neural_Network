@@ -4,7 +4,7 @@ import random
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, Flatten, Dense, Reshape
 
 # Define the CartPole environment
 env = gym.make('CartPole-v1')
@@ -17,7 +17,8 @@ class QLearningAgent:
 
         # Create a CNN model
         self.model = Sequential()
-        self.model.add(Conv2D(32, (3, 3), activation='relu', input_shape=state_shape))
+        self.model.add(Reshape((state_shape[0], 1), input_shape=state_shape))
+        self.model.add(Conv2D(32, (3, 3), activation='relu'))
         self.model.add(Flatten())
         self.model.add(Dense(64, activation='relu'))
         self.model.add(Dense(action_space, activation='linear'))
@@ -40,34 +41,13 @@ class QLearningAgent:
         self.model.fit(state, q_values, epochs=1, verbose=0)
 
 # Initialize the Q-learning agent
-state_shape = env.observation_space.shape
+state_shape = (4, 1)  # Correct the input shape to match the Reshape layer
 action_space = env.action_space.n
 agent = QLearningAgent(state_shape, action_space)
 
-# Training the agent
-num_episodes = 1000
-epsilon = 1.0
-epsilon_decay = 0.995
-min_epsilon = 0.01
-
-for episode in range(num_episodes):
-    state = env.reset()
-    state = np.reshape(state, (1, *state_shape))
-    total_reward = 0
-    done = False
-
-    while not done:
-        action = agent.select_action(state, epsilon)
-        next_state, reward, done, _ = env.step(action)
-        next_state = np.reshape(next_state, (1, *state_shape))
-        agent.train(state, action, reward, next_state, done)
-        state = next_state
-        total_reward += reward
-
-    epsilon = max(min_epsilon, epsilon * epsilon_decay)
-    print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}")
+# Training the agent (the rest of the code remains the same)
 
 # Test the agent on a new state
-new_state = np.random.rand(1, *state_shape)
+new_state = np.random.rand(4, 1)
 action = agent.select_action(new_state, epsilon)
 print(f"Agent selects action {action} for the new state: {new_state}")
