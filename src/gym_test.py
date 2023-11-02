@@ -30,6 +30,8 @@ def policy(state, epsilon):
     else:
         # Exploitation: Choose the action with the highest estimated value
         features = extract_features(state)
+
+        print(features)
         values = [sum(w * f for w, f in zip(weights, features)) for _ in range(4)]
         print(values)
         return values.index(max(values))
@@ -54,6 +56,7 @@ for episode in range(num_episodes):
     state = (0, 0)
     while True:
         action = policy(state, epsilon)
+        exit(0)
         next_state, reward = take_action(state, action)  # Define take_action() based on the environment
         episode_states.append(state)
         episode_rewards.append(reward)

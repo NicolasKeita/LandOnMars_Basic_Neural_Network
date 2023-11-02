@@ -1,7 +1,7 @@
+import math
 import random
 import time
 from pprint import pprint
-from typing import List
 
 from src.Action import Action
 from src.Point2D import Point2D
@@ -24,7 +24,11 @@ from src.create_environment import create_env
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
 
-def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> List[Action]:
+gravity = 3.711
+
+
+# TODO use this, somewhere
+def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> list[Action]:
     rotation_max = 90
     power_max = 4
     return [Action(power, rotation)
@@ -44,16 +48,25 @@ def control_process():
 
 
 # Define the policy (e.g., epsilon-greedy)
-def policy(state: State, epsilon, weights) -> tuple[int, int]:
+def extract_features(state: tuple[float, float, float, float, float, int, int], env: list[list[bool]]):
+    concatenated_data = list(state) + [item for sublist in env for item in sublist]
+    return tuple(concatenated_data)
+    # features = list(state)
+    # for x, row in enumerate(env):
+    #     for y, value in enumerate(row):
+    #         features.append((f"{x},{y}", value))
+    # return features
+
+
+def policy(state: tuple[float, float, float, float, float, int, int], epsilon, weights, env) -> tuple[int, int]:
     if random.random() < epsilon:
         # Exploration: Choose a random action
         return random.randint(0, 4), random.randint(-90, 90)
     else:
         # Exploitation: Choose the action with the highest estimated value
-        #features = extract_features(state)
-        features = state.features
+        features = extract_features(state, env)
         values = [sum(w * f for w, f in zip(weights, features)) for _ in range(len(features))]
-        return values.index(max(values))
+        return (values.index(max(values)), 0) # TODO fix
 
 
 num_episodes = 1000
@@ -61,15 +74,42 @@ alpha = 0.1
 gamma = 0.9
 epsilon = 0.1
 
+def find_landing_spot(mars_surface: list[Point2D])-> list[tuple[Point2D, Point2D]]:
+    seen_y_values = {}
+    return [(seen_y_values.setdefault(point.y, point), point) for point in mars_surface if point.y in seen_y_values]
 
-def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket):
+
+def reward_function(state, action, env, mars_surface):
+    landing_spot = find_landing_spot(mars_surface)
+    print(landing_spot)
+    # if env[state[0]][state[1]]:
+
+    # pass
+
+
+def take_action(state: tuple[float, float, float, float, float, int, int], action: tuple[int, int], env, mars_surface):
+    radians = action[1] * (math.pi / 180)
+    x_acceleration = math.sin(radians) * action[0]
+    y_acceleration = math.cos(radians) * action[0] - gravity
+    new_horizontal_speed = state[2] - x_acceleration
+    new_vertical_speed = state[3] + y_acceleration
+    new_x = state[0] + new_horizontal_speed - x_acceleration * 0.5
+    new_y = state[1] + new_vertical_speed + y_acceleration * 0.5 + gravity
+    remaining_fuel = state[4] - action[0]
+    new_state = new_x, new_y, new_horizontal_speed, new_vertical_speed, remaining_fuel, action[1], action[0]
+    reward = reward_function(state, action, env, mars_surface)
+    return new_state, reward
+
+
+def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     x_max = 7000
     y_max = 3000
     env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     feature_names = ['x', 'y', 'hs', 'vs', 'fuel', 'rotation', 'power']
 
-    weights = {feature_name: 0.0 for feature_name in feature_names}
-    weights.update({f"{x},{y}": 0.0 for x, row in enumerate(env) for y, _ in enumerate(row)})
+    weights = tuple(0.0 for _ in range(720 + len(feature_names)))
+    # weights = {feature_name: 0.0 for feature_name in feature_names}
+    # weights.update({f"{x},{y}": 0.0 for x, row in enumerate(env) for y, _ in enumerate(row)})
 
     for episode in range(num_episodes):
         episode_states = []
@@ -78,8 +118,9 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket):
         # state = (0, 0)
         state = init_rocket.state
         while True:
-            action = policy(state, epsilon, weights)
-            next_state, reward = take_action(state, action)  # Define take_action() based on the environment
+            action = policy(state, epsilon, weights, env)
+            next_state, reward = take_action(state, action, env, mars_surface)  # Define take_action() based on the environment
+            exit(0)
             episode_states.append(state)
             episode_rewards.append(reward)
             state = next_state

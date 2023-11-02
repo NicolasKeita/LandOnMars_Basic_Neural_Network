@@ -37,10 +37,10 @@ def compute_next_turn_rocket(rocket: Rocket):
     radians = rocket.state.features['rotation'] * (math.pi / 180)
     x_acceleration = math.sin(radians) * rocket.state.features['power']
     y_acceleration = math.cos(radians) * rocket.state.features['power'] - gravity
-    new_horizontal_speed = rocket.hs - x_acceleration
-    new_vertical_speed = rocket.vs + y_acceleration
-    new_x = rocket.x + new_horizontal_speed - x_acceleration * 0.5
-    new_y = rocket.y + new_vertical_speed + y_acceleration * 0.5 + gravity
+    new_horizontal_speed = rocket.state.features['hs'] - x_acceleration
+    new_vertical_speed = rocket.state.features['vs'] + y_acceleration
+    new_x = rocket.state.features['x'] + new_horizontal_speed - x_acceleration * 0.5
+    new_y = rocket.state.features['y'] + new_vertical_speed + y_acceleration * 0.5 + gravity
     return new_x, new_y, new_horizontal_speed, new_vertical_speed
 
 #
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     rocket = init_rocket
     print('INFO: this program is meant to be launched with an test-case as input.')
 
-    weights = learn_weights(mars_surface, init_rocket)
+    weights = learn_weights(mars_surface, init_rocket, env)
     exit(0)
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
     create_graph(mars_surface, 'Landing on Mars')
