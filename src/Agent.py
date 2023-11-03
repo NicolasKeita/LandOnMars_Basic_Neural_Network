@@ -4,10 +4,12 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from gym.core import ObsType
 
 from src.QNetwork import QNetwork
 from src.ReplayBuffer import ReplayBuffer
-from src.dqn import TAU, device, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_EVERY, GAMMA
+from src.device import device
+from src.hyperparameters import LR, BATCH_SIZE, BUFFER_SIZE, UPDATE_EVERY, GAMMA, TAU
 
 
 class Agent():
@@ -48,7 +50,7 @@ class Agent():
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
-    def act(self, state, eps=0.):
+    def act(self, state: tuple[ObsType, dict] | np.ndarray, eps=0.):
         """Returns actions for given state as per current policy.
 
         Params
@@ -56,6 +58,7 @@ class Agent():
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
+
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():

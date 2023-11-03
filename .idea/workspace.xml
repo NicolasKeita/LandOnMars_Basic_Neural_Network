@@ -6,8 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="6f868680-5beb-4fc0-98eb-1a49a98f85fd" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/my_cnn.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/my_cnn.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/Agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ReplayBuffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ReplayBuffer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/dqn.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/dqn.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,7 +121,7 @@
       <workItem from="1698941324931" duration="3373000" />
       <workItem from="1698953385231" duration="3156000" />
       <workItem from="1698957128742" duration="3728000" />
-      <workItem from="1698962712498" duration="3855000" />
+      <workItem from="1698962712498" duration="9619000" />
     </task>
     <servers />
   </component>
@@ -131,7 +132,7 @@
     <option featureType="dependencySupport" implementationName="executable:terraform" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dqn.coverage" NAME="dqn Coverage Results" MODIFIED="1698966326209" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dqn.coverage" NAME="dqn Coverage Results" MODIFIED="1698974127922" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$my_cnn.coverage" NAME="my_cnn Coverage Results" MODIFIED="1698957240825" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
