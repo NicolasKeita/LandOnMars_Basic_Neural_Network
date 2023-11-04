@@ -19,9 +19,10 @@ import glob
 
 from src.Agent import Agent
 
-env = gym.make("LunarLander-v2", render_mode="human")
+# env = gym.make("LunarLander-v2", render_mode="human")
+env = gym.make("LunarLander-v2")
 observation, info = env.reset(seed=0)
-# env.action_space.seed(80)
+# env.action_space.seed(0)
 
 print('State shape: ', env.observation_space.shape)
 print('Number of actions: ', env.action_space)
@@ -62,7 +63,7 @@ def dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.99
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
-        if np.mean(scores_window) >= 200.0:
+        if np.mean(scores_window) >= 200.0 or i_episode > 50:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode - 100,
                                                                                          np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
@@ -112,5 +113,5 @@ def show_video_of_model(agent, env_name):
     env.close()
 
 
-show_video_of_model(agent, 'LunarLander-v2')
-show_video('LunarLander-v2')
+# show_video_of_model(agent, 'LunarLander-v2')
+#show_video('LunarLander-v2')

@@ -6,9 +6,11 @@ from typing import List
 
 import numpy as np
 
-from src.Action import Action
+
+
+
+
 from src.Point2D import Point2D
-import time
 import math
 from src.Rocket import Rocket
 from src.create_environment import create_env
@@ -62,6 +64,7 @@ if __name__ == '__main__':
     print('INFO: this program is meant to be launched with an test-case as input.')
 
     weights = learn_weights(mars_surface, init_rocket, env)
+    print("----------- Learn Weight ends success")
     exit(0)
     scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
     create_graph(mars_surface, 'Landing on Mars')
