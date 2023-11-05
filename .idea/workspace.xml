@@ -6,10 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="6f868680-5beb-4fc0-98eb-1a49a98f85fd" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/RocketDynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RocketDynamics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/dump_all_s.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/dump_all_s.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hyperparameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hyperparameters.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/learn_weights.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/learn_weights.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mars_landing.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/mars_landing.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -209,7 +206,7 @@
       <workItem from="1699101209879" duration="2721000" />
       <workItem from="1699117125975" duration="404000" />
       <workItem from="1699117540151" duration="3007000" />
-      <workItem from="1699143329643" duration="9624000" />
+      <workItem from="1699143329643" duration="11605000" />
     </task>
     <servers />
   </component>
@@ -224,7 +221,7 @@
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$mpc_pytorch.coverage" NAME="mpc_pytorch Coverage Results" MODIFIED="1699060337584" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dqn.coverage" NAME="dqn Coverage Results" MODIFIED="1699024613894" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$my_cnn.coverage" NAME="my_cnn Coverage Results" MODIFIED="1698957240825" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1699152891325" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1699153725153" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$mpc.coverage" NAME="mpc Coverage Results" MODIFIED="1699026221155" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dump_all_s.coverage" NAME="dump_all_s Coverage Results" MODIFIED="1699119819945" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
