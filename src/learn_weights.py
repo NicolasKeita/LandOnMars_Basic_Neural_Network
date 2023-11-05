@@ -93,33 +93,17 @@ def cost_function(state):
     return 7500 - state[4]
 
 
-def take_action(state: tuple[float, float, float, float, float, int, int], action: tuple[int, int], env, mars_surface):
-    radians = action[1] * (math.pi / 180)
-    x_acceleration = math.sin(radians) * action[0]
-    y_acceleration = math.cos(radians) * action[0] - GRAVITY
-    new_horizontal_speed = state[2] - x_acceleration
-    new_vertical_speed = state[3] + y_acceleration
-    new_x = state[0] + new_horizontal_speed - x_acceleration * 0.5
-    new_y = state[1] + new_vertical_speed + y_acceleration * 0.5 + GRAVITY
-    remaining_fuel = state[4] - action[0]
-    new_state = new_x, new_y, new_horizontal_speed, new_vertical_speed, remaining_fuel, action[1], action[0]
-    return new_state
-
-
-
-
 def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     x_max = 7000
     y_max = 3000
     env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
-    feature_names = ['x', 'y', 'hs', 'vs', 'fuel', 'rotation', 'power']
     initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)]) # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
         fitness_scores = evaluate_population(population, fitness_function, initial_state)
-        break
+        pass
 
     # weights = tuple(0.0 for _ in range(720 + len(feature_names)))
     # weights = {feature_name: 0.0 for feature_name in feature_names}
