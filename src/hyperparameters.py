@@ -17,3 +17,14 @@ ACTION_2_HIGH = 90
 
 # mars
 GRAVITY = 3.711
+
+# TODO create class GeneticAlgorithm and give this during init
+# Genetic Algorithm Parameters
+population_size = 10
+generations_count = 100
+mutation_rate = 0.1
+dna_size = 100  # finite_horizon TODO (mars lander is 800 max CHANGE IT)
+
+# Define the range of x values to search within
+x_min = -10
+x_max = 10

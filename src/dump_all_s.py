@@ -11,14 +11,34 @@ max_value = 10  # Change this range as needed
 
 # Create a list of 7000*3000 elements, each element being a list of 8 elements
 # result = [[0] * 8 for _ in range(7000*3000)]
-result_np = np.random.randint(min_value, max_value + 1, size=(num_rows, num_cols, num_elements))
-result_list = result_np.tolist()
+# result_np = np.random.randint(min_value, max_value + 1, size=(num_rows, num_cols, num_elements))
+# result_list = result_np.tolist()
 # with open("serialized_array.pkl", "wb") as file:
 #     pickle.dump(result_np, file)
 
 # Serialize the list as JSON and save it to a file
-with open("serialized_array.json", "w") as file:
-    json.dump(result_list, file)
+# with open("serialized_array.json", "w") as file:
+#     json.dump(result_list, file)
+
+def truncate_and_split_lines(input_file, output_file):
+    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+        for line in infile:
+            if len(line) <= 1000:
+                outfile.write(line)
+            else:
+                while len(line) > 1000:
+                    split_point = line.rfind('\\', 0, 1000)
+                    if split_point == -1:
+                        # If no suitable split point with '\' found, split at exactly 3000 characters.
+                        split_point = 1000
+                    outfile.write(line[:split_point] + '\\\n')
+                    line = line[split_point:]
+                outfile.write(line)
+
+# Example usage:
+input_file = 'serialized_array.json'
+output_file = 'pretty_serialized_array.json'
+truncate_and_split_lines(input_file, output_file)
 
 
 # # Serialize the list to a binary string

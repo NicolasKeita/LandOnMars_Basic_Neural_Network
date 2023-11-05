@@ -5,12 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6f868680-5beb-4fc0-98eb-1a49a98f85fd" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/python_pivot.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/python_pivot.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/__main__.py" beforeDir="false" afterPath="$PROJECT_DIR$/__main__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/dqn.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/dqn.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/RocketDynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/RocketDynamics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/dump_all_s.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/dump_all_s.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/hyperparameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hyperparameters.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/learn_weights.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/learn_weights.py" afterDir="false" />
     </list>
@@ -28,6 +25,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/env/lib/python3.11/site-packages/mpc/mpc.py" root0="SKIP_INSPECTION" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -57,11 +57,11 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;Errors&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.dump_all_s">
+  <component name="RunManager" selected="Python.__main__">
     <configuration name="Pendulum" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="python_pivot" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -181,8 +181,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.dump_all_s" />
         <item itemvalue="Python.__main__" />
+        <item itemvalue="Python.dump_all_s" />
         <item itemvalue="Python.mpc_pytorch" />
         <item itemvalue="Python.Pendulum" />
         <item itemvalue="Python.mpc_lti" />
@@ -207,6 +207,9 @@
       <workItem from="1699021776594" duration="16919000" />
       <workItem from="1699055907507" duration="7610000" />
       <workItem from="1699101209879" duration="2721000" />
+      <workItem from="1699117125975" duration="404000" />
+      <workItem from="1699117540151" duration="3007000" />
+      <workItem from="1699143329643" duration="9624000" />
     </task>
     <servers />
   </component>
@@ -221,8 +224,8 @@
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$mpc_pytorch.coverage" NAME="mpc_pytorch Coverage Results" MODIFIED="1699060337584" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dqn.coverage" NAME="dqn Coverage Results" MODIFIED="1699024613894" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$my_cnn.coverage" NAME="my_cnn Coverage Results" MODIFIED="1698957240825" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1699064071024" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1699152891325" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$mpc.coverage" NAME="mpc Coverage Results" MODIFIED="1699026221155" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dump_all_s.coverage" NAME="dump_all_s Coverage Results" MODIFIED="1699102690756" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/LandOnMars_Basic_Neural_Network$dump_all_s.coverage" NAME="dump_all_s Coverage Results" MODIFIED="1699119819945" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
