@@ -1,6 +1,7 @@
 import math
-
+from matplotlib import pyplot as plt
 from src.hyperparameters import GRAVITY
+
 
 
 #initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
@@ -35,10 +36,14 @@ def compute_next_state(state, action: tuple[int, int]):
 
 # TODO namespace mars_landing
 # AKA state-value function V_pi(s)
-def fitness_function(state, dna: list[tuple[int, int]]) -> int:
+def fitness_function(state: tuple, dna: list[tuple[int, int]]) -> int:
     state_value = 0
+    scatter = plt.scatter(2500, 2700, color='red', label='Rocket')
     for gene in dna:
+
         state = compute_next_state(state, gene)
+        scatter.set_offsets([state[0], state[1]])
+        plt.pause(0.01)
         state_value = reward_function(state)
         if state_value != 0:
             break

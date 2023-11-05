@@ -30,8 +30,6 @@ if __name__ == '__main__':
     weights = learn_weights(mars_surface, init_rocket, env)
     print("----------- Learn Weight ends success")
     exit(0)
-    scatter = plt.scatter(rocket.x, rocket.y, color='red', label='Rocket')
-    create_graph(mars_surface, 'Landing on Mars')
     while True:
         turn += 1
         x, y, hs, vs = compute_next_turn_rocket(rocket)

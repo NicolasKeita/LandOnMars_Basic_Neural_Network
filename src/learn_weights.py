@@ -8,14 +8,14 @@ from mpc import mpc
 import torch
 
 from src.Action import Action
-from src.GeneticAlgorithm import initialize_population, evaluate_population
+from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population
 from src.Point2D import Point2D
 from src.Rocket import State, Weight, Rocket
 from src.create_environment import create_env
 from src.RocketDynamics import RocketDynamics
 from src.create_graph import create_graph
 from src.hyperparameters import TIMESTEPS, ACTION_LOW, ACTION_HIGH, LQR_ITER, N_BATCH, population_size, \
-    generations_count, GRAVITY
+    generations_count, GRAVITY, mutation_rate
 from src.mars_landing import fitness_function
 
 # TODO move this info somewhere else:
@@ -47,15 +47,6 @@ def create_legal_actions(previous_rotation: int | None = None, previous_power: i
             and (previous_power is None or abs(previous_power - power) <= 1)]
 
 
-def control_process():
-    # # Choose an action using epsilon-greedy policy
-    # if random.uniform(0, 1) < 0.2:
-    #     action = random.choice(legal_actions)  # Explore
-    # else:
-    #     action = max(legal_actions, key=lambda action: q_table[(state, action)])  # Exploit
-    pass
-
-
 # Define the policy (e.g., epsilon-greedy)
 def extract_features(state: tuple[float, float, float, float, float, int, int], env: list[list[bool]]):
     concatenated_data = list(state) + [item for sublist in env for item in sublist]
@@ -65,17 +56,6 @@ def extract_features(state: tuple[float, float, float, float, float, int, int], 
     #     for y, value in enumerate(row):
     #         features.append((f"{x},{y}", value))
     # return features
-
-
-def policy(state: tuple[float, float, float, float, float, int, int], epsilon, weights, env) -> tuple[int, int]:
-    if random.random() < epsilon:
-        # Exploration: Choose a random action
-        return random.randint(0, 4), random.randint(-90, 90)
-    else:
-        # Exploitation: Choose the action with the highest estimated value
-        features = extract_features(state, env)
-        values = [sum(w * f for w, f in zip(weights, features)) for _ in range(len(features))]
-        return (values.index(max(values)), 0) # TODO fix
 
 
 num_episodes = 1000
@@ -91,27 +71,21 @@ def find_landing_spot(mars_surface: list[Point2D])-> tuple[Point2D, Point2D]:
     raise Exception('no landing site on test-case data')
 
 
-def cost_function(state):
-    return 7500 - state[4]
-
-
 def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     x_max = 7000
     y_max = 3000
     env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
     initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
-    scatter = plt.scatter(2500, 2700, color='red', label='Rocket')
     create_graph(mars_surface, 'Landing on Mars')
-    scatter.set_offsets([2600, 2800])
-    plt.pause(0.01)
-    while True:
-        pass
 
-    population = initialize_population(population_size, [(0, 4), (-90, 90)]) # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
+    population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
         fitness_scores = evaluate_population(population, fitness_function, initial_state)
-        pass
+        best_individual = population[fitness_scores.index(max(fitness_scores))]  # ELite ?
+        selected_population = select_population(population, fitness_scores)
+        population = mutate_population(selected_population, mutation_rate)
+        population.append(best_individual)  # TODO review this selection process and elite process
 
     # weights = tuple(0.0 for _ in range(720 + len(feature_names)))
     # weights = {feature_name: 0.0 for feature_name in feature_names}
