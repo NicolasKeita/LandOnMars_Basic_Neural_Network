@@ -1,49 +1,13 @@
 #!/usr/bin/env python
-import random
-import sys
-import matplotlib.pyplot as plt
-from typing import List
-
-import numpy as np
-
-
-
-
-
 from src.Point2D import Point2D
 import math
 from src.Rocket import Rocket
 from src.create_environment import create_env
 from src.learn_weights import learn_weights
 
-gravity = 3.711
 
-
-def parse_mars_surface() -> List[Point2D]:
+def parse_mars_surface() -> list[Point2D]:
     return [Point2D(int(x), int(y)) for x, y in (input().split(' ') for _ in range(int(input())))]
-
-
-def create_graph(points: List[Point2D], title: str):
-    plt.xlim(0, 7000)
-    plt.ylim(0, 3000)
-    plt.xlabel('X Coordinate')
-    plt.ylabel('Y Coordinate')
-    plt.title(title)
-    plt.plot(*zip(*[(point.x, point.y) for point in points]), marker='o', label='Mars Surface')
-    plt.legend()
-    plt.grid(True)
-    plt.draw()
-
-
-def compute_next_turn_rocket(rocket: Rocket):
-    radians = rocket.state.features['rotation'] * (math.pi / 180)
-    x_acceleration = math.sin(radians) * rocket.state.features['power']
-    y_acceleration = math.cos(radians) * rocket.state.features['power'] - gravity
-    new_horizontal_speed = rocket.state.features['hs'] - x_acceleration
-    new_vertical_speed = rocket.state.features['vs'] + y_acceleration
-    new_x = rocket.state.features['x'] + new_horizontal_speed - x_acceleration * 0.5
-    new_y = rocket.state.features['y'] + new_vertical_speed + y_acceleration * 0.5 + gravity
-    return new_x, new_y, new_horizontal_speed, new_vertical_speed
 
 #
 # RL is

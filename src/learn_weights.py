@@ -3,6 +3,7 @@ import random
 import time
 from pprint import pprint
 
+from matplotlib import pyplot as plt
 from mpc import mpc
 import torch
 
@@ -12,6 +13,7 @@ from src.Point2D import Point2D
 from src.Rocket import State, Weight, Rocket
 from src.create_environment import create_env
 from src.RocketDynamics import RocketDynamics
+from src.create_graph import create_graph
 from src.hyperparameters import TIMESTEPS, ACTION_LOW, ACTION_HIGH, LQR_ITER, N_BATCH, population_size, \
     generations_count, GRAVITY
 from src.mars_landing import fitness_function
@@ -99,6 +101,12 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
     initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
+    scatter = plt.scatter(2500, 2700, color='red', label='Rocket')
+    create_graph(mars_surface, 'Landing on Mars')
+    scatter.set_offsets([2600, 2800])
+    plt.pause(0.01)
+    while True:
+        pass
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)]) # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
