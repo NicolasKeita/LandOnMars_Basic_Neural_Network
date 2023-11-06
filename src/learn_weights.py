@@ -33,36 +33,6 @@ from src.mars_landing import fitness_function
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
 
-gravity = 3.711
-
-
-# TODO use this, somewhere
-def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> list[Action]:
-    rotation_max = 90
-    power_max = 4
-    return [Action(power, rotation)
-            for rotation in range(-rotation_max, rotation_max)
-            for power in range(power_max)
-            if (previous_rotation is None or abs(previous_rotation - rotation) <= 15)
-            and (previous_power is None or abs(previous_power - power) <= 1)]
-
-
-# Define the policy (e.g., epsilon-greedy)
-def extract_features(state: tuple[float, float, float, float, float, int, int], env: list[list[bool]]):
-    concatenated_data = list(state) + [item for sublist in env for item in sublist]
-    return tuple(concatenated_data)
-    # features = list(state)
-    # for x, row in enumerate(env):
-    #     for y, value in enumerate(row):
-    #         features.append((f"{x},{y}", value))
-    # return features
-
-
-num_episodes = 1000
-alpha = 0.1
-gamma = 0.9
-epsilon = 0.1
-
 
 def find_landing_spot(mars_surface: list[Point2D])-> tuple[Point2D, Point2D]:
     for i in range(len(mars_surface) - 1):
@@ -81,14 +51,9 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
-        fitness_scores = evaluate_population(population, fitness_function, initial_state)
+        fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
+        print(generation)
         best_individual = population[fitness_scores.index(max(fitness_scores))]  # ELite ?
         selected_population = select_population(population, fitness_scores)
         population = mutate_population(selected_population, mutation_rate)
         population.append(best_individual)  # TODO review this selection process and elite process
-
-    # weights = tuple(0.0 for _ in range(720 + len(feature_names)))
-    # weights = {feature_name: 0.0 for feature_name in feature_names}
-    # weights.update({f"{x},{y}": 0.0 for x, row in enumerate(env) for y, _ in enumerate(row)})
-
-

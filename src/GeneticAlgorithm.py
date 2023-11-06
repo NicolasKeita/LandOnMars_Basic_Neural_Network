@@ -21,9 +21,9 @@ def initialize_population(population_size: int, action_ranges: list[tuple[int | 
     return population
 
 
-def evaluate_population(population: list, fitness_function: Callable[[tuple, list[tuple[int, int]]], int],
-                        initial_state: tuple) -> list[int]:
-    return [fitness_function(initial_state, dna) for dna in population]
+def evaluate_population(population: list, fitness_function: Callable[[tuple, list[tuple[int, int]], int], int],
+                        initial_state: tuple, generation_id: int) -> list[int]:
+    return [fitness_function(initial_state, dna, generation_id) for dna in population]
 
 
 def select_population(population: list, fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:
