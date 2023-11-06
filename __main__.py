@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from src.Point2D import Point2D
-import math
 from src.Rocket import Rocket
 from src.create_environment import create_env
 from src.learn_weights import learn_weights
@@ -8,6 +7,7 @@ from src.learn_weights import learn_weights
 
 def parse_mars_surface() -> list[Point2D]:
     return [Point2D(int(x), int(y)) for x, y in (input().split(' ') for _ in range(int(input())))]
+
 
 #
 # RL is

@@ -2,8 +2,6 @@ import math
 from matplotlib import pyplot as plt
 from src.hyperparameters import GRAVITY
 
-
-
 #initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
 def reward_function(state):
     rocket_pos_x = state[0]

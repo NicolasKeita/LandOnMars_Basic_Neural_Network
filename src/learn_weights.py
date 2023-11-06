@@ -1,21 +1,10 @@
-import math
-import random
-import time
-from pprint import pprint
-
-from matplotlib import pyplot as plt
-from mpc import mpc
-import torch
-
 from src.Action import Action
 from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population
 from src.Point2D import Point2D
-from src.Rocket import State, Weight, Rocket
+from src.Rocket import Rocket
 from src.create_environment import create_env
-from src.RocketDynamics import RocketDynamics
 from src.create_graph import create_graph
-from src.hyperparameters import TIMESTEPS, ACTION_LOW, ACTION_HIGH, LQR_ITER, N_BATCH, population_size, \
-    generations_count, GRAVITY, mutation_rate
+from src.hyperparameters import population_size, generations_count, mutation_rate
 from src.mars_landing import fitness_function
 
 # TODO move this info somewhere else:
@@ -32,9 +21,6 @@ from src.mars_landing import fitness_function
 
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
-
-gravity = 3.711
-
 
 # TODO use this, somewhere
 def create_legal_actions(previous_rotation: int | None = None, previous_power: int | None = None) -> list[Action]:
@@ -87,8 +73,5 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
         population = mutate_population(selected_population, mutation_rate)
         population.append(best_individual)  # TODO review this selection process and elite process
 
-    # weights = tuple(0.0 for _ in range(720 + len(feature_names)))
-    # weights = {feature_name: 0.0 for feature_name in feature_names}
-    # weights.update({f"{x},{y}": 0.0 for x, row in enumerate(env) for y, _ in enumerate(row)})
 
 
