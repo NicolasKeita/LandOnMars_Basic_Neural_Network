@@ -1,7 +1,4 @@
 import math
-import random
-
-import numpy as np
 from matplotlib import pyplot as plt, cm
 from src.hyperparameters import GRAVITY
 

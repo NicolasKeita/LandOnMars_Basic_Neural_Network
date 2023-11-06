@@ -1,21 +1,9 @@
-import math
-import random
-import time
-from pprint import pprint
-
-from matplotlib import pyplot as plt
-from mpc import mpc
-import torch
-
-from src.Action import Action
 from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population
 from src.Point2D import Point2D
-from src.Rocket import State, Weight, Rocket
+from src.Rocket import Rocket
 from src.create_environment import create_env
-from src.RocketDynamics import RocketDynamics
 from src.create_graph import create_graph
-from src.hyperparameters import TIMESTEPS, ACTION_LOW, ACTION_HIGH, LQR_ITER, N_BATCH, population_size, \
-    generations_count, GRAVITY, mutation_rate
+from src.hyperparameters import population_size, generations_count, mutation_rate
 from src.mars_landing import fitness_function
 
 # TODO move this info somewhere else:
