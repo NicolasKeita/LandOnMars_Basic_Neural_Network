@@ -1,4 +1,5 @@
-from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population
+from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
+    crossover_population
 from src.Point2D import Point2D
 from src.Rocket import Rocket
 from src.create_environment import create_env
@@ -22,7 +23,7 @@ from src.mars_landing import fitness_function
 # The world outside my agent is stationary (independent of the agent actions).
 
 
-def find_landing_spot(mars_surface: list[Point2D])-> tuple[Point2D, Point2D]:
+def find_landing_spot(mars_surface: list[Point2D]) -> tuple[Point2D, Point2D]:
     for i in range(len(mars_surface) - 1):
         if mars_surface[i + 1].y == mars_surface[i].y:
             return mars_surface[i], mars_surface[i + 1]
@@ -39,9 +40,8 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
+        #TODO RECALL put evaluate in a class
         fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
-        print(generation)
-        best_individual = population[fitness_scores.index(max(fitness_scores))]  # ELite ?
         selected_population = select_population(population, fitness_scores)
-        population = mutate_population(selected_population, mutation_rate)
-        population.append(best_individual)  # TODO review this selection process and elite process
+        population = crossover_population(selected_population)
+        population = mutate_population(population, mutation_rate)

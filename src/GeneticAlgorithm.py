@@ -21,19 +21,23 @@ def initialize_population(population_size: int, action_ranges: list[tuple[int | 
     return population
 
 
-def evaluate_population(population: list, fitness_function: Callable[[tuple, list[tuple[int, int]], int], int],
+def evaluate_population(population: list[list[tuple[int | float, ...]]],
+                        fitness_function: Callable[[tuple, list[tuple], int], int],
                         initial_state: tuple, generation_id: int) -> list[int]:
     return [fitness_function(initial_state, dna, generation_id) for dna in population]
 
 
-def select_population(population: list, fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:
-    return random.sample(population, 2)
-    # selected_population = []
-    # total_fitness = sum(fitness_scores)
-    # for _ in range(len(population)):
-    #     parent1, parent2 = random.choices(population, weights=fitness_scores, k=2)
-    #     selected_population.append(parent1 if fitness_function(parent1) > fitness_function(parent2) else parent2)
-    # return selected_population
+def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:
+    n_elites = 2
+    sorted_population = [chromosome for score, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
+    return sorted_population[:n_elites]
+
+
+def crossover_population(population_survivors):
+    return population_survivors
+    next_gen_population = []
+    return next_gen_population
+    #return population_survivors
 
 
 def mutate_population(population_dna: list[list[tuple[int | float, ...]]], mutation_rate: float):
