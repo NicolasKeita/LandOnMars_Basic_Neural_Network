@@ -3,6 +3,11 @@ from matplotlib import pyplot as plt, cm
 from src.hyperparameters import GRAVITY
 
 
+def get_landing_spot_distance(x, landing_spot_left_x, landing_spot_right_x):
+    return 0 if landing_spot_left_x <= x <= landing_spot_right_x else min(abs(x - landing_spot_left_x),
+                                                                          abs(x - landing_spot_right_x))
+
+
 #initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
 def reward_function(state):
     rocket_pos_x = state[0]
@@ -10,12 +15,17 @@ def reward_function(state):
     remaining_fuel = state[4]
     env = state[7]
     landing_spot = state[8]
+    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
+
+
     if landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y:  # TODO fix accuracy for reward
-        return remaining_fuel
+        # print("GOOD", rocket_pos_x)
+        return remaining_fuel, True
     if (rocket_pos_y < 0 or rocket_pos_y > 3000 or rocket_pos_x < 0 or rocket_pos_x > 7000
             or env[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
-        return -1
-    return 0
+        # print("CRASH", rocket_pos_x)
+        return -dist, True
+    return 0, False
 
 
 def compute_next_state(state, action: tuple[int, int]):
@@ -43,8 +53,9 @@ def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: in
     for gene in dna:
         state = compute_next_state(state, gene)
         scatter.set_offsets([state[0], state[1]])
-        plt.pause(0.001)
-        state_value = reward_function(state)
-        if state_value != 0:
+        #plt.pause(0.001)
+        immediate_reward, is_terminal_state = reward_function(state)
+        state_value += immediate_reward
+        if is_terminal_state:
             break
     return state_value

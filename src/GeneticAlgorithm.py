@@ -18,7 +18,7 @@ def initialize_population(population_size: int,
             ])
             for _ in range(dna_size)
         ]
-        population.append(dna) # TODO Check if I can change dna to a tuple
+        population.append(dna)  # TODO Check if I can change dna to a tuple
     return population
 
 
@@ -34,7 +34,7 @@ def select_population(population: list[list[tuple[int | float, ...]]], fitness_s
     return sorted_population[:n_elites]
 
 
-# TODO introduce some Classes. Types makes no senses
+# TODO introduce some Classes or check create custom type for type hinting only. current list[list[list[Types makes no senses
 def crossover_population(population_survivors: list[list[tuple[int | float, ...]]]):
     offspring = []
 
@@ -47,13 +47,6 @@ def crossover_population(population_survivors: list[list[tuple[int | float, ...]
         offspring.extend([child1, child2])
     offspring.extend(population_survivors)
     return offspring
-
-
-    crossover_point = random.randint(1, len(population_survivors[0]))
-    return population_survivors
-    next_gen_population = []
-    return next_gen_population
-    #return population_survivors
 
 
 def mutate_population(population_dna: list[list[tuple[int | float, ...]]], mutation_rate: float):

@@ -1,7 +1,7 @@
 from src.Point2D import Point2D
 
 
-# True = underneath the surface
+# False = underneath the surface
 def create_env(surface_points: list[Point2D], x_max: int, y_max: int) -> list[list[bool]]:
     def surface_function(x, sorted_points):
         for i in range(len(sorted_points) - 1):
