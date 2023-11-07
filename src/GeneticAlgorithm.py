@@ -76,9 +76,16 @@ def mutate_population(population_dna: list[list[tuple[int | float, ...]]], mutat
             previous_action_1 = dna[0][0]
             previous_action_2 = dna[0][1]
             for gene in dna:  # TODO future adapt to 3 or 4 actions,etc...
-                action_1_min, action_1_max = action_1_min_max(previous_action_1)
-                action_2_min, action_2_max = action_2_min_max(previous_action_2)
-                modified_gene = random.randint(action_1_min, action_1_max), random.randint(action_2_min, action_2_max)
+                action_1_min_legal, action_1_max_legal = action_1_min_max(previous_action_1)
+                action_1_min_gene, action_1_max_gene = action_1_min_max(gene[0])
+                action_2_min_legal, action_2_max_legal = action_2_min_max(previous_action_2)
+                action_2_min_gene, action_2_max_gene = action_2_min_max(gene[1])
+                action_1_min = min(max(action_1_min_legal, action_1_min_gene), min(action_1_max_legal, action_1_max_gene))
+                action_1_max = max(min(action_1_max_legal, action_1_max_gene), max(action_1_min_legal, action_1_min_gene))
+                action_2_min = min(max(action_2_min_legal, action_2_min_gene), min(action_2_max_legal, action_2_max_gene))
+                action_2_max = max(min(action_2_max_legal, action_2_max_gene), max(action_2_min_legal, action_2_min_gene))
+                modified_gene = (random.randint(action_1_min, action_1_max),
+                                 random.randint(action_2_min, action_2_max))
                 new_dna.append(modified_gene)
                 previous_action_1 = modified_gene[0]
                 previous_action_2 = modified_gene[1]

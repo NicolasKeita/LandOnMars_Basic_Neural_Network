@@ -29,20 +29,3 @@ if __name__ == '__main__':
 
     weights = learn_weights(mars_surface, init_rocket, env)
     print("----------- Learn Weight ends success")
-    exit(0)
-    while True:
-        turn += 1
-        x, y, hs, vs = compute_next_turn_rocket(rocket)
-        #legal_actions = create_legal_actions(rocket.rotation, rocket.power)  # TODO unused
-        rocket = Rocket(x, y, hs, vs, rocket.state.fuel, rocket.state.rotation, rocket.state.power)
-        time.sleep(0.1)
-        if rocket.y <= 0:
-            break
-        rotation_chosen = rocket.rotation
-        power_chosen = rocket.power
-        print(
-            f"Turn: {turn} nextX: {rocket.x} nextY: {rocket.y} My actions. Rocket Rotation: {rocket.rotation} Rocket Power: {rocket.power}")
-        scatter.set_offsets([rocket.x, rocket.y])
-        plt.pause(0.01)
-
-    print(mars_surface, file=sys.stderr)
