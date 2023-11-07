@@ -8,23 +8,26 @@ def get_landing_spot_distance(x, landing_spot_left_x, landing_spot_right_x):
                                                                           abs(x - landing_spot_right_x))
 
 
-#initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
+# initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
 def reward_function(state):
-    rocket_pos_x = state[0]
-    rocket_pos_y = state[1]
+    rocket_pos_x = round(state[0])
+    rocket_pos_y = round(state[1])
+    hs = state[2]
+    vs = state[3]
     remaining_fuel = state[4]
+    rotation = state[5]
     env = state[7]
     landing_spot = state[8]
-    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
+    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x) # TODO only compute this when needed
 
-
-    if landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y:  # TODO fix accuracy for reward
-        # print("GOOD", rocket_pos_x)
+    if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
+            rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
+        print("GOOD", rocket_pos_x, remaining_fuel)
         return remaining_fuel, True
     if (rocket_pos_y < 0 or rocket_pos_y > 3000 or rocket_pos_x < 0 or rocket_pos_x > 7000
             or env[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
-        # print("CRASH", rocket_pos_x)
-        return -dist, True
+        # print("CRASH", rocket_pos_x, dist, rotation, vs, hs, remaining_fuel)
+        return -dist - abs(rotation) - abs(vs) - abs(hs), True
     return 0, False
 
 
@@ -37,8 +40,8 @@ def compute_next_state(state, action: tuple[int, int]):
     new_x = state[0] + new_horizontal_speed - x_acceleration * 0.5
     new_y = state[1] + new_vertical_speed + y_acceleration * 0.5 + GRAVITY
     remaining_fuel = state[4] - action[0]
-    new_state = (round(new_x), round(new_y), new_horizontal_speed,
-                 new_vertical_speed,remaining_fuel, action[1],
+    new_state = (new_x, new_y, new_horizontal_speed,
+                 new_vertical_speed, remaining_fuel, action[1],
                  action[0], state[7], state[8])
     return new_state
 
@@ -53,7 +56,7 @@ def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: in
     for gene in dna:
         state = compute_next_state(state, gene)
         scatter.set_offsets([state[0], state[1]])
-        #plt.pause(0.001)
+        # plt.pause(0.001)
         immediate_reward, is_terminal_state = reward_function(state)
         state_value += immediate_reward
         if is_terminal_state:

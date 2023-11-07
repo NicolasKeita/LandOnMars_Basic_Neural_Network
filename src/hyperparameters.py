@@ -20,13 +20,13 @@ GRAVITY = 3.711
 # TODO create class GeneticAlgorithm and give this during init
 # Genetic Algorithm Parameters
 population_size = 10
-generations_count = 100
-mutation_rate = 0.1
-dna_size = 100  # finite_horizon TODO (mars lander is 800 max CHANGE IT)
+generations_count = 1000
+mutation_rate = 0.2
+dna_size = 200  # finite_horizon TODO (mars lander is 800 max CHANGE IT)
 
 # Define the range of x values to search within
-ACTION_1_INIT_RANGE = (-90, 90)
-ACTION_2_INIT_RANGE = (0, 4)
+ACTION_2_INIT_RANGE = (-90, 90)
+ACTION_1_INIT_RANGE = (0, 4)
 
 
 def action_2_min_max(old_rota: int) -> tuple[int, int]:

@@ -1,25 +1,44 @@
 import random
 from typing import Callable
 
-from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max, population_size
+from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max, population_size, ACTION_1_INIT_RANGE, \
+    ACTION_2_INIT_RANGE
 from src.mars_landing import fitness_function
 
 
 # # action_ranges is a list of tuples, each containing the min and max values for an action.
 def initialize_population(population_size: int,
                           action_ranges: list[tuple[int | float, int | float]]) -> list[list[tuple[int | float, ...]]]:
+
     population = []
     for _ in range(population_size):
-        dna = [
-            tuple([
-                random.randint(min_val, max_val) if isinstance(min_val, int) and isinstance(max_val, int)
-                else random.uniform(min_val, max_val)
-                for min_val, max_val in action_ranges
-            ])
-            for _ in range(dna_size)
-        ]
+        dna = []
+        # TODO future adapt to 3 or 4 actions,etc... and TODO if float random.uniform instead of randint
+        previous_action_1 = random.randint(ACTION_1_INIT_RANGE[0], ACTION_1_INIT_RANGE[1])
+        previous_action_2 = random.randint(ACTION_2_INIT_RANGE[0], ACTION_2_INIT_RANGE[1])
+        for _ in range(dna_size):
+            action_1_min, action_1_max = action_1_min_max(previous_action_1)
+            action_2_min, action_2_max = action_2_min_max(previous_action_2)
+            gene = random.randint(action_1_min, action_1_max), random.randint(action_2_min, action_2_max)
+            previous_action_1 = gene[0]
+            previous_action_2 = gene[1]
+            dna.append(gene)
         population.append(dna)  # TODO Check if I can change dna to a tuple
     return population
+
+
+    # population = []
+    # for _ in range(population_size):
+    #     dna = [
+    #         tuple([
+    #             random.randint(min_val, max_val) if isinstance(min_val, int) and isinstance(max_val, int)
+    #             else random.uniform(min_val, max_val)
+    #             for min_val, max_val in action_ranges
+    #         ])
+    #         for _ in range(dna_size)
+    #     ]
+    #     population.append(dna)  # TODO Check if I can change dna to a tuple
+    # return population
 
 
 def evaluate_population(population: list[list[tuple[int | float, ...]]],
@@ -54,11 +73,15 @@ def mutate_population(population_dna: list[list[tuple[int | float, ...]]], mutat
     for dna in population_dna:
         if random.random() < mutation_rate:
             new_dna = []
+            previous_action_1 = dna[0][0]
+            previous_action_2 = dna[0][1]
             for gene in dna:  # TODO future adapt to 3 or 4 actions,etc...
-                action_1_min, action_1_max = action_1_min_max(gene[0])
-                action_2_min, action_2_max = action_2_min_max(gene[1])
+                action_1_min, action_1_max = action_1_min_max(previous_action_1)
+                action_2_min, action_2_max = action_2_min_max(previous_action_2)
                 modified_gene = random.randint(action_1_min, action_1_max), random.randint(action_2_min, action_2_max)
                 new_dna.append(modified_gene)
+                previous_action_1 = modified_gene[0]
+                previous_action_2 = modified_gene[1]
             mutated_population.append(new_dna)
         else:
             mutated_population.append(dna)
