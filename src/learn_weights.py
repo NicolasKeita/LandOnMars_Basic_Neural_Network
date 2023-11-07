@@ -40,7 +40,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
     for generation in range(generations_count):
-        #TODO RECALL put evaluate in a class
+        # TODO RECALL put evaluate in a class
         fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
         selected_population = select_population(population, fitness_scores)
         population = crossover_population(selected_population)

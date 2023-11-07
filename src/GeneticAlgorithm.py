@@ -1,12 +1,13 @@
 import random
 from typing import Callable
 
-from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max
+from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max, population_size
 from src.mars_landing import fitness_function
 
 
 # # action_ranges is a list of tuples, each containing the min and max values for an action.
-def initialize_population(population_size: int, action_ranges: list[tuple[int | float, int | float]]) -> list[list[tuple[int | float, ...]]]:
+def initialize_population(population_size: int,
+                          action_ranges: list[tuple[int | float, int | float]]) -> list[list[tuple[int | float, ...]]]:
     population = []
     for _ in range(population_size):
         dna = [
@@ -33,7 +34,22 @@ def select_population(population: list[list[tuple[int | float, ...]]], fitness_s
     return sorted_population[:n_elites]
 
 
-def crossover_population(population_survivors):
+# TODO introduce some Classes. Types makes no senses
+def crossover_population(population_survivors: list[list[tuple[int | float, ...]]]):
+    offspring = []
+
+    while len(offspring) < population_size - len(population_survivors):
+        parent1 = random.choice(population_survivors)
+        parent2 = random.choice(population_survivors)
+        crossover_point = random.randint(1, min(len(parent1), len(parent2)) - 1)
+        child1 = parent1[:crossover_point] + parent2[crossover_point:]
+        child2 = parent2[:crossover_point] + parent1[crossover_point:]
+        offspring.extend([child1, child2])
+    offspring.extend(population_survivors)
+    return offspring
+
+
+    crossover_point = random.randint(1, len(population_survivors[0]))
     return population_survivors
     next_gen_population = []
     return next_gen_population
