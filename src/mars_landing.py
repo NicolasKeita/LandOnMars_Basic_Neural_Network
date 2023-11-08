@@ -1,6 +1,6 @@
 import math
 from matplotlib import pyplot as plt, cm
-from src.hyperparameters import GRAVITY
+from src.hyperparameters import GRAVITY, action_1_min_max, action_2_min_max, limit_actions
 
 
 def get_landing_spot_distance(x, landing_spot_left_x, landing_spot_right_x):
@@ -16,21 +16,17 @@ def normalize_unsuccessful_rewards(state):
     rotation = state[5]
     landing_spot = state[8]
     dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
-    norm_dist = min(1 - dist / 500, 1)
+    norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
     norm_rotation = 1 - abs(rotation) / 90
-    norm_vs = None
-    if abs(vs) < 37:
-        norm_vs = 1
-    elif abs(vs) > 100:
-        norm_vs = 0
-    else:
-        norm_vs = 1 - ((100 - abs(vs)) / (100 - 37))
-    # print(norm_vs, vs)
-    # norm_vs = 1 if abs(vs) < 37 else min(1 - abs(vs) / 100 - 37, 0)
-    norm_hs = 1 if abs(hs) < 17 else min(1 - abs(hs) / 17, 0)
-
-    print("CRASH x=", rocket_pos_x, ' dist=', dist, ' rot=', rotation, vs, hs, remaining_fuel, 3 * norm_vs)
-    return 1 * norm_dist + 1 * norm_rotation + 3 * norm_vs + 1 * norm_hs
+    norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (120 - 37)
+    norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)
+    print("CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs, remaining_fuel,
+          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
+    if dist != 0:
+        return 1 * norm_dist
+    if rotation != 0:
+        return 1 * norm_dist + norm_rotation
+    return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
 
 
 # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
@@ -47,7 +43,7 @@ def reward_function(state):
     if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
             rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
         print("GOOD", rocket_pos_x, remaining_fuel)
-        return remaining_fuel, True
+        return remaining_fuel * 10, True
     if (rocket_pos_y < 0 or rocket_pos_y > 3000 or rocket_pos_x < 0 or rocket_pos_x > 7000
             or env[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
         return normalize_unsuccessful_rewards(state), True
@@ -55,17 +51,18 @@ def reward_function(state):
 
 
 def compute_next_state(state, action: tuple[int, int]):
-    radians = action[1] * (math.pi / 180)
-    x_acceleration = math.sin(radians) * action[0]
-    y_acceleration = math.cos(radians) * action[0] - GRAVITY
+    rot, thrust = limit_actions(state[5], state[6], action)
+    radians = rot * (math.pi / 180)
+    x_acceleration = math.sin(radians) * thrust
+    y_acceleration = math.cos(radians) * thrust - GRAVITY
     new_horizontal_speed = state[2] - x_acceleration
     new_vertical_speed = state[3] + y_acceleration
     new_x = state[0] + new_horizontal_speed - x_acceleration * 0.5
     new_y = state[1] + new_vertical_speed + y_acceleration * 0.5 + GRAVITY
-    remaining_fuel = state[4] - action[0]
+    remaining_fuel = state[4] - thrust
     new_state = (new_x, new_y, new_horizontal_speed,
-                 new_vertical_speed, remaining_fuel, action[1],
-                 action[0], state[7], state[8])
+                 new_vertical_speed, remaining_fuel, rot,
+                 thrust, state[7], state[8])
     return new_state
 
 
@@ -76,12 +73,21 @@ def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: in
     cmap = cm.get_cmap('Set1')
     color = cmap(generation_id)
     scatter = plt.scatter(2500, 2700, color=color, label='Rocket')
+    # print(dna)
     for gene in dna:
+        # print(state[:7])
+        # print(gene)
         state = compute_next_state(state, gene)
+        # print(state[:7])
+        # exit(0)
         scatter.set_offsets([state[0], state[1]])
         # plt.pause(0.001)
         immediate_reward, is_terminal_state = reward_function(state)
-        state_value += immediate_reward
+        state_value = immediate_reward
+        if state_value > 100:
+            print(dna)
+            print(state)
+            exit(0)
         if is_terminal_state:
             break
     return state_value

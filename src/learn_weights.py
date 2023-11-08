@@ -1,5 +1,5 @@
 from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
-    crossover_population
+    crossover_population_1_k_point, uniform_crossover_population
 from src.Point2D import Point2D
 from src.Rocket import Rocket
 from src.create_environment import create_env
@@ -44,9 +44,13 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
         # TODO RECALL put evaluate in a class
         fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
         selected_population = select_population(population, fitness_scores)
-        population = crossover_population(selected_population)
+        # population = crossover_population_1_k_point(selected_population)
+        population = uniform_crossover_population(selected_population)
+
         population = mutate_population(population, mutation_rate)
+        population.extend(selected_population)
         # print('gen count', generation)
 
+    fitness_scores = evaluate_population(population, fitness_function, initial_state)
     best_chromosome = population[fitness_scores.index(max(fitness_scores))]
     print(best_chromosome)
