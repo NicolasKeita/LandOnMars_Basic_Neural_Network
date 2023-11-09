@@ -22,10 +22,11 @@ def normalize_unsuccessful_rewards(state):
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)
     print("CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs, remaining_fuel,
           "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
+    # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
     if dist != 0:
         return 1 * norm_dist
     if rotation != 0:
-        return 1 * norm_dist + norm_rotation
+        return 1 * norm_dist + 1 * norm_rotation
     return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
 
 
@@ -67,21 +68,18 @@ def compute_next_state(state, action: tuple[int, int]):
 
 
 # TODO namespace mars_landing
+# TODO remove useless param
 # AKA state-value function V_pi(s)
 def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: int) -> int:
     state_value = 0
-    cmap = cm.get_cmap('Set1')
-    color = cmap(generation_id)
-    scatter = plt.scatter(2500, 2700, color=color, label='Rocket')
+    trajectory_x = [state[0]]
+    trajectory_y = [state[1]]
+
     # print(dna)
     for gene in dna:
-        # print(state[:7])
-        # print(gene)
         state = compute_next_state(state, gene)
-        # print(state[:7])
-        # exit(0)
-        scatter.set_offsets([state[0], state[1]])
-        # plt.pause(0.001)
+        trajectory_x.append(state[0])
+        trajectory_y.append(state[1])
         immediate_reward, is_terminal_state = reward_function(state)
         state_value = immediate_reward
         if state_value > 100:
@@ -90,4 +88,4 @@ def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: in
             exit(0)
         if is_terminal_state:
             break
-    return state_value
+    return state_value, trajectory_x, trajectory_y

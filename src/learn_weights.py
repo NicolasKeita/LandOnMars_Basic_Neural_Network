@@ -39,18 +39,19 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     create_graph(mars_surface, 'Landing on Mars')
 
     population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
-    fitness_scores = None
+    fitness_scores: list[float] = []
     for generation in range(generations_count):
         # TODO RECALL put evaluate in a class
         fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
         selected_population = select_population(population, fitness_scores)
         # population = crossover_population_1_k_point(selected_population)
         population = uniform_crossover_population(selected_population)
-
         population = mutate_population(population, mutation_rate)
+
         population.extend(selected_population)
         # print('gen count', generation)
 
     fitness_scores = evaluate_population(population, fitness_function, initial_state)
     best_chromosome = population[fitness_scores.index(max(fitness_scores))]
     print(best_chromosome)
+    print("score : ", max(fitness_scores))

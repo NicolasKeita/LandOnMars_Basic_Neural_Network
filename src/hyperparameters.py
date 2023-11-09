@@ -4,8 +4,8 @@ GRAVITY = 3.711
 # TODO create class GeneticAlgorithm and give this during init
 # Genetic Algorithm Parameters
 population_size = 10
-generations_count = 20000
-mutation_rate = 0.4
+generations_count = 2000
+mutation_rate = 0.8
 dna_size = 100  # finite_horizon TODO (mars lander is 800 max CHANGE IT)
 
 # Define the range of x values to search within
