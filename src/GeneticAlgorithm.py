@@ -4,6 +4,7 @@ from typing import Callable
 from matplotlib import cm, pyplot as plt
 from matplotlib.axes import Axes
 
+from src.graph_handler import display_graph
 from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max, population_size
 from src.mars_landing import fitness_function
 
@@ -42,59 +43,46 @@ def initialize_population(population_size: int,
     #     population.append(dna)  # TODO Check if I can change dna to a tuple
     # return population
 
-
+# TODO fix type
 def evaluate_population(population: list[list[tuple[int | float, ...]]],
-                        fitness_function: Callable[[tuple, list[tuple], int], int],
+                        fitness_function: Callable[[tuple, list[tuple]], tuple[int, list[float], list[float]]],
                         initial_state: tuple,
                         generation_id: int = 0) -> list[float]:
-    result = []
+    result: list[float] = []
     trajectories = []
-    cmap = cm.get_cmap('Set1')
-    color = cmap(generation_id)
-
-    ax: Axes = plt.gca()
-
-    # Clear previous trajectories
-    for line in ax.lines:
-        if line.get_label() != 'Mars Surface':
-            line.remove()
-
 
     for dna in population:
-        state_value, trajectory_x, trajectory_y = fitness_function(initial_state, dna, generation_id)
+        state_value, trajectory_x, trajectory_y = fitness_function(initial_state, dna)
         result.append(state_value)
         trajectories.append((trajectory_x, trajectory_y))
 
-
-    for trajectory in trajectories:
-        plt.plot(trajectory[0], trajectory[1], marker='o', markersize=2, color=color, label=f'Rocket {generation_id}')
-        plt.pause(0.001)
+    display_graph(trajectories, generation_id)
     return result
 
 
-def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:
-    n_elites = 2
-    tournament_size = 5  # Adjust the tournament size as needed
-
-    selected_population = []
-
-    while len(selected_population) < n_elites:
-        # Randomly select individuals for the tournament
-        tournament_individuals = random.sample(population, tournament_size)
-        tournament_scores = [fitness_scores[population.index(individual)] for individual in tournament_individuals]
-
-        # Select the winner of the tournament based on fitness scores
-        winner_index = tournament_scores.index(max(tournament_scores))
-        winner = tournament_individuals[winner_index]
-
-        # Add the winner to the selected population
-        selected_population.append(winner)
-    return selected_population
-
-# def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[float]) -> list[list[tuple[int | float, ...]]]:
+# def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:
 #     n_elites = 2
-#     sorted_population = [chromosome for score, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
-#     return sorted_population[:n_elites]
+#     tournament_size = 5  # Adjust the tournament size as needed
+#
+#     selected_population = []
+#
+#     while len(selected_population) < n_elites:
+#         # Randomly select individuals for the tournament
+#         tournament_individuals = random.sample(population, tournament_size)
+#         tournament_scores = [fitness_scores[population.index(individual)] for individual in tournament_individuals]
+#
+#         # Select the winner of the tournament based on fitness scores
+#         winner_index = tournament_scores.index(max(tournament_scores))
+#         winner = tournament_individuals[winner_index]
+#
+#         # Add the winner to the selected population
+#         selected_population.append(winner)
+#     return selected_population
+
+def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[float]) -> list[list[tuple[int | float, ...]]]:
+    n_elites = 20
+    sorted_population = [chromosome for score, chromosome in sorted(zip(fitness_scores, population), reverse=True)]
+    return sorted_population[:n_elites]
 
 
 # TODO introduce some Classes or check create custom type for type hinting only. current list[list[list[Types makes no senses

@@ -3,7 +3,7 @@ from src.GeneticAlgorithm import initialize_population, evaluate_population, sel
 from src.Point2D import Point2D
 from src.Rocket import Rocket
 from src.create_environment import create_env
-from src.create_graph import create_graph
+from src.graph_handler import create_graph
 from src.hyperparameters import population_size, generations_count, mutation_rate
 from src.mars_landing import fitness_function
 

@@ -68,14 +68,12 @@ def compute_next_state(state, action: tuple[int, int]):
 
 
 # TODO namespace mars_landing
-# TODO remove useless param
 # AKA state-value function V_pi(s)
-def fitness_function(state: tuple, dna: list[tuple[int, int]], generation_id: int) -> int:
+def fitness_function(state: tuple, dna: list[tuple[int, int]]) -> tuple[int, list[float], list[float]]:
     state_value = 0
     trajectory_x = [state[0]]
     trajectory_y = [state[1]]
 
-    # print(dna)
     for gene in dna:
         state = compute_next_state(state, gene)
         trajectory_x.append(state[0])
