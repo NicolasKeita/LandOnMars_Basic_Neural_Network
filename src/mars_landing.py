@@ -83,6 +83,7 @@ def fitness_function(state: tuple, dna: list[tuple[int, int]]) -> tuple[int, lis
         if state_value > 100:
             print(dna)
             print(state)
+            print("maxima found")
             exit(0)
         if is_terminal_state:
             break

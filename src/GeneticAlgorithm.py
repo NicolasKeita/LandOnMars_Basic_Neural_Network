@@ -1,9 +1,12 @@
 import random
 from typing import Callable
 
+from keras import Sequential
 from matplotlib import cm, pyplot as plt
 from matplotlib.axes import Axes
+from sklearn.model_selection import train_test_split
 
+from src.ANN import create_neural_network
 from src.graph_handler import display_graph
 from src.hyperparameters import dna_size, action_1_min_max, action_2_min_max, population_size
 from src.mars_landing import fitness_function
@@ -12,7 +15,8 @@ from src.mars_landing import fitness_function
 # # action_ranges is a list of tuples, each containing the min and max values for an action.
 def initialize_population(population_size: int,
                           action_ranges: list[tuple[int | float, int | float]]) -> list[list[tuple[int | float, ...]]]:
-
+    population = [create_neural_network() for _ in range(population_size)]
+    return population
     population = []
     for _ in range(population_size):
         dna = []
@@ -43,21 +47,50 @@ def initialize_population(population_size: int,
     #     population.append(dna)  # TODO Check if I can change dna to a tuple
     # return population
 
+
+def evaluate_neural_network(model, train_data, train_labels, val_data, val_labels):
+    # Train the model using backpropagation
+    model.fit(train_data, train_labels, epochs=50, verbose=0)
+
+    # Evaluate the performance on the validation set
+    loss, accuracy = model.evaluate(val_data, val_labels)
+    return accuracy
+
+
 # TODO fix type
-def evaluate_population(population: list[list[tuple[int | float, ...]]],
-                        fitness_function: Callable[[tuple, list[tuple]], tuple[int, list[float], list[float]]],
+# def evaluate_population(population: list[list[tuple[int | float, ...]]],
+#                         fitness_function: Callable[[tuple, list[tuple]], tuple[int, list[float], list[float]]],
+#                         initial_state: tuple,
+#                         generation_id: int = 0) -> list[float]:
+#     result: list[float] = []
+#     trajectories = []
+#
+#     for dna in population:
+#         state_value, trajectory_x, trajectory_y = fitness_function(initial_state, dna)
+#         result.append(state_value)
+#         trajectories.append((trajectory_x, trajectory_y))
+#
+#     display_graph(trajectories, generation_id)
+#     return result
+def evaluate_population(population: list[Sequential],
+                        train_data,
+                        train_labels,
+                        val_data,
+                        val_labels,
                         initial_state: tuple,
                         generation_id: int = 0) -> list[float]:
     result: list[float] = []
-    trajectories = []
+    # trajectories = []
 
     for dna in population:
-        state_value, trajectory_x, trajectory_y = fitness_function(initial_state, dna)
-        result.append(state_value)
-        trajectories.append((trajectory_x, trajectory_y))
+        # state_value, trajectory_x, trajectory_y = fitness_function(initial_state, dna)
+        accuracy = evaluate_neural_network(dna, train_data, train_labels, val_data, val_labels)
+        result.append(accuracy)
+        # trajectories.append((trajectory_x, trajectory_y))
 
-    display_graph(trajectories, generation_id)
+    # display_graph(trajectories, generation_id)
     return result
+
 
 
 # def select_population(population: list[list[tuple[int | float, ...]]], fitness_scores: list[int]) -> list[list[tuple[int | float, ...]]]:

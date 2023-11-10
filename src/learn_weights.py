@@ -1,3 +1,6 @@
+from sklearn.model_selection import train_test_split
+
+from src.genetic_ann import *
 from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
     crossover_population_1_k_point, uniform_crossover_population
 from src.Point2D import Point2D
@@ -6,6 +9,7 @@ from src.create_environment import create_env
 from src.graph_handler import create_graph
 from src.hyperparameters import population_size, generations_count, mutation_rate
 from src.mars_landing import fitness_function
+import pandas as pd
 
 # TODO move this info somewhere else:
 # RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
@@ -22,12 +26,47 @@ from src.mars_landing import fitness_function
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
 
-
 def find_landing_spot(mars_surface: list[Point2D]) -> tuple[Point2D, Point2D]:
     for i in range(len(mars_surface) - 1):
         if mars_surface[i + 1].y == mars_surface[i].y:
             return mars_surface[i], mars_surface[i + 1]
     raise Exception('no landing site on test-case data')
+
+# # store all active ANNs
+# networks = []
+# pool = []
+# # Generation counter
+# generation = 0
+# # Initial Population
+# population = 10
+# for i in range(population):
+#     networks.append(ANN())
+# # Track Max Fitness
+# max_fitness = 0
+# # Store Max Fitness Weights
+# optimal_weights = []
+
+data = {
+    'Feature1': [1, 2, 3, 4, 5],
+    'Feature2': [10, 20, 30, 40, 50],
+    'Feature3': [100, 200, 300, 400, 500],
+    # ... add more features as needed
+    'Label': [0, 1, 0, 1, 0]
+}
+
+df = pd.DataFrame(data)
+
+# Save the DataFrame to diabetes.txt
+df.to_csv('diabetes.txt', sep='\t', index=False)
+
+
+df = df.fillna(1)
+train_feature = df[:576]
+
+data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+labels = np.array([0, 1, 1, 0])
+train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=0.25, random_state=42)
+
 
 
 def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
@@ -38,13 +77,26 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     create_graph(mars_surface, 'Landing on Mars')
 
-    population = initialize_population(population_size, [(0, 4), (-90, 90)])  # TODO reduce rotation and thrust LATER DURING NEXT SELECTION -+15% MAX
+    # population = [create_neural_network() for _ in range(population_size)]
+    population = initialize_population(population_size, [(0, 4), (-90, 90)])
+    # networks = []
+    # for i in range(population_size):
+    #     networks.append(ANN())
     fitness_scores: list[float] = []
     for generation in range(generations_count):
+        # for ann in networks:
+        #     pass
+            # Propagate to calculate fitness score
+            # ann.forward_propagation(train_feature, train_label)
+            # Add to pool after calculating fitness
+            # pool.append(ann)
+
         # TODO RECALL put evaluate in a class
-        fitness_scores = evaluate_population(population, fitness_function, initial_state, generation)
+        fitness_scores = evaluate_population(population, train_data, train_labels, val_data, val_labels, initial_state, generation)
         selected_population = select_population(population, fitness_scores)
         # population = crossover_population_1_k_point(selected_population)
+        if generation == generations_count - 1:  # TODO -1 right?
+            break
         population = uniform_crossover_population(selected_population)
         population = mutate_population(population, mutation_rate)
 
