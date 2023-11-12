@@ -2,6 +2,7 @@ import math
 import random
 
 import numpy as np
+from itertools import product
 
 from src.Point2D import Point2D
 from src.hyperparameters import limit_actions, GRAVITY
@@ -31,22 +32,26 @@ class RocketLandingEnv:
         # self.observation_space_shape = 7
         self.feature_amount = 11
         self.action_space_n = 90 + 90 * 5
-        self.action_space_sample = lambda: (random.randint(0, 4), random.randint(-90, 90))
+        rot = range(-90, 91)
+        thrust = range(5)
+        self.action_space = list(product(rot, thrust))
+        # self.action_space_sample = lambda: (random.randint(0, 4), random.randint(-90, 90))
+        self.action_space_sample = lambda: random.randint(0, self.action_space_n)
         self.initial_state = initial_state
-        self.landing_spot = landing_spot
         self.state = np.array(initial_state)
+        self.landing_spot = landing_spot
         # self.landing_spot_left_x = landing_spot[0].x
+        self.grid = grid
 
     def reset(self):
         self.state = np.array(self.initial_state)
         return self.state
 
-    def step(self, action):
+    def step(self, action_index: int):
+        action = self.action_space[action_index]
         next_state = compute_next_state(self.state, action)
         self.state = next_state
-        print(next_state)
-        reward = None
-        done = False
+        reward, done = reward_function(next_state, self.grid, self.landing_spot)
         return next_state, reward, done
 
 
@@ -64,3 +69,51 @@ def compute_next_state(state, action: tuple[int, int]):
                  new_vertical_speed, remaining_fuel, rot,
                  thrust)
     return new_state
+
+
+# initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
+def reward_function(state, grid, landing_spot) -> (float, bool):
+    rocket_pos_x = round(state[0])
+    rocket_pos_y = round(state[1])
+    hs = state[2]
+    vs = state[3]
+    remaining_fuel = state[4]
+    rotation = state[5]
+    # env = state[7]
+    # landing_spot = state[8]
+
+    if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
+            rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
+        print("GOOD", rocket_pos_x, remaining_fuel)
+        return remaining_fuel * 10, True
+    if (rocket_pos_y < 0 or rocket_pos_y > 3000 or rocket_pos_x < 0 or rocket_pos_x > 7000
+            or grid[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
+        return normalize_unsuccessful_rewards(state, landing_spot), True
+    return 0, False
+
+
+def normalize_unsuccessful_rewards(state, landing_spot):
+    rocket_pos_x = round(state[0])
+    hs = state[2]
+    vs = state[3]
+    remaining_fuel = state[4]  # TODO maybe include ?
+    rotation = state[5]
+    # landing_spot = state[8]
+    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
+    norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
+    norm_rotation = 1 - abs(rotation) / 90
+    norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (120 - 37)
+    norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)
+    print("CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs, remaining_fuel,
+          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
+    # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
+    if dist != 0:
+        return 1 * norm_dist
+    if rotation != 0:
+        return (1 * norm_dist + 1 * norm_rotation) / 2
+    return (1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs) / 4
+
+
+def get_landing_spot_distance(x, landing_spot_left_x, landing_spot_right_x):
+    return 0 if landing_spot_left_x <= x <= landing_spot_right_x else min(abs(x - landing_spot_left_x),
+                                                                          abs(x - landing_spot_right_x))

@@ -28,6 +28,7 @@ import gym
 # Planning = Compute a policy given a model - Value iteration / Policy iteration / dynamic programming - Policy Search / Q learning / dynamic programming - Approximate planning
 
 # Classical control algorithm (PID / LQR / MPC) vs RL control algorithms
+# bias = constant features
 
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
