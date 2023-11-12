@@ -1,15 +1,19 @@
 from sklearn.model_selection import train_test_split
 
-from src.genetic_ann import *
-from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
-    crossover_population_1_k_point, uniform_crossover_population
+# from src.genetic_ann import *
+# from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
+#     crossover_population_1_k_point, uniform_crossover_population
 from src.Point2D import Point2D
 from src.Rocket import Rocket
-from src.create_environment import create_env
+from src.create_environment import RocketLandingEnv, create_env
 from src.graph_handler import create_graph
-from src.hyperparameters import population_size, generations_count, mutation_rate
-from src.mars_landing import fitness_function
-import pandas as pd
+# from src.create_environment import create_env, RocketLandingEnv
+# from src.graph_handler import create_graph
+# from src.hyperparameters import population_size, generations_count, mutation_rate
+from src.linearQ import LinearQAgent
+# from src.mars_landing import fitness_function
+# import pandas as pd
+import gym
 
 # TODO move this info somewhere else:
 # RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
@@ -21,7 +25,9 @@ import pandas as pd
 #
 # then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
 
-# Model to -> Policy = Planning
+# Planning = Compute a policy given a model - Value iteration / Policy iteration / dynamic programming - Policy Search / Q learning / dynamic programming - Approximate planning
+
+# Classical control algorithm (PID / LQR / MPC) vs RL control algorithms
 
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
@@ -54,28 +60,23 @@ data = {
     'Label': [0, 1, 0, 1, 0]
 }
 
-df = pd.DataFrame(data)
-
-# Save the DataFrame to diabetes.txt
-df.to_csv('diabetes.txt', sep='\t', index=False)
-
-
-df = df.fillna(1)
-train_feature = df[:576]
-
-data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-labels = np.array([0, 1, 1, 0])
-train_data, val_data, train_labels, val_labels = train_test_split(data, labels, test_size=0.25, random_state=42)
-
 
 
 def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     x_max = 7000
     y_max = 3000
-    env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
+    grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
-    initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
+    # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
+    initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
+    # env = gym.make('CartPole-v1')
+
+    # Create and train the Linear Q-learning agent
+    env = RocketLandingEnv(initial_state, landing_spot, grid)
+    agent = LinearQAgent(env)
+    agent.train(num_episodes=500)
+    exit(0)
 
     # population = [create_neural_network() for _ in range(population_size)]
     population = initialize_population(population_size, [(0, 4), (-90, 90)])
