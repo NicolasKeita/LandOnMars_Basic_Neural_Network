@@ -76,7 +76,17 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # Create and train the Linear Q-learning agent
     env = RocketLandingEnv(initial_state, landing_spot, grid)
     agent = LinearQAgent(env)
-    agent.train(num_episodes=500)
+    agent.train(num_episodes=100)
+    state = env.reset()
+    arr = []
+    while True:
+        action_index = agent.choose_action(state)
+        arr.append(env.action_space[action_index])
+        next_state, reward, done = agent.env.step(action_index)
+        state = next_state
+        if done:
+            break
+    print(arr)
     exit(0)
 
     # population = [create_neural_network() for _ in range(population_size)]

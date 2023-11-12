@@ -31,12 +31,12 @@ class RocketLandingEnv:
     def __init__(self, initial_state: tuple, landing_spot, grid):
         # self.observation_space_shape = 7
         self.feature_amount = 11
-        self.action_space_n = 90 + 90 * 5
+        self.action_space_n = (90 + 90) * 4
         rot = range(-90, 91)
         thrust = range(5)
         self.action_space = list(product(rot, thrust))
         # self.action_space_sample = lambda: (random.randint(0, 4), random.randint(-90, 90))
-        self.action_space_sample = lambda: random.randint(0, self.action_space_n)
+        self.action_space_sample = lambda: random.randint(0, self.action_space_n - 1)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
