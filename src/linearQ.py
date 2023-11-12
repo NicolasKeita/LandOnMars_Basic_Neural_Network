@@ -54,14 +54,21 @@ class LinearQAgent:
 
     def update_weights(self, state, action, reward, next_state, done):
         current_q_value = self.predict_q_value(state, action)
-        next_q_value = np.max([self.predict_q_value(next_state, action_index) for action_index in range(self.env.action_space_n)])
-        target = reward + (1 - int(done)) * self.discount_factor * next_q_value
+        next_state_best_q_value = np.max([self.predict_q_value(next_state, action_index) for action_index in range(self.env.action_space_n)])
+        # target = reward + (1 - int(done)) * self.discount_factor * next_q_value
 
         features = self.feature_extraction(state, action)
-        print(target, current_q_value)
-        error = target - current_q_value
+        # print(target, current_q_value)
+        # error = target - current_q_value
 
-        self.weights += self.learning_rate * error * features[:, np.newaxis]
+        print(features)
+        print(features[:, np.newaxis])
+        print(reward)
+        print(next_state_best_q_value)
+        print(current_q_value)
+        exit(0)
+
+        self.weights = self.weight + self.learning_rate * error * features[:, np.newaxis]
 
     def train(self, num_episodes=1000):
         for episode in range(num_episodes):
