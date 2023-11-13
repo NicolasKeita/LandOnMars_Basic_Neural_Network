@@ -29,18 +29,15 @@ def create_env(surface_points: list[Point2D], x_max: int, y_max: int) -> list[li
 
 class RocketLandingEnv:
     def __init__(self, initial_state: tuple, landing_spot, grid):
-        # self.observation_space_shape = 7
-        self.feature_amount = 11
+        self.feature_amount = 7
         self.action_space_n = (90 + 90) * 4
         rot = range(-90, 91)
         thrust = range(5)
         self.action_space = list(product(rot, thrust))
-        # self.action_space_sample = lambda: (random.randint(0, 4), random.randint(-90, 90))
         self.action_space_sample = lambda: random.randint(0, self.action_space_n - 1)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
-        # self.landing_spot_left_x = landing_spot[0].x
         self.grid = grid
 
     def reset(self):
@@ -71,7 +68,6 @@ def compute_next_state(state, action: tuple[int, int]):
     return new_state
 
 
-# initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
 def reward_function(state, grid, landing_spot) -> (float, bool):
     rocket_pos_x = round(state[0])
     rocket_pos_y = round(state[1])
@@ -79,8 +75,6 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     vs = state[3]
     remaining_fuel = state[4]
     rotation = state[5]
-    # env = state[7]
-    # landing_spot = state[8]
 
     if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
             rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
@@ -96,11 +90,12 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     rocket_pos_x = round(state[0])
     hs = state[2]
     vs = state[3]
-    remaining_fuel = state[4]  # TODO maybe include ?
     rotation = state[5]
-    # landing_spot = state[8]
     dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
     norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
+    print("crash", dist)
+    return norm_dist
+    return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (120 - 37)
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)

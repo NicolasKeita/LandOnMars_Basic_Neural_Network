@@ -1,4 +1,3 @@
-from sklearn.model_selection import train_test_split
 
 # from src.genetic_ann import *
 # from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
@@ -13,7 +12,6 @@ from src.graph_handler import create_graph
 from src.linearQ import LinearQAgent
 # from src.mars_landing import fitness_function
 # import pandas as pd
-import gym
 
 # TODO move this info somewhere else:
 # RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
@@ -76,7 +74,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # Create and train the Linear Q-learning agent
     env = RocketLandingEnv(initial_state, landing_spot, grid)
     agent = LinearQAgent(env)
-    agent.train(num_episodes=20)
+    agent.train(num_episodes=200)
     state = env.reset()
     arr = []
     while True:
