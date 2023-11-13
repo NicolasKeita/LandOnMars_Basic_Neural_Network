@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 
 import numpy as np
 import tensorflow as tf
@@ -24,14 +25,13 @@ class ReplayBuffer:
         self.buffer = []
 
     def add_experience(self, experience):
+        print("ADDING ! ")
+        print(experience)
         self.buffer.append(experience)
         if len(self.buffer) > self.buffer_size:
             self.buffer.pop(0)
 
     def sample_batch(self, batch_size):
-        print("HEREE")
-        print(self.buffer)
-        print(batch_size)
         return np.random.choice(self.buffer, batch_size)
 
 # Define the DQN agent
@@ -100,33 +100,3 @@ class DQNAgent:
                 state = next_state
 
             print(f"Episode: {episode + 1}, Total Reward: {total_reward}")
-
-
-# Main training loop
-# env = gym.make('CartPole-v1')
-# state_size = env.observation_space.shape[0]
-# action_size = env.action_space.n
-#
-# agent = DQNAgent(state_size, action_size)
-#
-# episodes = 1000
-# for episode in range(episodes):
-#     state = env.reset()
-#     state = np.reshape(state, [1, state_size])
-#
-#     total_reward = 0
-#     done = False
-#     while not done:
-#         action = agent.select_action(state)
-#         next_state, reward, done, _ = env.step(action)
-#         next_state = np.reshape(next_state, [1, state_size])
-#
-#         agent.replay_buffer.add_experience((state, action, reward, next_state, done))
-#         agent.train()
-#
-#         total_reward += reward
-#         state = next_state
-#
-#     print(f"Episode: {episode + 1}, Total Reward: {total_reward}")
-#
-# env.close()

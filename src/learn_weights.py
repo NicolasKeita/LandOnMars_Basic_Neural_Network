@@ -16,7 +16,11 @@ from src.linearQ import LinearQAgent
 # TODO move this info somewhere else:
 # RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
 # because
-# I have access to a model (given an action, I am able to predict what next state will be),
+# I have access to a model (given an action, I am able to predict what next state will be), I also am able to observe the next state but more importily I am able to predict,
+# I also have a reward model, able to query a state and assign a reward to it without having to observe it. I can predict it.
+# I can represent my model in different ways :
+# table lookup model...
+# TODO add more, stanford RL lecture 16
 # a reward function (able to know immediate reward, which is 0 all the time expect when actually landing) but
 # I don't have access to a Value Function (no quick way to know the expected reward sum)
 # and there are (finite) actions the agent is able take.
@@ -24,6 +28,11 @@ from src.linearQ import LinearQAgent
 # then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
 
 # Planning = Compute a policy given a model - Value iteration / Policy iteration / dynamic programming - Policy Search / Q learning / dynamic programming - Approximate planning
+# Planning algorithm :
+# Value iteration
+# Policy iteration
+# Tree Search
+# ...
 
 # Classical control algorithm (PID / LQR / MPC) vs RL control algorithms
 # bias = constant features
