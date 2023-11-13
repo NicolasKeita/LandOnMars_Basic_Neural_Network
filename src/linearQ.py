@@ -1,8 +1,12 @@
 import numpy as np
+
+from src.graph_handler import display_graph
+
+
 # import gym
 
 class LinearQAgent:
-    def __init__(self, env, learning_rate=0.01, discount_factor=0.99, exploration_prob=0.1):
+    def __init__(self, env, learning_rate=0.1, discount_factor=0.99, exploration_prob=0.1):
         self.env = env
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
@@ -56,6 +60,7 @@ class LinearQAgent:
         error = target - current_q_value
         delta = reward + self.discount_factor * next_state_best_q_value - current_q_value
         clipped_delta = np.clip(delta, -1.0, 1.0)
+        clipped_delta = delta
         # print(delta)
         # print(self.weights)
         self.weights += self.learning_rate * clipped_delta * gradient[:, np.newaxis]
@@ -91,11 +96,12 @@ class LinearQAgent:
         for episode in range(num_episodes):
             state = self.env.reset()
             total_reward = 0
+            # trajectory = []
 
             while True:
                 action_index = self.choose_action(state)
                 next_state, reward, done = self.env.step(action_index)
-
+                # trajectory.append((next_state[0], next_state[1]))
                 self.update_weights(state, action_index, reward, next_state, done)
 
                 total_reward += reward
@@ -103,5 +109,6 @@ class LinearQAgent:
 
                 if done:
                     break
+            # display_graph(trajectory, episode)
 
             print(f"Episode {episode + 1}/{num_episodes}, Total Reward: {total_reward}")
