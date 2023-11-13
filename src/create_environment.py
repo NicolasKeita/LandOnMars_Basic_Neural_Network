@@ -35,6 +35,7 @@ class RocketLandingEnv:
         thrust = range(5)
         self.action_space = list(product(rot, thrust))
         self.action_space_sample = lambda: random.randint(0, self.action_space_n - 1)
+        self.observation_space_shape = 7000 * 3000
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
@@ -49,7 +50,7 @@ class RocketLandingEnv:
         next_state = compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
-        return next_state, reward, done
+        return next_state, reward, done, 5
 
 
 def compute_next_state(state, action: tuple[int, int]):

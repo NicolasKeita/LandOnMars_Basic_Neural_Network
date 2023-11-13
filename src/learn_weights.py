@@ -1,4 +1,4 @@
-
+from src.DQNAgent import DQNAgent
 # from src.genetic_ann import *
 # from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
 #     crossover_population_1_k_point, uniform_crossover_population
@@ -73,8 +73,11 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
 
     # Create and train the Linear Q-learning agent
     env = RocketLandingEnv(initial_state, landing_spot, grid)
-    agent = LinearQAgent(env)
-    agent.train(num_episodes=200)
+    agent = DQNAgent(env.feature_amount, env.action_space_n, env)
+    # agent = LinearQAgent(env)
+    # agent.train(num_episodes=200)
+    agent.pre_train()
+    exit(97)
     state = env.reset()
     arr = []
     while True:
