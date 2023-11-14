@@ -24,11 +24,14 @@ from src.linearQ import LinearQAgent
 # a reward function (able to know immediate reward, which is 0 all the time expect when actually landing) but
 # I don't have access to a Value Function (no quick way to know the expected reward sum)
 # and there are (finite) actions the agent is able take.
+
+# Despite having a model, I use model-free RL.
 #
 # then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
 # ------------------            Model-free RL        -------------------------#
 # Usage of model-free because I can observe the next state after every action (the known model is allowing me to observe the next state after doing any action)
-# Optimization = Metaheuristic (because the state is enormous), Simulated Annealing?
+# Optimization = Metaheuristic (because the state is enormous)
+#   Ant Colony Optimization algorithm (model-based search)
 
 # -------------------            Model-based RL       ------------------------#
 # Only motive to use model-based RL would be that I have a model and
