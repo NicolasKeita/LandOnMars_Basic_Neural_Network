@@ -26,6 +26,19 @@ from src.linearQ import LinearQAgent
 # and there are (finite) actions the agent is able take.
 #
 # then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
+# ------------------            Model-free RL        -------------------------#
+# Usage of model-free because I can observe the next state after every action (the known model is allowing me to observe the next state after doing any action)
+# Optimization = Metaheuristic (because the state is enormous), Simulated Annealing?
+
+# -------------------            Model-based RL       ------------------------#
+# Only motive to use model-based RL would be that I have a model and
+#   I cannot observe the states during the runs or the simulation or
+#   The state space is small.
+# Special mention for MCTS: that could work but,
+#   I don't have the time (100ms max to compute next action) to even go over 1/100 of the tree and/or
+#   I don't have the knowledge yet to generalize with weights that would fit into less than 50MB (CNN ?)
+
+# Model-free is probably most suited for 90% of the problems
 
 # Planning = Compute a policy given a model - Value iteration / Policy iteration / dynamic programming - Policy Search / Q learning / dynamic programming - Approximate planning
 # Planning algorithm :
