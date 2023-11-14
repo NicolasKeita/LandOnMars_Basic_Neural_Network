@@ -27,11 +27,16 @@ from src.linearQ import LinearQAgent
 
 # Despite having a model, I use model-free RL.
 #
-# then I am exploring MPC algorithm (Model Predictive Control) ... Not rdy yet.
+# ------------------            Metaheuristic        -------------------------#
+# ---           Metaheuristic implicit        -       ------------------------#
+# Seems like genetic algorithm is very good when there are multiple solutions (able quickly visit local-optimas)
+# ---           Metaheuristic explicit        -       ------------------------#
+
 # ------------------            Model-free RL        -------------------------#
 # Usage of model-free because I can observe the next state after every action (the known model is allowing me to observe the next state after doing any action)
-# Optimization = Metaheuristic (because the state is enormous)
-#   Ant Colony Optimization algorithm (model-based search)
+# Optimization - Policy Search
+#   Policy Gradient vs Metaheuristic?
+#       Ant Colony Optimization algorithm (model-based search)
 
 # -------------------            Model-based RL       ------------------------#
 # Only motive to use model-based RL would be that I have a model and
@@ -41,7 +46,7 @@ from src.linearQ import LinearQAgent
 #   I don't have the time (100ms max to compute next action) to even go over 1/100 of the tree and/or
 #   I don't have the knowledge yet to generalize with weights that would fit into less than 50MB (CNN ?)
 
-# Model-free is probably most suited for 90% of the problems
+# Model-free RL is probably most suited for 90% of the problems. I guess that's why there is learning in RL.
 
 # Planning = Compute a policy given a model - Value iteration / Policy iteration / dynamic programming - Policy Search / Q learning / dynamic programming - Approximate planning
 # Planning algorithm :
