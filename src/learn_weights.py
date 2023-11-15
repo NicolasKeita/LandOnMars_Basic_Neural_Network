@@ -97,6 +97,8 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     y_max = 3000
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
+    print(landing_spot)
+    print(Point2D.to_tuples(list(landing_spot)))
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
@@ -108,7 +110,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     my_aco = AntColonyOptimization()
     best_path = my_aco.run(100)
     print("Best Path:", best_path)
-    print("Total Distance:", my_aco.total_distance(best_path[0]))
+    # print("Total Distance:", my_aco.total_distance(best_path[0]))
     # agent = DQNAgent(env.feature_amount, env.action_space_n, env)
     # agent = LinearQAgent(env)
     # agent.train(num_episodes=200)

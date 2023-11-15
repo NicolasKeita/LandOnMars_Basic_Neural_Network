@@ -16,28 +16,60 @@ class AntColonyOptimization:
         self.evaporation_rate = evaporation_rate
         self.alpha = alpha
         self.beta = beta
+        self.n_best = 1
 
     def run(self, n_iterations):
-        best_path = None
-        all_time_best_path = ("placeholder", np.inf)
+        shortest_path = None
+        all_time_shortest_path = ("placeholder", np.inf)
         for i in range(n_iterations):
             all_paths = self.gen_all_paths()
-            self.spread_pheromone(all_paths, self.pheromone, self.all_inds, self.alpha, self.beta)
-            self.pheromone * self.evaporation_rate
-            self.ant_update_pheromone(all_paths, self.pheromone)
-            self.pheromone * self.evaporation_rate
-            if self.total_distance(all_time_best_path[0]) > self.total_distance(all_paths[0]):
-                all_time_best_path = (all_paths[0], self.total_distance(all_paths[0]))
-            best_path = all_time_best_path
-        return best_path
+            self.spread_pheromone(all_paths, self.n_best, shortest_path=shortest_path)
+            shortest_path = min(all_paths, key=lambda x: x[1])
+            # print (shortest_path)
+            if shortest_path[1] < all_time_shortest_path[1]:
+                all_time_shortest_path = shortest_path
+            self.pheromone = self.pheromone * self.evaporation_rate
+        return all_time_shortest_path
+
 
     def gen_all_paths(self):
-        pass
+        all_paths = []
+        for i in range(self.n_ants):
+            path = self.gen_path(0)
+            all_paths.append((path, self.gen_path_dist(path)))
+        return all_paths
 
-    def spread_pheromone(self, a, b, c, d, e):
-        pass
+    def gen_path_dist(self, path):
+        total_dist = 0
+        for ele in path:
+            total_dist += self.distances[ele]
+        return total_dist
 
-    def ant_update_pheromone(self, a , b):
+    def gen_path(self, start):
+        path = []
+        visited = set()
+        visited.add(start)
+        prev = start
+        for i in range(len(self.distances) - 1):
+            move = self.pick_move(self.pheromone[prev], self.distances[prev], visited)
+            path.append((prev, move))
+            prev = move
+            visited.add(move)
+        path.append((prev, start)) # going back to where we started
+        return path
 
-    def total_distance(self, idk):
-        pass
+    def pick_move(self, pheromone, dist, visited):
+        pheromone = np.copy(pheromone)
+        pheromone[list(visited)] = 0
+
+        row = pheromone ** self.alpha * (( 1.0 / dist) ** self.beta)
+
+        norm_row = row / row.sum()
+        move = np.random.choice(self.all_inds, 1, p=norm_row)[0]
+        return move
+
+    def spread_pheromone(self, all_paths, n_best, shortest_path):
+        sorted_paths = sorted(all_paths, key=lambda x: x[1])
+        for path, dist in sorted_paths[:n_best]:
+            for move in path:
+                self.pheromone[move] += 1.0 / self.distances[move]
