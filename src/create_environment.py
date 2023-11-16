@@ -5,7 +5,7 @@ import numpy as np
 from itertools import product
 
 from src.Point2D import Point2D
-from src.hyperparameters import limit_actions, GRAVITY
+from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 
 
 # False = underneath the surface
@@ -51,6 +51,14 @@ class RocketLandingEnv:
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
         return next_state, reward, done, 5
+
+    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, tuple[int, int]]:
+        action_min_max = actions_min_max((old_power_thrust, old_rota))
+        random_action = (
+            random.randint(action_min_max[1][0], action_min_max[1][1]),
+            random.randint(action_min_max[0][0], action_min_max[0][1])
+        )
+        return self.action_space.index(random_action), random_action
 
 
 def compute_next_state(state, action: tuple[int, int]):

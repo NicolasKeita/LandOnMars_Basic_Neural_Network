@@ -38,7 +38,10 @@ from src.linearQ import LinearQAgent
 # Usage of model-free because I can observe the next state after every action (the known model is allowing me to observe the next state after doing any action)
 # Optimization - Policy Search
 #   Policy Gradient methods vs Metaheuristic?
-#       Ant Colony Optimization algorithm (model-based search)
+#       Particle Swarm Optimization algorithm
+#       (special mention for Genetic algorithm,
+#       generating hundreds of individuals each generation
+#       felt too slow to converge)
 
 # -------------------            Model-based RL       ------------------------#
 # Only motive to use model-based RL would be that I have a model and
@@ -107,7 +110,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     env = RocketLandingEnv(initial_state, landing_spot, grid)
 
     # my_aco = AntColonyOptimization()
-    my_pso = ParticleSwarmOptimization()
+    my_pso = ParticleSwarmOptimization(env)
     result = my_pso.run()
     print(result)
     # best_path = my_aco.run(100)

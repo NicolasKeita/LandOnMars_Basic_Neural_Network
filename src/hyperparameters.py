@@ -1,4 +1,6 @@
 # mars
+import random
+
 GRAVITY = 3.711
 
 # TODO create class GeneticAlgorithm and give this during init
@@ -25,7 +27,7 @@ def actions_min_max(action: tuple[int, int]) -> tuple[tuple[int, int], tuple[int
     return action_1_min_max(action[0]), action_2_min_max(action[1])
 
 
-def limit_actions(old_rota: int, old_power_thrust: int, action: tuple[int, int]):
+def limit_actions(old_rota: int, old_power_thrust: int, action: tuple[int, int]) -> tuple[int, int]:
     range_rotation = action_2_min_max(old_rota)
     rot = action[1] if range_rotation[0] <= action[1] <= range_rotation[1] else min(
         max(action[1], range_rotation[0]), range_rotation[1])
