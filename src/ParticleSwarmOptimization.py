@@ -48,7 +48,7 @@ class ParticleSwarmOptimization:
         self.particles_position = None
 
         self.num_particles = 20
-        self.num_dimensions = 8
+        self.num_dimensions = 6
         self.num_iterations = 100
         self.inertia_weight = 0.7
         self.cognitive_param = 1.5
