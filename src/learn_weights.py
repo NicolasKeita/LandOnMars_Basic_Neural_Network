@@ -1,4 +1,5 @@
 from src.AntColonyOptimization import AntColonyOptimization
+from src.ParticleSwarmOptimization import ParticleSwarmOptimization
 # from src.DQNAgent import DQNAgent
 # from src.genetic_ann import *
 # from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
@@ -36,7 +37,7 @@ from src.linearQ import LinearQAgent
 # ------------------            Model-free RL        -------------------------#
 # Usage of model-free because I can observe the next state after every action (the known model is allowing me to observe the next state after doing any action)
 # Optimization - Policy Search
-#   Policy Gradient vs Metaheuristic?
+#   Policy Gradient methods vs Metaheuristic?
 #       Ant Colony Optimization algorithm (model-based search)
 
 # -------------------            Model-based RL       ------------------------#
@@ -97,8 +98,6 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     y_max = 3000
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
-    print(landing_spot)
-    print(Point2D.to_tuples(list(landing_spot)))
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
@@ -107,15 +106,18 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # Create and train the Linear Q-learning agent
     env = RocketLandingEnv(initial_state, landing_spot, grid)
 
-    my_aco = AntColonyOptimization()
-    best_path = my_aco.run(100)
-    print("Best Path:", best_path)
+    # my_aco = AntColonyOptimization()
+    my_pso = ParticleSwarmOptimization()
+    result = my_pso.run()
+    print(result)
+    # best_path = my_aco.run(100)
+    # print("Best Path:", best_path)
     # print("Total Distance:", my_aco.total_distance(best_path[0]))
     # agent = DQNAgent(env.feature_amount, env.action_space_n, env)
     # agent = LinearQAgent(env)
     # agent.train(num_episodes=200)
     # agent.pre_train()
-    exit(97)
+    exit(0)
     state = env.reset()
     arr = []
     while True:
