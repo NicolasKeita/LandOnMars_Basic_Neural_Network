@@ -5,6 +5,7 @@ import numpy as np
 
 from src.Point2D import Point2D
 from src.create_environment import create_env, get_landing_spot_distance, RocketLandingEnv
+from src.graph_handler import display_graph
 
 mars_surface = [Point2D(0, 100), Point2D(1000, 500), Point2D(1500, 1500), Point2D(3000, 1000), Point2D(4000, 150),
                 Point2D(5500, 150), Point2D(6999, 800)]
@@ -87,14 +88,16 @@ class ParticleSwarmOptimization:
     def run(self):
         self.initialize_population()
         # policy_network = PolicyNetwork(720)
-        for _ in range(self.n_episodes):
+        for episode_index in range(self.n_episodes):
             # Evaluate fitness
             # fitness = fitness_function(self.particles_position[i], grid, landing_spot, 5500)
 
             # Evaluate fitness for each particle
             fitness_values = np.zeros(self.n_population)
+            trajectories = []
             for particle_index in range(self.n_population):
-                state_value = evaluate_policy(self.env, self.population[particle_index])
+                state_value, trajectory = evaluate_policy(self.env, self.population[particle_index])
+                trajectories.append(trajectory)
                 fitness_values[particle_index] = state_value
 
                 # Update personal best
@@ -106,6 +109,8 @@ class ParticleSwarmOptimization:
                 if state_value < self.global_best_value:
                     self.global_best_value = state_value
                     self.global_best_policy = copy.deepcopy(self.population[particle_index])  # TODO see if i can skip copying
+
+            display_graph(trajectories, episode_index)
 
             for i, policy_indexes in enumerate(self.population):
                 r1, r2 = np.random.rand(), np.random.rand()
@@ -180,10 +185,13 @@ class ParticleSwarmOptimization:
 #  TODO inheritance the class rocketLanding
 def evaluate_policy(env: RocketLandingEnv, policy):
     cumulated_reward = 0
+    trajectory = []
+    trajectory.append((env.state[0], env.state[1]))
     for action in policy:
-        _, reward, done, _ = env.step(action)
+        next_state, reward, done, _ = env.step(action)
+        trajectory.append((next_state[0], next_state[1]))
         cumulated_reward += reward
         if done:
             break
     env.reset()
-    return cumulated_reward
+    return cumulated_reward, trajectory
