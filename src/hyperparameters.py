@@ -29,9 +29,9 @@ def actions_min_max(action: tuple[int, int]) -> tuple[tuple[int, int], tuple[int
 
 def limit_actions(old_rota: int, old_power_thrust: int, action: tuple[int, int]) -> tuple[int, int]:
     range_rotation = action_2_min_max(old_rota)
-    rot = action[1] if range_rotation[0] <= action[1] <= range_rotation[1] else min(
-        max(action[1], range_rotation[0]), range_rotation[1])
+    rot = action[0] if range_rotation[0] <= action[0] <= range_rotation[1] else min(
+        max(action[0], range_rotation[0]), range_rotation[1])
     range_thrust = action_1_min_max(old_power_thrust)
-    thrust = action[0] if range_thrust[0] <= action[0] <= range_thrust[1] else min(
-        max(action[0], range_thrust[0]), range_thrust[1])
+    thrust = action[1] if range_thrust[0] <= action[1] <= range_thrust[1] else min(
+        max(action[1], range_thrust[0]), range_thrust[1])
     return rot, thrust

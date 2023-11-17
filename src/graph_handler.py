@@ -33,6 +33,6 @@ def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color:
         x_values, y_values = zip(*trajectory)
         plt.plot(x_values, y_values, marker='o',
                  markersize=2, color=color, label=f'Rocket {id_lines_color}')
-        plt.pause(0.001)
+        plt.pause(0.01)
 
 

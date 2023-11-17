@@ -2,6 +2,7 @@ import random
 import copy
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from src.Point2D import Point2D
 from src.create_environment import create_env, get_landing_spot_distance, RocketLandingEnv
@@ -42,24 +43,6 @@ def fitness_function(state, grid, landing_spot, initial_fuel) -> float:
         return fitness_normalize_unsuccessful_rewards(state, landing_spot)
     return 1
 
-#
-# class PolicyNetwork(tf.keras.Model):
-#     def __init__(self, action_space_size):
-#         super(PolicyNetwork, self).__init__()
-#         self.action_space_size = action_space_size
-#
-#         # Define a simple neural network architecture
-#         self.dense1 = layers.Dense(64, activation='relu')
-#         self.dense2 = layers.Dense(64, activation='relu')
-#         self.output_layer = layers.Dense(self.action_space_size, activation='softmax')
-#
-#     def call(self, state):
-#         # Forward pass through the neural network to get action probabilities
-#         x = self.dense1(state)
-#         x = self.dense2(x)
-#         action_probabilities = self.output_layer(x)
-#         return action_probabilities
-
 
 class ParticleSwarmOptimization:
     def __init__(self, env):  # TODO add hyperparams to constructor params
@@ -76,14 +59,14 @@ class ParticleSwarmOptimization:
         self.n_population = 20
         self.num_dimensions = 6
         self.n_episodes = 100
-        self.inertia_weight = 0.7
-        self.cognitive_param = 1.5
-        self.social_param = 1.5
+        self.inertia_weight = 0.5
+        self.cognitive_param = 0.5
+        self.social_param = 0.5
 
         self.personal_weight = 1.5
         self.global_weight = 1.5
 
-        self.horizon_size = 80  # TODO change to 700
+        self.horizon_size = 800  # TODO change to 700
 
     def run(self):
         self.initialize_population()
@@ -98,15 +81,19 @@ class ParticleSwarmOptimization:
             for particle_index in range(self.n_population):
                 state_value, trajectory = evaluate_policy(self.env, self.population[particle_index])
                 trajectories.append(trajectory)
+                # for state in trajectory:
+                #     plt.plot(state[0], state[1], marker='o',
+                #             markersize=2, label=f'Rocket {particle_index}')
+                #     plt.pause(0.001)
                 fitness_values[particle_index] = state_value
 
                 # Update personal best
-                if state_value < self.personal_best_values[particle_index]:
+                if state_value > self.personal_best_values[particle_index]:
                     self.personal_best_values[particle_index] = state_value
                     self.personal_best_policies[particle_index] = copy.deepcopy(self.population[particle_index])
                 #     self.personal_best_positions[i] = self.particles_position[i].copy()
 
-                if state_value < self.global_best_value:
+                if state_value > self.global_best_value:
                     self.global_best_value = state_value
                     self.global_best_policy = copy.deepcopy(self.population[particle_index])  # TODO see if i can skip copying
 
@@ -172,14 +159,14 @@ class ParticleSwarmOptimization:
         self.velocities = velocities
 
         self.personal_best_policies = copy.deepcopy(population)
-        self.personal_best_values = np.array([float('inf')] * self.n_population)
+        self.personal_best_values = np.array([0.0] * self.n_population)
         # self.particles_position = np.random.rand(self.num_particles, self.num_dimensions) * 10
         # self.particles_velocity = np.random.rand(self.num_particles, self.num_dimensions)
         # self.personal_best_positions = self.particles_position.copy()
 
         # self.personal_best_values = np.array([float('inf')] * self.num_particles)
         # self.global_best_position = np.zeros(self.num_dimensions)
-        self.global_best_value = float('inf')
+        self.global_best_value = 0.0
 
 
 #  TODO inheritance the class rocketLanding
