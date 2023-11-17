@@ -2,8 +2,6 @@ import random
 import copy
 
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers
 
 from src.Point2D import Point2D
 from src.create_environment import create_env, get_landing_spot_distance, RocketLandingEnv
@@ -43,23 +41,23 @@ def fitness_function(state, grid, landing_spot, initial_fuel) -> float:
         return fitness_normalize_unsuccessful_rewards(state, landing_spot)
     return 1
 
-
-class PolicyNetwork(tf.keras.Model):
-    def __init__(self, action_space_size):
-        super(PolicyNetwork, self).__init__()
-        self.action_space_size = action_space_size
-
-        # Define a simple neural network architecture
-        self.dense1 = layers.Dense(64, activation='relu')
-        self.dense2 = layers.Dense(64, activation='relu')
-        self.output_layer = layers.Dense(self.action_space_size, activation='softmax')
-
-    def call(self, state):
-        # Forward pass through the neural network to get action probabilities
-        x = self.dense1(state)
-        x = self.dense2(x)
-        action_probabilities = self.output_layer(x)
-        return action_probabilities
+#
+# class PolicyNetwork(tf.keras.Model):
+#     def __init__(self, action_space_size):
+#         super(PolicyNetwork, self).__init__()
+#         self.action_space_size = action_space_size
+#
+#         # Define a simple neural network architecture
+#         self.dense1 = layers.Dense(64, activation='relu')
+#         self.dense2 = layers.Dense(64, activation='relu')
+#         self.output_layer = layers.Dense(self.action_space_size, activation='softmax')
+#
+#     def call(self, state):
+#         # Forward pass through the neural network to get action probabilities
+#         x = self.dense1(state)
+#         x = self.dense2(x)
+#         action_probabilities = self.output_layer(x)
+#         return action_probabilities
 
 
 class ParticleSwarmOptimization:
@@ -67,16 +65,16 @@ class ParticleSwarmOptimization:
         self.env: RocketLandingEnv = env # TODO remove type
 
         self.global_best_value = None
-        self.global_best_position = None
-        self.personal_best_positions = None
+        self.global_best_policy = None
+        self.personal_best_policies = None
 
         self.personal_best_values = None
-        self.particles_velocity = None
-        self.particles_position = None
+        self.velocities = None
+        self.population = None
 
-        self.num_particles = 20
+        self.n_population = 20
         self.num_dimensions = 6
-        self.num_iterations = 100
+        self.n_episodes = 100
         self.inertia_weight = 0.7
         self.cognitive_param = 1.5
         self.social_param = 1.5
@@ -84,43 +82,47 @@ class ParticleSwarmOptimization:
         self.personal_weight = 1.5
         self.global_weight = 1.5
 
-        self.horizon_size = 80 # TODO change to 700
+        self.horizon_size = 80  # TODO change to 700
 
     def run(self):
         self.initialize_population()
-        policy_network = PolicyNetwork(720)
-        for _ in range(self.num_iterations):
+        # policy_network = PolicyNetwork(720)
+        for _ in range(self.n_episodes):
             # Evaluate fitness
             # fitness = fitness_function(self.particles_position[i], grid, landing_spot, 5500)
 
             # Evaluate fitness for each particle
-            fitness_values = np.zeros(self.num_particles)
-            for particle_index in range(self.num_particles):
-                weights = self.particles_position[particle_index, :]
-                print(weights)
-                exit(3)
-                policy_network.set_weights(weights)
-                total_reward = evaluate_policy(policy_network, self.env)
-                fitness_values[particle_index] = total_reward
+            fitness_values = np.zeros(self.n_population)
+            for particle_index in range(self.n_population):
+                state_value = evaluate_policy(self.env, self.population[particle_index])
+                fitness_values[particle_index] = state_value
 
                 # Update personal best
-                # if fitness < self.personal_best_values[i]:
-                #     self.personal_best_values[i] = fitness
+                if state_value < self.personal_best_values[particle_index]:
+                    self.personal_best_values[particle_index] = state_value
+                    self.personal_best_policies[particle_index] = copy.deepcopy(self.population[particle_index])
                 #     self.personal_best_positions[i] = self.particles_position[i].copy()
 
-                # Update personal best if better
-                if total_reward > fitness_values[particle_index]:
-                    self.personal_best_positions[particle_index, :] = self.particles_position[particle_index, :]
+                if state_value < self.global_best_value:
+                    self.global_best_value = state_value
+                    self.global_best_policy = copy.deepcopy(self.population[particle_index])  # TODO see if i can skip copying
 
-            # Find the global best particle
-            global_best_index = np.argmax(fitness_values)
-            global_best_position = self.particles_position[global_best_index, :]
+            for i, policy_indexes in enumerate(self.population):
+                r1, r2 = np.random.rand(), np.random.rand()
+                policy = self.env.action_indexes_to_real_action(policy_indexes)
+                p_best_policy = self.env.action_indexes_to_real_action(self.personal_best_policies[i])
+                g_best_policy = self.env.action_indexes_to_real_action(self.global_best_policy)
 
-            #     # Update global best
-            # if fitness < self.global_best_value:
-            #     self.global_best_value = fitness
-            #     self.global_best_position = self.particles_position[i].copy()
+                cognitive_term = self.cognitive_param * r1 * (np.array(p_best_policy) - np.array(policy))
+                social_term = self.social_param * r2 * (np.array(g_best_policy) - np.array(policy))
+                mod_velocities = []
+                for velocity in self.velocities[i]:
+                    mod_velocities.append((round(velocity[0] * self.inertia_weight), round(velocity[1] * self.inertia_weight)))
+                self.velocities[i] = mod_velocities + cognitive_term + social_term
+                policy = np.array(policy) + np.array(self.velocities[i])
+                self.population[i] = self.env.real_actions_to_indexes(policy)
 
+        return self.global_best_policy, self.global_best_value
             # # Update particle velocities and positions
             # for i in range(self.num_particles):
             #     r1, r2 = np.random.rand(), np.random.rand()
@@ -129,23 +131,23 @@ class ParticleSwarmOptimization:
             #     self.particles_velocity[i] = self.inertia_weight * self.particles_velocity[i] + cognitive_term + social_term
             #     self.particles_position[i] += self.particles_velocity[i]
 
-            # Update particle velocities and positions
-            self.inertia_term = self.inertia_weight * self.particles_velocity
-            self.personal_term = self.personal_weight * np.random.rand() * (
-                        self.personal_best_positions - self.particles_position)
-            self.global_term = self.global_weight * np.random.rand() * (global_best_position - self.particles_position)
+            # # Update particle velocities and positions
+            # self.inertia_term = self.inertia_weight * self.velocities
+            # self.personal_term = self.personal_weight * np.random.rand() * (
+            #             self.personal_best_positions - self.population)
+            # self.global_term = self.global_weight * np.random.rand() * (global_best_position - self.population)
+            #
+            # self.velocities = self.inertia_term + self.personal_term + self.global_term
+            # self.population = self.population + self.velocities
 
-            self.particles_velocity = self.inertia_term + self.personal_term + self.global_term
-            self.particles_position = self.particles_position + self.particles_velocity
-
-        best_weights = self.personal_best_positions[np.argmax(fitness_values), :]
-        policy_network.set_weights(best_weights)
-        return
+        # best_weights = self.personal_best_positions[np.argmax(fitness_values), :]
+        # policy_network.set_weights(best_weights)
+        # return
         # return self.global_best_position, self.global_best_value
 
     def initialize_population(self):
         population = []
-        for _ in range(self.num_particles):
+        for _ in range(self.n_population):
             previous_action = [0, 0]
             policy = []
             for i in range(self.horizon_size):
@@ -154,30 +156,34 @@ class ParticleSwarmOptimization:
                 previous_action[1] = random_action[1]
                 policy.append(random_action_index)
             population.append(policy)
+        self.population = population
 
         velocities = []
-        for _ in range(self.num_particles):
+        for _ in range(self.n_population):
             velocity = []
             for _ in range(self.horizon_size):
                 velocity.append((random.randint(-5, 5), random.randint(-1, 1)))
             velocities.append(velocity)
+        self.velocities = velocities
 
-        self.personal_best_positions = copy.deepcopy(population)
-        exit(55)
+        self.personal_best_policies = copy.deepcopy(population)
+        self.personal_best_values = np.array([float('inf')] * self.n_population)
         # self.particles_position = np.random.rand(self.num_particles, self.num_dimensions) * 10
         # self.particles_velocity = np.random.rand(self.num_particles, self.num_dimensions)
         # self.personal_best_positions = self.particles_position.copy()
 
         # self.personal_best_values = np.array([float('inf')] * self.num_particles)
         # self.global_best_position = np.zeros(self.num_dimensions)
-        # self.global_best_value = float('inf')
+        self.global_best_value = float('inf')
 
 
-# Function to evaluate a policy in the RL environment
-def evaluate_policy(policy_network, env):
-    # Implement the logic to run the policy in the environment and return the total reward
-    # Use policy_network to get actions based on states and interact with the environment
-    total_reward = 0
-    # ...
-
-    return total_reward
+#  TODO inheritance the class rocketLanding
+def evaluate_policy(env: RocketLandingEnv, policy):
+    cumulated_reward = 0
+    for action in policy:
+        _, reward, done, _ = env.step(action)
+        cumulated_reward += reward
+        if done:
+            break
+    env.reset()
+    return cumulated_reward

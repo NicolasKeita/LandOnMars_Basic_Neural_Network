@@ -50,7 +50,7 @@ class RocketLandingEnv:
         next_state = compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
-        return next_state, reward, done, 5
+        return next_state, reward, done, None
 
     def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, tuple[int, int]]:
         action_min_max = actions_min_max((old_power_thrust, old_rota))
@@ -60,6 +60,19 @@ class RocketLandingEnv:
         )
         return self.action_space.index(random_action), random_action
 
+    def action_indexes_to_real_action(self, action_indexes):
+        real_actions = []
+        for i in action_indexes:
+            real_actions.append(self.action_space[i])
+        return real_actions
+
+    def real_actions_to_indexes(self, policy):
+        indexes = []
+        for action in policy:
+            act_1 = np.clip(round(action[0]), -90, 90)
+            act_2 = np.clip(round(action[1]), 0, 4)
+            indexes.append(self.action_space.index((act_1, act_2)))
+        return indexes
 
 def compute_next_state(state, action: tuple[int, int]):
     rot, thrust = limit_actions(state[5], state[6], action)
