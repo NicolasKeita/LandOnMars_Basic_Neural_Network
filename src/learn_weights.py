@@ -5,6 +5,7 @@ from src.ParticleSwarmOptimization import ParticleSwarmOptimization
 # from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
 #     crossover_population_1_k_point, uniform_crossover_population
 from src.Point2D import Point2D
+from src.PolicyGrad.eval_loop_pytorch import eval_loop
 from src.Rocket import Rocket
 from src.create_environment import RocketLandingEnv, create_env
 from src.graph_handler import create_graph
@@ -109,7 +110,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     landing_spot = find_landing_spot(mars_surface)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
-    initial_state = (5000, 1700, 0, 0, 550, 0, 0)
+    initial_state = (2500, 2500, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
     # env = gym.make('CartPole-v1')
 
@@ -117,10 +118,11 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     env = RocketLandingEnv(initial_state, landing_spot, grid)
 
     # my_aco = AntColonyOptimization()
-    my_pso = ParticleSwarmOptimization(env)
-    result = my_pso.run()
-    print(env.action_indexes_to_real_action(result[0]))
-    print(result[1])
+    # my_pso = ParticleSwarmOptimization(env)
+    policy_gradient = eval_loop(env)
+    # result = my_pso.run()
+    print(policy_gradient)
+    # print(result[1])
     # best_path = my_aco.run(100)
     # print("Best Path:", best_path)
     # print("Total Distance:", my_aco.total_distance(best_path[0]))

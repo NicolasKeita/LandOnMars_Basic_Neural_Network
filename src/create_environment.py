@@ -74,6 +74,7 @@ class RocketLandingEnv:
             indexes.append(self.action_space.index((act_1, act_2)))
         return indexes
 
+
 def compute_next_state(state, action: tuple[int, int]):
     rot, thrust = limit_actions(state[5], state[6], action)
     radians = rot * (math.pi / 180)
@@ -105,7 +106,10 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
         return remaining_fuel * 10, True
     if (rocket_pos_y < 0 or rocket_pos_y >= 3000 or rocket_pos_x < 0 or rocket_pos_x >= 7000
             or grid[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
-        return normalize_unsuccessful_rewards(state, landing_spot), True
+        if rocket_pos_y >= 3000:
+            return 0
+        else:
+            return normalize_unsuccessful_rewards(state, landing_spot), True
     return 0, False
 
 
@@ -125,9 +129,10 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     # print("crash", dist)
     print(
         "CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs,
-          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", (1 * norm_dist + 1 * norm_vs + 1 * norm_hs) ** 2
+          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
     )
     # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
+    return (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
     if dist != 0:
         return 1 * norm_dist
     # return norm_dist
