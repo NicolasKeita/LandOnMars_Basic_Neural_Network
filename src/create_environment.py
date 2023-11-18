@@ -91,6 +91,19 @@ def compute_next_state(state, action: tuple[int, int]):
     return new_state
 
 
+def compute_reward(state, landing_spot) -> float:
+    x1 = landing_spot[0].x
+    y1 = landing_spot[0].y
+    x2 = landing_spot[1].x
+    y2 = landing_spot[1].y
+    x0 = state[0]
+    y0 = state[1]
+    numerator = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+    denominator = math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+
+    distance = numerator / denominator
+    return -distance
+
 def reward_function(state, grid, landing_spot) -> (float, bool):
     rocket_pos_x = round(state[0])
     rocket_pos_y = round(state[1])
@@ -98,19 +111,22 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     vs = state[3]
     remaining_fuel = state[4]
     rotation = state[5]
+    x, y, hs, vs, _, rotation, thrust = state
 
-    if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
-            rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
+    is_successful_landing = (landing_spot[0].x <= x <= landing_spot[1].x and
+                             landing_spot[0].y >= y and rotation == 0 and
+                             abs(vs) <= 40 and abs(hs) <= 20)
+    is_crashed = (y < 0 or y >= 3000 or x < 0 or x >= 7000 or
+                  grid[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4)
+
+    if is_successful_landing:
         print("GOOD", rocket_pos_x, remaining_fuel)
         exit(42)
-        return remaining_fuel * 10, True
-    if (rocket_pos_y < 0 or rocket_pos_y >= 3000 or rocket_pos_x < 0 or rocket_pos_x >= 7000
-            or grid[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
-        if rocket_pos_y >= 3000:
-            return 0
-        else:
-            return normalize_unsuccessful_rewards(state, landing_spot), True
-    return 0, False
+        # return remaining_fuel * 10, True
+    elif is_crashed:
+        return normalize_unsuccessful_rewards(state, landing_spot), True
+    else:
+        return compute_reward(state, landing_spot), False
 
 
 def normalize_unsuccessful_rewards(state, landing_spot):
@@ -124,13 +140,16 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     # return norm_dist
     # return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
-    norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (120 - 37)
-    norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)
+    norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (
+                120 - 37)
+    norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (
+                120 - 17)
     # print("crash", dist)
-    print(
-        "CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs,
-          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
-    )
+    # print(
+    #     "CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs,
+    #     "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum",
+    #     (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
+    # )
     # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
     return (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
     if dist != 0:

@@ -16,8 +16,7 @@ def create_graph(points: list[Point2D], title: str):
 
 def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color: int):
     cmap = cm.get_cmap('Set1')
-    color = cmap(id_lines_color % 8)
-
+    color = cmap(id_lines_color % 9)
     ax = plt.gca()
 
     # Clear previous trajectories
@@ -25,12 +24,10 @@ def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color:
         if line.get_label() != 'Mars Surface':
             line.remove()
 
-    # for state_position in trajectory:
-    #     plt.plot(state_position[0], state_position[1], marker='o',
-    #              markersize=2, color=color, label=f'Rocket {id_lines_color}')
-    #     plt.pause(0.001)
     for trajectory in trajectories:
-        x_values, y_values = zip(*trajectory)
+        x_values = trajectory[0]
+        y_values = trajectory[1]
+        # x_values, y_values = zip(*trajectory)
         plt.plot(x_values, y_values, marker='o',
                  markersize=2, color=color, label=f'Rocket {id_lines_color}')
         plt.pause(0.01)
