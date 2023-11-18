@@ -101,6 +101,7 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     if (landing_spot[0].x <= rocket_pos_x <= landing_spot[1].x and landing_spot[0].y >= rocket_pos_y and
             rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20):
         print("GOOD", rocket_pos_x, remaining_fuel)
+        exit(42)
         return remaining_fuel * 10, True
     if (rocket_pos_y < 0 or rocket_pos_y >= 3000 or rocket_pos_x < 0 or rocket_pos_x >= 7000
             or grid[rocket_pos_y][rocket_pos_x] is False or remaining_fuel < -4):
@@ -114,25 +115,32 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     vs = state[3]
     rotation = state[5]
     dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
+    # print(dist)
     norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
-    print("crash", dist)
-    return norm_dist
-    return norm_dist
+    # return norm_dist
+    # return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (120 - 37)
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (120 - 17)
-    print("crash", dist)
-    # print("CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs, remaining_fuel,
-    #       "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
+    # print("crash", dist)
+    print(
+        "CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs,
+          "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum", (1 * norm_dist + 1 * norm_vs + 1 * norm_hs) ** 2
+    )
     # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
     if dist != 0:
         return 1 * norm_dist
-    return norm_dist
-    if rotation != 0:
-        return (1 * norm_dist + 1 * norm_rotation) / 2
-    return (1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs) / 4
+    # return norm_dist
+    if norm_vs != 1 and norm_hs != 1:
+        return (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
+    # if rotation != 0:
+    #     return (1 * norm_dist + 1 * norm_rotation)
+    return (1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
 
 
+# TODO no need to land in the middle
 def get_landing_spot_distance(x, landing_spot_left_x, landing_spot_right_x):
     return 0 if landing_spot_left_x <= x <= landing_spot_right_x else min(abs(x - landing_spot_left_x),
                                                                           abs(x - landing_spot_right_x))
+    # middle_of_landing_spot = (landing_spot_right_x + landing_spot_left_x) / 2
+    # return abs(x - middle_of_landing_spot)

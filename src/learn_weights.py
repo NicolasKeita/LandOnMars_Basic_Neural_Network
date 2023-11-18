@@ -60,6 +60,12 @@ from src.linearQ import LinearQAgent
 # Tree Search
 # ...
 
+# Control is a key aspect of this problem
+
+# Genetic programming, linear regression, and decision trees up to
+# a certain depth are examples of interpretable models, while neural networks
+# and ensemble methods are considered black-boxes
+
 # Classical control algorithm (PID / LQR / MPC) vs RL control algorithms
 # bias = constant features
 
@@ -102,7 +108,8 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
-    initial_state = (2500, 2700, 0, 0, 550, 0, 0)
+    # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
+    initial_state = (5000, 1700, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
     # env = gym.make('CartPole-v1')
 
