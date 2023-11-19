@@ -6,6 +6,7 @@ from src.ParticleSwarmOptimization import ParticleSwarmOptimization
 #     crossover_population_1_k_point, uniform_crossover_population
 from src.Point2D import Point2D
 from src.PolicyGrad.eval_loop_pytorch import eval_loop
+from src.PolicyGrad.my_PPO import PPO
 from src.Rocket import Rocket
 from src.create_environment import RocketLandingEnv, create_env
 from src.graph_handler import create_graph
@@ -119,9 +120,11 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
 
     # my_aco = AntColonyOptimization()
     # my_pso = ParticleSwarmOptimization(env)
-    policy_gradient = eval_loop(env)
+    # policy_gradient = eval_loop(env)
+    my_proximal_policy_optimization = PPO(env)
+    my_proximal_policy_optimization.learn()
     # result = my_pso.run()
-    print(policy_gradient)
+    # print(policy_gradient)
     # print(result[1])
     # best_path = my_aco.run(100)
     # print("Best Path:", best_path)

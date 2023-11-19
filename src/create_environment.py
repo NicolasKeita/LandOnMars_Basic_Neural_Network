@@ -45,8 +45,8 @@ class RocketLandingEnv:
         self.state = np.array(self.initial_state)
         return self.state
 
-    def step(self, action_index: int):
-        action = self.action_space[action_index]
+    def step(self, action: tuple[int, int]):
+        # action = self.action_space[action_index]
         next_state = compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
