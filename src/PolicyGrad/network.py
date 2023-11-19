@@ -16,5 +16,18 @@ class FeedForwardNN(nn.Module):
             state = torch.tensor(state, dtype=torch.float)
         activation_1 = F.relu(self.layer_1(state))
         activation_2 = F.relu(self.layer_2(activation_1))
-        output = self.layer_3(activation_2)
+        raw_output = self.layer_3(activation_2)
+        return raw_output
+
+        # Apply tanh activation to the first dimension
+        print(raw_output)
+        output_dim1 = torch.round(torch.tanh(raw_output[0].clamp(-5, 5)) * 90.0)
+
+        # Apply sigmoid activation to the second dimension and scale to [0, 4]
+        output_dim2 = torch.round(torch.sigmoid(raw_output[1].clamp(0, 4)) * 4.0)
+
+        # Combine the two dimensions
+        # output = torch.stack([output_dim1, output_dim2], dim=1)
+        output = torch.tensor([output_dim1, output_dim2], dtype=torch.float)
+        print(output)
         return output

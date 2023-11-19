@@ -102,7 +102,6 @@ class PPO:
             # Collect episodic length and rewards
             batch_lens.append(ep_t + 1)  # plus 1 because timestep starts at 0
             batch_rewards.append(ep_rewards)
-            break
 
         # Reshape data as tensors in the shape specified before returning
         batch_obs = torch.tensor(batch_obs, dtype=torch.float)
