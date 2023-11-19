@@ -4,6 +4,8 @@ import random
 import numpy as np
 from itertools import product
 
+import torch
+
 from src.Point2D import Point2D
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 
@@ -41,15 +43,47 @@ class RocketLandingEnv:
         self.landing_spot = landing_spot
         self.grid = grid
 
+        self.raw_intervals = [
+            [0, 7000],  # x
+            [0, 3000],  # y
+            [-500, 500],  # vs
+            [-500, 500],  # hs
+            [-10, 20000],  # fuel remaining
+            [-90, 90],  # rot
+            [0, 4]  # thrust
+        ]
+
+    @staticmethod
+    def normalize_state(raw_state, raw_intervals):
+        normalized_state = [(val - interval[0]) / (interval[1] - interval[0]) for val, interval in
+                            zip(raw_state, raw_intervals)]
+        return np.array(normalized_state)
+
+    @staticmethod
+    def denormalize_state(normalized_state, raw_intervals):
+        denormalized_state = [val * (interval[1] - interval[0]) + interval[0] for val, interval in
+                              zip(normalized_state, raw_intervals)]
+        return np.array(denormalized_state)
+
+    @staticmethod
+    def denormalize_action(raw_output):
+        def sig(x):
+            return 1 / (1 + np.exp(-x))
+        output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
+        output_dim2 = np.round(sig(raw_output[1]) * 4.0)
+        output = np.array([output_dim1, output_dim2], dtype=int)
+        return output
+
     def reset(self):
         self.state = np.array(self.initial_state)
-        return self.state
+        return self.normalize_state(self.state, self.raw_intervals)
 
     def step(self, action: tuple[int, int]):
         # action = self.action_space[action_index]
         next_state = compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
+        next_state = self.normalize_state(next_state, self.raw_intervals)
         return next_state, reward, done, None
 
     def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, tuple[int, int]]:

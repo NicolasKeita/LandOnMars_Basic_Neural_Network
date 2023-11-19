@@ -122,7 +122,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # my_pso = ParticleSwarmOptimization(env)
     # policy_gradient = eval_loop(env)
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn()
+    my_proximal_policy_optimization.learn(10_000)
     # result = my_pso.run()
     # print(policy_gradient)
     # print(result[1])
