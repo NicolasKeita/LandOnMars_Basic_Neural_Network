@@ -103,7 +103,6 @@ data = {
 }
 
 
-
 def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     x_max = 7000
     y_max = 3000

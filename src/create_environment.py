@@ -128,7 +128,7 @@ def compute_next_state(state, action: tuple[int, int]):
     # print("Compute next_state_1: ", state, rot, thrust)
     radians = rot * (math.pi / 180)
     x_acceleration = math.sin(radians) * thrust
-    y_acceleration = math.cos(radians) * thrust - GRAVITY
+    y_acceleration = (math.cos(radians) * thrust) - GRAVITY
     new_horizontal_speed = state[2] - x_acceleration
     new_vertical_speed = state[3] + y_acceleration
     new_x = state[0] + state[2] - 0.5 * x_acceleration
@@ -142,7 +142,7 @@ def compute_next_state(state, action: tuple[int, int]):
                  new_vertical_speed, remaining_fuel, rot,
                  thrust)
     # print("NEW STATE: ", new_state)
-    # print("ROUNDED", np.round(new_state))
+    print("ROUNDED", np.round(new_state))
     return new_state
 
 
@@ -167,7 +167,8 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
                              landing_spot[0].y >= y and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
     # print(state)
-    is_crashed = (y < 0 or y >= 3000 or x < 0 or x >= 7000 or
+
+    is_crashed = (y < 0 or y >= 3000-1 or x < 0 or x >= 7000-1 or
                   grid[round(y)][round(x)] is False or remaining_fuel < -4)
 
     if is_successful_landing:
