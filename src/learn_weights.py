@@ -111,7 +111,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     landing_spot = find_landing_spot(mars_surface)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
-    initial_state = (2500, 2500, 0, 0, 550, 0, 0)
+    initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
     # env = gym.make('CartPole-v1')
 
@@ -122,57 +122,5 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # my_pso = ParticleSwarmOptimization(env)
     # policy_gradient = eval_loop(env)
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(10_000)
-    # result = my_pso.run()
-    # print(policy_gradient)
-    # print(result[1])
-    # best_path = my_aco.run(100)
-    # print("Best Path:", best_path)
-    # print("Total Distance:", my_aco.total_distance(best_path[0]))
-    # agent = DQNAgent(env.feature_amount, env.action_space_n, env)
-    # agent = LinearQAgent(env)
-    # agent.train(num_episodes=200)
-    # agent.pre_train()
-    exit(0)
-    state = env.reset()
-    arr = []
-    while True:
-        action_index = agent.choose_action(state)
-        arr.append(env.action_space[action_index])
-        next_state, reward, done = agent.env.step(action_index)
-        state = next_state
-        if done:
-            break
-    print(arr)
-    exit(0)
+    my_proximal_policy_optimization.learn(100_000)
 
-    # population = [create_neural_network() for _ in range(population_size)]
-    population = initialize_population(population_size, [(0, 4), (-90, 90)])
-    # networks = []
-    # for i in range(population_size):
-    #     networks.append(ANN())
-    fitness_scores: list[float] = []
-    for generation in range(generations_count):
-        # for ann in networks:
-        #     pass
-            # Propagate to calculate fitness score
-            # ann.forward_propagation(train_feature, train_label)
-            # Add to pool after calculating fitness
-            # pool.append(ann)
-
-        # TODO RECALL put evaluate in a class
-        fitness_scores = evaluate_population(population, train_data, train_labels, val_data, val_labels, initial_state, generation)
-        selected_population = select_population(population, fitness_scores)
-        # population = crossover_population_1_k_point(selected_population)
-        if generation == generations_count - 1:  # TODO -1 right?
-            break
-        population = uniform_crossover_population(selected_population)
-        population = mutate_population(population, mutation_rate)
-
-        population.extend(selected_population)
-        # print('gen count', generation)
-
-    fitness_scores = evaluate_population(population, fitness_function, initial_state)
-    best_chromosome = population[fitness_scores.index(max(fitness_scores))]
-    print(best_chromosome)
-    print("score : ", max(fitness_scores))

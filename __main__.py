@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from src.Point2D import Point2D
 from src.Rocket import Rocket
-from src.create_environment import create_env
+from src.create_environment import create_env, display_grid
 from src.learn_weights import learn_weights
 
 
@@ -23,9 +23,11 @@ if __name__ == '__main__':
     x_max = 7000
     y_max = 3000
     env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
-    init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0, env)
-    rocket = init_rocket
+    # display_grid(env)
+    # exit(5)
+    # init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0, env)
+    # rocket = init_rocket
     print('INFO: this program is meant to be launched with an test-case as input.')
 
-    weights = learn_weights(mars_surface, init_rocket, env)
+    weights = learn_weights(mars_surface, None, env)
     print("----------- Learn Weight ends success")

@@ -4,6 +4,7 @@ from torch.optim import Adam
 from torch.distributions import MultivariateNormal
 import numpy as np
 
+from src.PolicyGrad.eval_policy import eval_policy
 from src.PolicyGrad.network import FeedForwardNN
 from src.create_environment import RocketLandingEnv
 from src.graph_handler import display_graph
@@ -35,7 +36,7 @@ class PPO:
 
     def init_hyperparameters(self):
         self.time_steps_per_batch = 4800  # timesteps per batch
-        self.time_steps_per_batch = 400  # timesteps per batch
+        # self.time_steps_per_batch = 400  # timesteps per batch
         self.max_time_steps_per_episode = 800  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 5
@@ -48,6 +49,11 @@ class PPO:
         while t_so_far < total_time_steps:  # TODO for loop ?
             (batch_obs, batch_actions, batch_log_probs,
              batch_rewards_to_go, batch_lens) = self.rollout_batch()
+            # print(batch_obs)
+            # tmp = self.env.denormalize_state(batch_obs.numpy(), self.env.raw_intervals)
+            # print(tmp)
+            # exit(9)
+            # display_graph(tmp, t_so_far)
 
             t_so_far += np.sum(batch_lens)
             print('BATCH DONE', t_so_far)
@@ -78,6 +84,9 @@ class PPO:
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
                 self.critic_optim.step()
+
+        eval_policy(self.actor, self.env)
+        # torch.save(self.actor.state_dict(), './model.txt')
 
     def evaluate(self, batch_obs, batch_acts):
         # Query critic network for a value V for each obs in batch_obs.
@@ -150,13 +159,18 @@ class PPO:
                 t += 1
 
                 # Collect observation
+                # print(" HERE", state)
+                # print("DENORMAL", self.env.denormalize_state(state, self.env.raw_intervals))
+                # print("ADDING : ", state)
+                # print("ADDING 2 : ", self.env.denormalize_state(state, self.env.raw_intervals))
                 batch_obs.append(state)
+                # print(batch_obs)
 
                 # action = self.env.generate_random_action(0, 0)[1]
                 action, log_prob = self.get_action(state)
                 action = self.env.denormalize_action(action)
-                obs, reward, done, _ = self.env.step(action)
-                trajectory_plot.append(self.env.denormalize_state(obs, self.env.raw_intervals))
+                state, reward, done, _ = self.env.step(action)
+                trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
 
                 ep_rewards.append(reward)
                 batch_actions.append(action)
@@ -168,8 +182,9 @@ class PPO:
             batch_lens.append(ep_t + 1)  # plus 1 because timestep starts at 0
             batch_rewards.append(ep_rewards)
 
-        display_graph(trajectory_plot, tmp)
         # Reshape data as tensors in the shape specified before returning
+        # print(self.env.denormalize_state(batch_obs, self.env.raw_intervals))
+        # print('"SEEEEEEEE')
         batch_obs = torch.tensor(batch_obs, dtype=torch.float)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float)
