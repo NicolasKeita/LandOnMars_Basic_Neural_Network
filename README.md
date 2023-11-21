@@ -1,6 +1,6 @@
 # Rocket landing AI
 
-Preparing the next programming contest in AI,
+Preparing for the next programming contest in AI,
 
 Reinforcement learning is fun, so let's code the newest (2017 ? :D) algorithm by OpenAI engineers : Proximal Policy Optimization
 
