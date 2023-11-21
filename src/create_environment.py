@@ -79,7 +79,7 @@ class RocketLandingEnv:
     @staticmethod
     def denormalize_action(raw_output):
         def sig(x):
-            return 1 / (1 + np.exp(-x))
+            return 1 / (1 + np.exp(-np.clip(x, -700, 700)))
         output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
         output_dim2 = np.round(sig(raw_output[1]) * 4.0)
         output = np.array([output_dim1, output_dim2], dtype=int)

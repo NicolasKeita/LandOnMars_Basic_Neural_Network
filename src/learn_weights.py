@@ -82,6 +82,7 @@ def find_landing_spot(mars_surface: list) -> tuple:
 # # Store Max Fitness Weights
 # optimal_weights = []
 
+
 data = {
     'Feature1': [1, 2, 3, 4, 5],
     'Feature2': [10, 20, 30, 40, 50],

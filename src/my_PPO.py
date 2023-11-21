@@ -43,7 +43,7 @@ class PPO:
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 5
         self.clip = 0.2  # As recommended by the paper
-        self.lr = 0.001
+        self.lr = 0.1
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
