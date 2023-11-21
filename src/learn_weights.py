@@ -1,21 +1,9 @@
-from src.AntColonyOptimization import AntColonyOptimization
-from src.ParticleSwarmOptimization import ParticleSwarmOptimization
-# from src.DQNAgent import DQNAgent
-# from src.genetic_ann import *
-# from src.GeneticAlgorithm import initialize_population, evaluate_population, select_population, mutate_population, \
-#     crossover_population_1_k_point, uniform_crossover_population
-from src.Point2D import Point2D
-from src.PolicyGrad.eval_loop_pytorch import eval_loop
+import numpy as np
+
+
 from src.PolicyGrad.my_PPO import PPO
-from src.Rocket import Rocket
 from src.create_environment import RocketLandingEnv, create_env
 from src.graph_handler import create_graph
-# from src.create_environment import create_env, RocketLandingEnv
-# from src.graph_handler import create_graph
-# from src.hyperparameters import population_size, generations_count, mutation_rate
-from src.linearQ import LinearQAgent
-# from src.mars_landing import fitness_function
-# import pandas as pd
 
 # TODO move this info somewhere else:
 # RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
@@ -74,9 +62,10 @@ from src.linearQ import LinearQAgent
 # Policy-Based RL
 # The world outside my agent is stationary (independent of the agent actions).
 
-def find_landing_spot(mars_surface: list[Point2D]) -> tuple[Point2D, Point2D]:
+
+def find_landing_spot(mars_surface: list) -> tuple:
     for i in range(len(mars_surface) - 1):
-        if mars_surface[i + 1].y == mars_surface[i].y:
+        if mars_surface[i + 1][1] == mars_surface[i][1]:
             return mars_surface[i], mars_surface[i + 1]
     raise Exception('no landing site on test-case data')
 
@@ -103,7 +92,7 @@ data = {
 }
 
 
-def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
+def learn_weights(mars_surface: list, init_rocket, env):
     x_max = 7000
     y_max = 3000
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
@@ -120,6 +109,7 @@ def learn_weights(mars_surface: list[Point2D], init_rocket: Rocket, env):
     # my_aco = AntColonyOptimization()
     # my_pso = ParticleSwarmOptimization(env)
     # policy_gradient = eval_loop(env)
+    np.set_printoptions(suppress=True)
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(100_000)
+    my_proximal_policy_optimization.learn(10_000)
 

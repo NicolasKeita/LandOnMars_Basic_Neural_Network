@@ -1,14 +1,13 @@
 from matplotlib import pyplot as plt, cm
-from src.Point2D import Point2D
 
 
-def create_graph(points: list[Point2D], title: str):
+def create_graph(points: list, title: str):
     plt.xlim(0, 7000)
     plt.ylim(0, 3000)
     plt.xlabel('X Coordinate')
     plt.ylabel('Y Coordinate')
     plt.title(title)
-    plt.plot(*zip(*[(point.x, point.y) for point in points]), marker='o', label='Mars Surface')
+    plt.plot(*zip(*[(point[0], point[1]) for point in points]), marker='o', label='Mars Surface')
     plt.legend()
     plt.grid(True)
     plt.draw()

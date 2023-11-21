@@ -1,12 +1,24 @@
 #!/usr/bin/env python
-from src.Point2D import Point2D
-from src.Rocket import Rocket
-from src.create_environment import create_env, display_grid
+from src.create_environment import create_env
 from src.learn_weights import learn_weights
+import numpy as np
 
 
-def parse_mars_surface() -> list[Point2D]:
-    return [Point2D(int(x), int(y)) for x, y in (input().split(' ') for _ in range(int(input())))]
+def parse_planet_surface():
+    input_file = '''
+    7
+    0 100
+    1000 500
+    1500 1500
+    3000 1000
+    4000 150
+    5500 150
+    6999 800
+    '''
+    lines = input_file.strip().split('\n')
+    num_lines = int(lines[0])
+    concatenated_numbers = np.fromstring('\n'.join(lines[1:]), sep=' ')
+    return concatenated_numbers.reshape(num_lines, 2)
 
 
 #
@@ -14,20 +26,12 @@ def parse_mars_surface() -> list[Point2D]:
 #  - Optimization
 #  - Delayed consequences
 #  - Exploration
-#  - Generalization (my agent has been trained with a specific environment
+#  - Generalization (my agent has been trained with a specific environment,
 #       but I'd like it to be effective on future unknown environment as well
 #
 if __name__ == '__main__':
-    turn = 0
-    mars_surface = parse_mars_surface()
-    x_max = 7000
-    y_max = 3000
-    env: list[list[bool]] = create_env(mars_surface, x_max, y_max)
-    # display_grid(env)
-    # exit(5)
-    # init_rocket = Rocket(2500, 2700, 0, 0, 550, 0, 0, env)
-    # rocket = init_rocket
-    print('INFO: this program is meant to be launched with an test-case as input.')
+    planet_surface = parse_planet_surface()
+    env: list[list[bool]] = create_env(planet_surface, 7000, 3000)
 
-    weights = learn_weights(mars_surface, None, env)
+    weights = learn_weights(planet_surface, None, env)
     print("----------- Learn Weight ends success")

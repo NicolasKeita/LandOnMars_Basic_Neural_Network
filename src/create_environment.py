@@ -7,27 +7,28 @@ from itertools import product
 import torch
 from matplotlib import pyplot as plt
 
-from src.Point2D import Point2D
+
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 
 
 # False = underneath the surface
-def create_env(surface_points: list[Point2D], x_max: int, y_max: int) -> list[list[bool]]:
+def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]:
     def surface_function(x, sorted_points):
         for i in range(len(sorted_points) - 1):
-            x1, y1 = sorted_points[i].x, sorted_points[i].y
-            x2, y2 = sorted_points[i + 1].x, sorted_points[i + 1].y
+            x1, y1 = sorted_points[i][0], sorted_points[i][1]
+            x2, y2 = sorted_points[i + 1][0], sorted_points[i + 1][1]
             if x1 <= x <= x2:
                 return round(y1 + (x - x1) * (y2 - y1) / (x2 - x1))
         return 0
 
     world = [[False] * x_max for _ in range(y_max)]
-    sorted_points = sorted(surface_points, key=lambda p: p.x)
+    sorted_points = sorted(surface_points, key=lambda p: p[0])
 
     for x in range(x_max):
         for y in range(surface_function(x, sorted_points), y_max):
             world[y][x] = True
     return world
+
 
 def display_grid(grid):
     # Convert the boolean values to integers (0 for False, 1 for True)
@@ -118,8 +119,6 @@ class RocketLandingEnv:
             indexes.append(self.action_space.index((act_1, act_2)))
         return indexes
 
-np.set_printoptions(suppress = True)
-
 def compute_next_state(state, action: tuple[int, int]):
     # print("action_raw:", action, state[5], state[6])
     rot, thrust = limit_actions(state[5], state[6], action)
@@ -142,7 +141,7 @@ def compute_next_state(state, action: tuple[int, int]):
                  new_vertical_speed, remaining_fuel, rot,
                  thrust)
     # print("NEW STATE: ", new_state)
-    print("ROUNDED", np.round(new_state))
+    # print("ROUNDED", np.round(new_state))
     return new_state
 
 
@@ -163,8 +162,8 @@ def compute_reward(state, landing_spot) -> float:
 def reward_function(state, grid, landing_spot) -> (float, bool):
     x, y, hs, vs, remaining_fuel, rotation, thrust = state
 
-    is_successful_landing = (landing_spot[0].x <= x <= landing_spot[1].x and
-                             landing_spot[0].y >= y and rotation == 0 and
+    is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
+                             landing_spot[0][1] >= y and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
     # print(state)
 
@@ -187,7 +186,7 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     hs = state[2]
     vs = state[3]
     rotation = state[5]
-    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0].x, landing_spot[1].x)
+    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0][0], landing_spot[1][0])
     # print(dist)
     norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
     return norm_dist

@@ -9,6 +9,7 @@ from src.PolicyGrad.network import FeedForwardNN
 from src.create_environment import RocketLandingEnv
 from src.graph_handler import display_graph
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class PPO:
     def __init__(self, env: RocketLandingEnv):
@@ -24,24 +25,23 @@ class PPO:
         self.lr = 0.005
         self.init_hyperparameters()
 
-        self.actor = FeedForwardNN(self.obs_dim, self.action_dim)
+        self.actor = FeedForwardNN(self.obs_dim, self.action_dim).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
-        self.critic = FeedForwardNN(self.obs_dim, 1)
+        self.critic = FeedForwardNN(self.obs_dim, 1).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         # Create the covariance matrix
-        self.covariance_mat = torch.diag(self.covariance_var)
+        self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
     def init_hyperparameters(self):
         self.time_steps_per_batch = 4800  # timesteps per batch
-        # self.time_steps_per_batch = 400  # timesteps per batch
-        self.max_time_steps_per_episode = 800  # timesteps per episode
+        self.max_time_steps_per_episode = 1600  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 5
         self.clip = 0.2  # As recommended by the paper
-        self.lr = 0.005
+        self.lr = 0.001
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
@@ -77,12 +77,14 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
+
                 self.actor_optim.step()
 
                 critic_loss = nn.MSELoss()(V, batch_rewards_to_go)
                 # Calculate gradients and perform backward propagation for critic network
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
+
                 self.critic_optim.step()
 
         eval_policy(self.actor, self.env)
@@ -185,9 +187,9 @@ class PPO:
         # Reshape data as tensors in the shape specified before returning
         # print(self.env.denormalize_state(batch_obs, self.env.raw_intervals))
         # print('"SEEEEEEEE')
-        batch_obs = torch.tensor(batch_obs, dtype=torch.float)
-        batch_actions = torch.tensor(batch_actions, dtype=torch.float)
-        batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float)
+        batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
+        batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
+        batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
         # ALG STEP #4
         batch_rewards_to_go = self.compute_rtgs(batch_rewards)
         # Return the batch data
