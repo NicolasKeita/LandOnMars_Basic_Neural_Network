@@ -1,13 +1,12 @@
 import numpy as np
 
 
-from src.PolicyGrad.my_PPO import PPO
+from src.my_PPO import PPO
 from src.create_environment import RocketLandingEnv, create_env
 from src.graph_handler import create_graph
 
 # TODO move this info somewhere else:
-# RL setting chosen : MDP (Markov Decision Process). #TODO revisit choices
-# because
+
 # I have access to a model (given an action, I am able to predict what next state will be), I also am able to observe the next state but more importily I am able to predict,
 # I also have a reward model, able to query a state and assign a reward to it without having to observe it. I can predict it.
 # I can represent my model in different ways :
@@ -111,5 +110,5 @@ def learn_weights(mars_surface: list, init_rocket, env):
     # policy_gradient = eval_loop(env)
     np.set_printoptions(suppress=True)
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(10_000)
+    my_proximal_policy_optimization.learn(100_000)
 

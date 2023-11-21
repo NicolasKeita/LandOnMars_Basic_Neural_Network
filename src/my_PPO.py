@@ -4,10 +4,10 @@ from torch.optim import Adam
 from torch.distributions import MultivariateNormal
 import numpy as np
 
-from src.PolicyGrad.eval_policy import eval_policy
-from src.PolicyGrad.network import FeedForwardNN
-from src.create_environment import RocketLandingEnv
+from src.eval_policy import eval_policy
 from src.graph_handler import display_graph
+from src.network import FeedForwardNN
+from src.create_environment import RocketLandingEnv
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -34,6 +34,8 @@ class PPO:
         self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         # Create the covariance matrix
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
+
+        self.roll_i = 0
 
     def init_hyperparameters(self):
         self.time_steps_per_batch = 4800  # timesteps per batch
@@ -105,6 +107,8 @@ class PPO:
     def compute_rtgs(self, batch_rewards):
         # The rewards-to-go (rtg) per episode per batch to return.
         # The shape will be (num timesteps per episode)
+        # print("reward")
+        # print(batch_rewards)
         batch_rewards_to_go = []
         # Iterate through each episode backwards to maintain same order
         # in batch_rtgs
@@ -114,6 +118,7 @@ class PPO:
                 discounted_reward = rew + discounted_reward * self.gamma_reward_to_go
                 batch_rewards_to_go.insert(0, discounted_reward)
         # Convert the rewards-to-go into a tensor
+        # print(batch_rewards_to_go)
         batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float)
         return batch_rewards_to_go
 
@@ -146,8 +151,9 @@ class PPO:
 
         t = 0
 
-        trajectory_plot = []
+        self.roll_i += 1
         tmp = 0
+        trajectories = []
 
         while t < self.time_steps_per_batch:
             tmp += 1
@@ -155,6 +161,8 @@ class PPO:
             ep_rewards = []
             state = self.env.reset()
             done = False
+
+            trajectory_plot = []
 
             ep_t = 0
             for ep_t in range(self.max_time_steps_per_episode):  # TODO rename it horizon
@@ -165,13 +173,17 @@ class PPO:
                 # print("DENORMAL", self.env.denormalize_state(state, self.env.raw_intervals))
                 # print("ADDING : ", state)
                 # print("ADDING 2 : ", self.env.denormalize_state(state, self.env.raw_intervals))
+                # denormalized_state = self.env.denormalize_state(state, self.env.raw_intervals)
+                # batch_obs.append(denormalized_state)
                 batch_obs.append(state)
                 # print(batch_obs)
 
                 # action = self.env.generate_random_action(0, 0)[1]
                 action, log_prob = self.get_action(state)
-                action = self.env.denormalize_action(action)
-                state, reward, done, _ = self.env.step(action)
+                action_denormalized = self.env.denormalize_action(action)
+                # print(action_denormalized)
+                state, reward, done, _ = self.env.step(action_denormalized)
+                # print(self.env.denormalize_state(state, self.env.raw_intervals))
                 trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
 
                 ep_rewards.append(reward)
@@ -179,6 +191,9 @@ class PPO:
                 batch_log_probs.append(log_prob)
                 if done:
                     break
+
+            trajectories.append(trajectory_plot)
+            # print("here", trajectory_plot)
 
             # Collect episodic length and rewards
             batch_lens.append(ep_t + 1)  # plus 1 because timestep starts at 0
@@ -192,5 +207,8 @@ class PPO:
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
         # ALG STEP #4
         batch_rewards_to_go = self.compute_rtgs(batch_rewards)
+
+        display_graph(trajectories, self.roll_i)
+
         # Return the batch data
         return batch_obs, batch_actions, batch_log_probs, batch_rewards_to_go, batch_lens

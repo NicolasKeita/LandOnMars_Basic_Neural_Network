@@ -24,9 +24,8 @@ def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color:
             line.remove()
 
     for trajectory in trajectories:
-        x_values = trajectory[0]
-        y_values = trajectory[1]
-        # x_values, y_values = zip(*trajectory)
+        x_values = [point[0] for point in trajectory]
+        y_values = [point[1] for point in trajectory]
         plt.plot(x_values, y_values, marker='o',
                  markersize=2, color=color, label=f'Rocket {id_lines_color}')
         plt.pause(0.001)
