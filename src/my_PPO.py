@@ -11,19 +11,19 @@ from src.create_environment import RocketLandingEnv
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 class PPO:
     def __init__(self, env: RocketLandingEnv):
         self.env = env
         self.obs_dim = 7
         self.action_dim = 2
 
-        self.time_steps_per_batch = 4800  # timesteps per batch
+        self.time_steps_per_batch = 1  # timesteps per batch
         self.max_time_steps_per_episode = 1600  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 5
         self.clip = 0.2  # As recommended by the paper
-        self.lr = 0.005
-        self.init_hyperparameters()
+        self.lr = 0.01
 
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -37,13 +37,9 @@ class PPO:
 
         self.roll_i = 0
 
-    def init_hyperparameters(self):
-        self.time_steps_per_batch = 4800  # timesteps per batch
-        self.max_time_steps_per_episode = 1600  # timesteps per episode
-        self.gamma_reward_to_go = 0.95
-        self.n_updates_per_iteration = 5
-        self.clip = 0.2  # As recommended by the paper
-        self.lr = 0.1
+        self.reward_mean = 0
+        self.reward_std = 1
+        self.max_grad_norm = 0.5
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
@@ -68,6 +64,13 @@ class PPO:
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
             for _ in range(self.n_updates_per_iteration):
+                frac = (t_so_far - 1.0) / total_time_steps
+                new_lr = self.lr * (1.0 - frac)
+                new_lr = max(new_lr, 0.0)
+                self.actor_optim.param_groups[0]["lr"] = new_lr
+                self.critic_optim.param_groups[0]["lr"] = new_lr
+
+
                 # Calculate pi_theta(a_t | s_t)
                 V, curr_log_probs = self.evaluate(batch_obs, batch_actions)
                 ratios = torch.exp(curr_log_probs - batch_log_probs)
@@ -79,14 +82,14 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
-
+                nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
 
                 critic_loss = nn.MSELoss()(V, batch_rewards_to_go)
                 # Calculate gradients and perform backward propagation for critic network
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
-
+                nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
 
         eval_policy(self.actor, self.env)
@@ -149,6 +152,8 @@ class PPO:
         batch_rewards_to_go = []  # batch rewards-to-go
         batch_lens = []  # episodic lengths in batch
 
+        reward_mean = 0
+        reward_std = 1
         t = 0
 
         self.roll_i += 1
@@ -168,15 +173,7 @@ class PPO:
             for ep_t in range(self.max_time_steps_per_episode):  # TODO rename it horizon
                 t += 1
 
-                # Collect observation
-                # print(" HERE", state)
-                # print("DENORMAL", self.env.denormalize_state(state, self.env.raw_intervals))
-                # print("ADDING : ", state)
-                # print("ADDING 2 : ", self.env.denormalize_state(state, self.env.raw_intervals))
-                # denormalized_state = self.env.denormalize_state(state, self.env.raw_intervals)
-                # batch_obs.append(denormalized_state)
                 batch_obs.append(state)
-                # print(batch_obs)
 
                 # action = self.env.generate_random_action(0, 0)[1]
                 action, log_prob = self.get_action(state)
@@ -193,15 +190,12 @@ class PPO:
                     break
 
             trajectories.append(trajectory_plot)
-            # print("here", trajectory_plot)
 
             # Collect episodic length and rewards
             batch_lens.append(ep_t + 1)  # plus 1 because timestep starts at 0
+            ep_rewards = update_reward_normalization(ep_rewards)
             batch_rewards.append(ep_rewards)
 
-        # Reshape data as tensors in the shape specified before returning
-        # print(self.env.denormalize_state(batch_obs, self.env.raw_intervals))
-        # print('"SEEEEEEEE')
         batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
@@ -212,3 +206,9 @@ class PPO:
 
         # Return the batch data
         return batch_obs, batch_actions, batch_log_probs, batch_rewards_to_go, batch_lens
+
+
+def update_reward_normalization(ep_rewards):
+    mean = np.mean(ep_rewards)
+    std_dev = np.std(ep_rewards)
+    return [(reward - mean) / (std_dev + 1e-8) for reward in ep_rewards]

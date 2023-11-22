@@ -165,7 +165,6 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
                              landing_spot[0][1] >= y and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
-    # print(state)
 
     is_crashed = (y < 0 or y >= 3000-1 or x < 0 or x >= 7000-1 or
                   grid[round(y)][round(x)] is False or remaining_fuel < -4)
@@ -182,12 +181,9 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
 
 
 def normalize_unsuccessful_rewards(state, landing_spot):
-    rocket_pos_x = round(state[0])
-    hs = state[2]
-    vs = state[3]
-    rotation = state[5]
-    dist = get_landing_spot_distance(rocket_pos_x, landing_spot[0][0], landing_spot[1][0])
-    # print(dist)
+    x, y, hs, vs, remaining_fuel, rotation, thrust = state
+
+    dist = get_landing_spot_distance(x, landing_spot[0][0], landing_spot[1][0])
     norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
     return norm_dist
     # return norm_dist
