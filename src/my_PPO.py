@@ -15,14 +15,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class PPO:
     def __init__(self, env: RocketLandingEnv):
         self.env = env
-        self.obs_dim = 7
+
+        self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 10  # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
-        self.n_updates_per_iteration = 5
-        self.clip = 0.2  # As recommended by the paper
+        self.n_updates_per_iteration = 10
+        self.clip = 0.2 # As recommended by the paper
         self.lr = 0.001
 
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
@@ -40,7 +41,7 @@ class PPO:
         self.reward_std = 1
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 0.001
+        self.ent_coef = 5000
         self.target_kl = 0.02
 
         self.lam = 0.98
@@ -84,7 +85,8 @@ class PPO:
 
 
                 surr1 = ratios * A_k
-                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+                # surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+                surr2 = ratios * A_k
 
                 actor_loss = (-torch.min(surr1, surr2)).mean()
 
@@ -141,14 +143,21 @@ class PPO:
         batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float)
         return batch_rewards_to_go
 
-    def get_action(self, state):  # TODO rename fct name to something better
+    def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         state = torch.tensor(state, dtype=torch.float).to(device)
         mean = self.actor(state)
         dist = MultivariateNormal(mean, self.covariance_mat)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
+        action = dist.sample().cpu().numpy()
+        action[0] = np.clip(action[0], action_constraints[0][0], action_constraints[1][0])
+        action[1] = np.clip(action[1], action_constraints[0][1], action_constraints[1][1])
+        log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
 
-        return action.detach().cpu().numpy(), log_prob.detach()
+        # action[0] = action[]
+        # constrained_action = prev_action + np.clip(new_action - prev_action, -0.15, 0.15)
+        # log_prob = dist.log_prob(action)
+
+        # return action.detach().cpu().numpy(), log_prob.detach()
+        return action, log_prob.detach()
 
     def rollout_batch(self):
         batch_obs = []  # batch observations
@@ -168,6 +177,8 @@ class PPO:
             ep_rewards = []
             ep_vals = []
             state = self.env.reset()
+            prev_action = None
+
             ep_dones = []
             done = False
 
@@ -179,7 +190,9 @@ class PPO:
                 ep_dones.append(done)
                 batch_obs.append(state)
 
-                action, log_prob = self.get_action(state)
+                action_constraints = self.env.get_action_constraints(prev_action)
+                action, log_prob = self.get_action(state, action_constraints)
+                prev_action = action
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
@@ -235,7 +248,7 @@ class PPO:
             # batch_advantages.extend(advantages)
 
             advantages = torch.tensor(advantages, dtype=torch.float).to(device)
-            advantages = torch.clamp(advantages, -0.2, 0.2)  # Adjust the clipping range as needed
+            # advantages = torch.clamp(advantages, -0.2, 0.2)  # Adjust the clipping range as needed
             batch_advantages.extend(advantages)
 
         return torch.tensor(batch_advantages, dtype=torch.float).to(device)

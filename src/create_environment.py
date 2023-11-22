@@ -7,7 +7,6 @@ from itertools import product
 import torch
 from matplotlib import pyplot as plt
 
-
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 
 
@@ -30,6 +29,56 @@ def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]
     return world
 
 
+def distance_to_line_segment(point, line_start, line_end):
+    def squared_distance(p1, p2):
+        return np.sum((p1 - p2) ** 2)
+
+    squared_dist_start = squared_distance(point, line_start)
+    squared_dist_end = squared_distance(point, line_end)
+    squared_dist_line = squared_distance(line_start, line_end)
+
+    # Calculate the squared distance from the point to the line formed by the two end points
+    t = np.dot(point - line_start, line_end - line_start) / squared_dist_line
+    t = np.clip(t, 0, 1)  # Ensure the projection is within the line segment
+
+    projected_point = line_start + t * (line_end - line_start)
+    squared_dist_line_segment = squared_distance(point, projected_point)
+
+    if 0 <= t <= 1:
+        # The projection is within the line segment
+        return np.sqrt(squared_dist_line_segment)
+    else:
+        # The projection is outside the line segment, return the minimum distance to the end points
+        return np.sqrt(min(squared_dist_start, squared_dist_end))
+
+
+def distance_to_surface(additional_point, surface_points):
+    def surface_function(x, sorted_points):
+        for i in range(len(sorted_points) - 1):
+            x1, y1 = sorted_points[i][0], sorted_points[i][1]
+            x2, y2 = sorted_points[i + 1][0], sorted_points[i + 1][1]
+            if x1 <= x <= x2:
+                return round(y1 + (x - x1) * (y2 - y1) / (x2 - x1))
+        return 0
+
+    def distance_to_linear(x, y, x1, y1, x2, y2):
+        # Calculate the distance from a point (x, y) to the line defined by (x1, y1) and (x2, y2)
+        numerator = np.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1)
+        denominator = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+        return numerator / denominator
+
+    sorted_points = sorted(surface_points, key=lambda p: p[0])
+    closest_distance = distance_to_linear(additional_point[0], additional_point[1],
+                                          sorted_points[0][0], surface_function(sorted_points[0][0], sorted_points),
+                                          sorted_points[1][0], surface_function(sorted_points[1][0], sorted_points))
+
+    for i in range(1, len(sorted_points) - 1):
+        distance = distance_to_linear(additional_point[0], additional_point[1],
+                                      sorted_points[i][0], surface_function(sorted_points[i][0], sorted_points),
+                                      sorted_points[i + 1][0], surface_function(sorted_points[i + 1][0], sorted_points))
+        closest_distance = min(closest_distance, distance)
+    return closest_distance
+
 def display_grid(grid):
     # Convert the boolean values to integers (0 for False, 1 for True)
     array_data = np.array(grid, dtype=int)
@@ -40,18 +89,13 @@ def display_grid(grid):
 
 
 class RocketLandingEnv:
-    def __init__(self, initial_state: tuple, landing_spot, grid):
-        self.feature_amount = 7
-        self.action_space_n = (90 + 90) * 4
-        rot = range(-90, 91)
-        thrust = range(5)
-        self.action_space = list(product(rot, thrust))
-        self.action_space_sample = lambda: random.randint(0, self.action_space_n - 1)
-        self.observation_space_shape = 7000 * 3000
+    def __init__(self, initial_state: tuple, landing_spot, grid, surface):
+        self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
         self.grid = grid
+        self.surface = surface
 
         self.raw_intervals = [
             [0, 7000],  # x
@@ -60,8 +104,11 @@ class RocketLandingEnv:
             [-500, 500],  # hs
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
-            [0, 4]  # thrust
+            [0, 4],  # thrust
+            [-100, 10000],  # dist landing_spot
+            [-100, 10000]  # distance surface
         ]
+        self.action_constraints = [15, 1]
 
     @staticmethod
     def normalize_state(raw_state, raw_intervals):
@@ -81,10 +128,32 @@ class RocketLandingEnv:
     def denormalize_action(raw_output):
         def sig(x):
             return 1 / (1 + np.exp(-np.clip(x, -700, 700)))
+
         output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
         output_dim2 = np.round(sig(raw_output[1]) * 4.0)
         output = np.array([output_dim1, output_dim2], dtype=int)
         return output
+
+    @staticmethod
+    def normalize_action(action):
+        def inv_sig(x):
+            epsilon = 1e-15
+            x = np.clip(x, epsilon, 1 - epsilon)
+            return np.log(x / (1 - x))
+
+        norm_dim1 = np.tanh(action[0] / 90)
+        norm_dim2 = inv_sig(action[1] / 4.0)
+        normalized_output = np.array([norm_dim1, norm_dim2])
+        return normalized_output
+
+    def get_action_constraints(self, previous_action):
+        if previous_action is None:
+            return [self.normalize_action([-15, 0]), self.normalize_action([15, 1])]
+        action = self.denormalize_action(previous_action)
+        legal_min_max = actions_min_max(action)
+        minimun = self.normalize_action((legal_min_max[0][0], legal_min_max[1][0]))
+        maximun = self.normalize_action((legal_min_max[0][1], legal_min_max[1][1]))
+        return [minimun, maximun]
 
     def reset(self):
         self.state = np.array(self.initial_state)
@@ -92,7 +161,7 @@ class RocketLandingEnv:
 
     def step(self, action: tuple[int, int]):
         # action = self.action_space[action_index]
-        next_state = compute_next_state(self.state, action)
+        next_state = self.compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state, self.grid, self.landing_spot)
         next_state = self.normalize_state(next_state, self.raw_intervals)
@@ -120,30 +189,24 @@ class RocketLandingEnv:
             indexes.append(self.action_space.index((act_1, act_2)))
         return indexes
 
-def compute_next_state(state, action: tuple[int, int]):
-    # print("action_raw:", action, state[5], state[6])
-    rot, thrust = limit_actions(state[5], state[6], action)
-    # print("action_limited", action)
-    # state = np.round(state).astype(int)
-    # print("Compute next_state_1: ", state, rot, thrust)
-    radians = rot * (math.pi / 180)
-    x_acceleration = math.sin(radians) * thrust
-    y_acceleration = (math.cos(radians) * thrust) - GRAVITY
-    new_horizontal_speed = state[2] - x_acceleration
-    new_vertical_speed = state[3] + y_acceleration
-    new_x = state[0] + state[2] - 0.5 * x_acceleration
-    # new_x = state[1] + (((state[3] ** 2) + (new_vertical_speed ** 2)) / (2 * y_acceleration))
-    # print("suvat =", state[1] + (((state[3] ** 2) + (new_vertical_speed ** 2)) / (2 * y_acceleration)))
+    def compute_next_state(self, state, action: tuple[int, int]):
+        rot, thrust = limit_actions(state[5], state[6], action)
+        radians = rot * (math.pi / 180)
+        x_acceleration = math.sin(radians) * thrust
+        y_acceleration = (math.cos(radians) * thrust) - GRAVITY
+        new_horizontal_speed = state[2] - x_acceleration
+        new_vertical_speed = state[3] + y_acceleration
+        new_x = state[0] + state[2] - 0.5 * x_acceleration
+        new_y = state[1] + state[3] + 0.5 * y_acceleration
+        remaining_fuel = state[4] - thrust
 
-    new_y = state[1] + state[3] + 0.5 * y_acceleration
-    # new_y = state[1] + (((state[3] ** 2) + (new_vertical_speed ** 2)) / (2 * y_acceleration))
-    remaining_fuel = state[4] - thrust
-    new_state = (new_x, new_y, new_horizontal_speed,
-                 new_vertical_speed, remaining_fuel, rot,
-                 thrust)
-    # print("NEW STATE: ", new_state)
-    # print("ROUNDED", np.round(new_state))
-    return new_state
+        new_state = (new_x, new_y, new_horizontal_speed,
+                     new_vertical_speed, remaining_fuel, rot,
+                     thrust,
+                     distance_to_line_segment([new_x, new_y], self.landing_spot[0], self.landing_spot[1]),
+                     distance_to_surface([new_x, new_y], self.surface)
+        )
+        return new_state
 
 
 def compute_reward(state, landing_spot) -> float:
@@ -161,13 +224,13 @@ def compute_reward(state, landing_spot) -> float:
 
 
 def reward_function(state, grid, landing_spot) -> (float, bool):
-    x, y, hs, vs, remaining_fuel, rotation, thrust = state
+    x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
     is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
                              landing_spot[0][1] >= y and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
 
-    is_crashed = (y < 0 or y >= 3000-1 or x < 0 or x >= 7000-1 or
+    is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
                   grid[round(y)][round(x)] is False or remaining_fuel < -4)
 
     if is_successful_landing:
@@ -182,17 +245,18 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
 
 
 def normalize_unsuccessful_rewards(state, landing_spot):
-    x, y, hs, vs, remaining_fuel, rotation, thrust = state
-
-    dist = get_landing_spot_distance(x, landing_spot[0][0], landing_spot[1][0])
-    norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
-    # return norm_dist
+    x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+    norm_dist_landing_spot = (dist_landing_spot - 0) / (10000 - 0)
+    return norm_dist_landing_spot
+    # dist = get_landing_spot_distance(x, landing_spot[0][0], landing_spot[1][0])
+    # norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
+    return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
     # return norm_dist + norm_rotation
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (
-                120 - 37)
+            120 - 37)
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (
-                120 - 17)
+            120 - 17)
     # print(
     #     "CRASH x=", x, 'dist=', dist, 'rot=', rotation, vs, hs,
     #     "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum",

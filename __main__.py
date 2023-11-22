@@ -6,22 +6,32 @@ import numpy as np
 
 def parse_planet_surface():
     input_file = '''
-        10
-        0 100
-        1000 500
-        1500 100
-        3000 100
-        3500 500
-        3700 200
-        5000 1500
-        5800 300
-        6000 1000
-        6999 2000
+        20
+        0 1000
+        300 1500
+        350 1400
+        500 2000
+        800 1800
+        1000 2500
+        1200 2100
+        1500 2400
+        2000 1000
+        2200 500
+        2500 100
+        2900 800
+        3000 500
+        3200 1000
+        3500 2000
+        3800 800
+        4000 200
+        5000 200
+        5500 1500
+        6999 2800
     '''
     lines = input_file.strip().split('\n')
     num_lines = int(lines[0])
     concatenated_numbers = np.fromstring('\n'.join(lines[1:]), sep=' ')
-    return concatenated_numbers.reshape(num_lines, 2)
+    return concatenated_numbers.reshape(num_lines, 2).astype(int)
 
 
 #

@@ -2,7 +2,7 @@ import numpy as np
 
 
 from src.my_PPO import PPO
-from src.create_environment import RocketLandingEnv, create_env
+from src.create_environment import RocketLandingEnv, create_env, distance_to_line_segment, distance_to_surface
 from src.graph_handler import create_graph
 
 # TODO move this info somewhere else:
@@ -62,54 +62,32 @@ from src.graph_handler import create_graph
 # The world outside my agent is stationary (independent of the agent actions).
 
 
-def find_landing_spot(mars_surface: list) -> tuple:
+def find_landing_spot(mars_surface):
     for i in range(len(mars_surface) - 1):
         if mars_surface[i + 1][1] == mars_surface[i][1]:
-            return mars_surface[i], mars_surface[i + 1]
+            landing_spot_start = (int(mars_surface[i][0]), int(mars_surface[i][1]))
+            landing_spot_end = (int(mars_surface[i + 1][0]), int(mars_surface[i + 1][1]))
+            return np.array([landing_spot_start, landing_spot_end])
     raise Exception('no landing site on test-case data')
 
-# # store all active ANNs
-# networks = []
-# pool = []
-# # Generation counter
-# generation = 0
-# # Initial Population
-# population = 10
-# for i in range(population):
-#     networks.append(ANN())
-# # Track Max Fitness
-# max_fitness = 0
-# # Store Max Fitness Weights
-# optimal_weights = []
 
-
-data = {
-    'Feature1': [1, 2, 3, 4, 5],
-    'Feature2': [10, 20, 30, 40, 50],
-    'Feature3': [100, 200, 300, 400, 500],
-    # ... add more features as needed
-    'Label': [0, 1, 0, 1, 0]
-}
-
-
-def learn_weights(mars_surface: list, init_rocket, env):
+def learn_weights(mars_surface: np.ndarray, init_rocket, env):
     x_max = 7000
     y_max = 3000
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
-    initial_state = (6500, 2800, -100, 0, 600, 0, 0)
+    initial_state = np.array([
+        500, 2700, 100, 0, 800, -90, 0,
+        distance_to_line_segment(np.array([500, 2700]), landing_spot[0], landing_spot[1]),
+        distance_to_surface(np.array([500, 2700]), mars_surface)
+    ])
+    # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
     create_graph(mars_surface, 'Landing on Mars')
-    # env = gym.make('CartPole-v1')
+    env = RocketLandingEnv(initial_state, landing_spot, grid, mars_surface)
 
-    # Create and train the Linear Q-learning agent
-    env = RocketLandingEnv(initial_state, landing_spot, grid)
-
-    # my_aco = AntColonyOptimization()
-    # my_pso = ParticleSwarmOptimization(env)
-    # policy_gradient = eval_loop(env)
     np.set_printoptions(suppress=True)
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(100_000)
+    my_proximal_policy_optimization.learn(1000_000)
 

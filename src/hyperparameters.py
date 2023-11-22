@@ -24,7 +24,7 @@ def action_1_min_max(old_power_thrust: int) -> tuple[int, int]:
 
 
 def actions_min_max(action: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, int]]:
-    return action_1_min_max(action[0]), action_2_min_max(action[1])
+    return action_2_min_max(action[0]), action_1_min_max(action[1])
 
 
 def limit_actions(old_rota: int, old_power_thrust: int, action: tuple[int, int]) -> tuple[int, int]:
