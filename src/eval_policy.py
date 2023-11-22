@@ -79,7 +79,7 @@ def rollout(policy, env, render):
                 env.render()
 
             # Query deterministic action from policy and run it
-            action = policy(obs).detach().numpy()
+            action = policy(obs).detach().cpu().numpy()
             action = env.denormalize_action(action)
 
             # print('rot?', obs[5], 'power=?', obs[6])

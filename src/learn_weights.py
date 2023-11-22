@@ -99,7 +99,7 @@ def learn_weights(mars_surface: list, init_rocket, env):
     landing_spot = find_landing_spot(mars_surface)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
-    initial_state = (2500, 2500, 0, 0, 550, 0, 0)
+    initial_state = (6500, 2800, -100, 0, 600, 0, 0)
     create_graph(mars_surface, 'Landing on Mars')
     # env = gym.make('CartPole-v1')
 

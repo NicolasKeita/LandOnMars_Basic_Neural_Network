@@ -18,7 +18,7 @@ class PPO:
         self.obs_dim = 7
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 10  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 5
@@ -40,7 +40,7 @@ class PPO:
         self.reward_std = 1
         self.max_grad_norm = 0.5
 
-        self.ent_coef = .001
+        self.ent_coef = 0.001
         self.target_kl = 0.02
 
         self.lam = 0.98
@@ -232,6 +232,10 @@ class PPO:
                 last_advantage = advantage
                 advantages.insert(0, advantage)
 
+            # batch_advantages.extend(advantages)
+
+            advantages = torch.tensor(advantages, dtype=torch.float).to(device)
+            advantages = torch.clamp(advantages, -0.2, 0.2)  # Adjust the clipping range as needed
             batch_advantages.extend(advantages)
 
         return torch.tensor(batch_advantages, dtype=torch.float).to(device)

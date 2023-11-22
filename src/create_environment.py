@@ -199,7 +199,7 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     #     (2 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs) / 5
     # )
     print(norm_dist, norm_rotation, rotation)
-    if dist != 0:
+    if norm_dist < 1:
         return norm_dist
     return norm_dist + norm_rotation
 
