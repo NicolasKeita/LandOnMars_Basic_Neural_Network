@@ -185,22 +185,27 @@ def normalize_unsuccessful_rewards(state, landing_spot):
 
     dist = get_landing_spot_distance(x, landing_spot[0][0], landing_spot[1][0])
     norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
-    return norm_dist
     # return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
+    # return norm_dist + norm_rotation
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (
                 120 - 37)
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (
                 120 - 17)
-    # print("crash", dist)
     # print(
-    #     "CRASH x=", rocket_pos_x, 'dist=', dist, 'rot=', rotation, vs, hs,
+    #     "CRASH x=", x, 'dist=', dist, 'rot=', rotation, vs, hs,
     #     "norms:", "vs", norm_vs, "hs", norm_hs, "rotation", norm_rotation, "dist", norm_dist, "sum",
-    #     (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
+    #     (2 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs) / 5
     # )
-    # return 1 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs
+    print(norm_dist, norm_rotation, rotation)
+    if dist != 0:
+        return (1 * norm_dist) / 2
+    return (norm_dist + norm_rotation) / 2
+
+    return (2 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
 
     # print("Crash ! , ", norm_dist, norm_vs, norm_hs, norm_dist + norm_vs + norm_hs)
+    # return norm_dist
     return (1 * norm_dist + 1 * norm_vs + 1 * norm_hs)
     if dist != 0:
         return 1 * norm_dist

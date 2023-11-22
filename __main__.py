@@ -6,14 +6,13 @@ import numpy as np
 
 def parse_planet_surface():
     input_file = '''
-    7
-    0 100
-    1000 500
-    1500 1500
-    3000 1000
-    4000 150
-    5500 150
-    6999 800
+        6
+        0 100
+        1000 500
+        1500 100
+        3000 100
+        5000 1500
+        6999 1000
     '''
     lines = input_file.strip().split('\n')
     num_lines = int(lines[0])
