@@ -5,8 +5,9 @@ import numpy as np
 
 
 class FeedForwardNN(nn.Module):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim, device):
         super(FeedForwardNN, self).__init__()
+        self.device = device
         self.layer_1 = nn.Linear(in_dim, 128)
         self.layer_2 = nn.Linear(128, 256)
         self.layer_3 = nn.Linear(256, 128)
@@ -15,7 +16,7 @@ class FeedForwardNN(nn.Module):
 
     def forward(self, state):
         if isinstance(state, np.ndarray):
-            state = torch.tensor(state, dtype=torch.float)
+            state = torch.tensor(state, dtype=torch.float).to(self.device)
         activation_1 = F.relu(self.layer_1(state))
         activation_2 = F.relu(self.layer_2(activation_1))
         activation_3 = F.relu(self.layer_3(activation_2))

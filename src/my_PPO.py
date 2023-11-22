@@ -25,10 +25,10 @@ class PPO:
         self.clip = 0.2  # As recommended by the paper
         self.lr = 0.001
 
-        self.actor = FeedForwardNN(self.obs_dim, self.action_dim).to(device)
+        self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
-        self.critic = FeedForwardNN(self.obs_dim, 1).to(device)
+        self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
         self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
@@ -142,34 +142,28 @@ class PPO:
         return batch_rewards_to_go
 
     def get_action(self, state):  # TODO rename fct name to something better
+        state = torch.tensor(state, dtype=torch.float).to(device)
         mean = self.actor(state)
         dist = MultivariateNormal(mean, self.covariance_mat)
         action = dist.sample()
         log_prob = dist.log_prob(action)
 
-        return action.detach().numpy(), log_prob.detach()
+        return action.detach().cpu().numpy(), log_prob.detach()
 
     def rollout_batch(self):
-        # Batch data
         batch_obs = []  # batch observations
         batch_actions = []  # batch actions
         batch_log_probs = []  # log probs of each action
         batch_rewards = []  # batch rewards
-        batch_rewards_to_go = []  # batch rewards-to-go
         batch_lens = []  # episodic lengths in batch
         batch_vals = []
         batch_dones = []
 
-        reward_mean = 0
-        reward_std = 1
         t = 0
-
         self.roll_i += 1
-        tmp = 0
         trajectories = []
 
         while t < self.time_steps_per_batch:
-            tmp += 1
 
             ep_rewards = []
             ep_vals = []
@@ -189,6 +183,7 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
+                state = torch.tensor(state, dtype=torch.float).to(device)
                 trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
 
                 ep_rewards.append(reward)
@@ -210,9 +205,12 @@ class PPO:
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
 
+        # batch_rewards = torch.tensor(batch_rewards, dtype=torch.float).to(device)
+        # batch_vals = torch.tensor(batch_vals, dtype=torch.float).to(device)
+        # batch_dones = torch.tensor(batch_dones, dtype=torch.float).to(device)
+
         display_graph(trajectories, self.roll_i)
 
-        # Return the batch data
         return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones
 
     def calculate_gae(self, rewards, values, dones):
@@ -221,6 +219,7 @@ class PPO:
             advantages = []
             last_advantage = 0
 
+            ep_dones = torch.tensor(ep_dones, dtype=torch.float).to(device)
             for t in reversed(range(len(ep_rews))):
                 # if t + 1 < len(ep_rews):
                 #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
@@ -235,7 +234,7 @@ class PPO:
 
             batch_advantages.extend(advantages)
 
-        return torch.tensor(batch_advantages, dtype=torch.float)
+        return torch.tensor(batch_advantages, dtype=torch.float).to(device)
 
 def z_score_normalization(ep_rewards):
     mean = np.mean(ep_rewards)

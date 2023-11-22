@@ -71,9 +71,10 @@ class RocketLandingEnv:
 
     @staticmethod
     def denormalize_state(normalized_state, raw_intervals):
+        cpu_state = normalized_state.cpu().numpy()
         denormalized_state = [val * (interval[1] - interval[0]) + interval[0]
                               for val, interval in
-                              zip(normalized_state, raw_intervals)]
+                              zip(cpu_state, raw_intervals)]
         return np.array(denormalized_state)
 
     @staticmethod
@@ -199,8 +200,8 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     # )
     print(norm_dist, norm_rotation, rotation)
     if dist != 0:
-        return (1 * norm_dist) / 2
-    return (norm_dist + norm_rotation) / 2
+        return norm_dist
+    return norm_dist + norm_rotation
 
     return (2 * norm_dist + 1 * norm_rotation + 1 * norm_vs + 1 * norm_hs)
 
