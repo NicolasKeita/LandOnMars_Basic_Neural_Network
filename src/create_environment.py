@@ -137,7 +137,7 @@ class RocketLandingEnv:
     @staticmethod
     def normalize_action(action):
         def inv_sig(x):
-            epsilon = 1e-15
+            epsilon = 1e-10
             x = np.clip(x, epsilon, 1 - epsilon)
             return np.log(x / (1 - x))
 
@@ -246,11 +246,20 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
 
 def normalize_unsuccessful_rewards(state, landing_spot):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
-    norm_dist_landing_spot = (dist_landing_spot - 0) / (10000 - 0)
-    return norm_dist_landing_spot
+    # norm_dist_landing_spot = (dist_landing_spot - 0) / (10000 - 0)
+    norm_dist = 1000.0 if dist_landing_spot == 0 else max(0, 1 - dist_landing_spot / 7000)
+    norm_rotation = 1 - abs(rotation) / 90
+    norm_rotation = 1000 if norm_rotation == 1 else norm_rotation
+    # print([norm_dist, norm_rotation, norm_rotation + norm_dist])
+    # print(dist_landing_spot)
+    return norm_dist + norm_rotation
+    # if norm_dist_landing_spot == 0:
+    #     return 10
+    #     norm_dist_landing_spot = -10
+    # return 0
+    # return -norm_dist_landing_spot
     # dist = get_landing_spot_distance(x, landing_spot[0][0], landing_spot[1][0])
     # norm_dist = 1.0 if dist == 0 else max(0, 1 - dist / 7000)
-    return norm_dist
     norm_rotation = 1 - abs(rotation) / 90
     # return norm_dist + norm_rotation
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (

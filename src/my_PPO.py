@@ -19,12 +19,12 @@ class PPO:
         self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 10  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 10 # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 10
-        self.clip = 0.2 # As recommended by the paper
-        self.lr = 0.001
+        self.clip = 0.2
+        self.lr = 0.0001
 
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -55,29 +55,27 @@ class PPO:
             (batch_obs, batch_actions, batch_log_probs,
              batch_rewards, batch_lens, batch_vals, batch_dones) = self.rollout_batch()
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
-            V = self.critic(batch_obs).squeeze()
-            batch_rewards_to_go = A_k + V.detach()
+            V: torch.Tensor = self.critic(batch_obs).squeeze()
+            batch_rewards_to_go = torch.add(A_k, V.detach())
+            # batch_rewards_to_go = A_k + V.detach()
+            # batch_rewards_to_go = A_k + V.detach().clone()
+            # batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float).to(device)
 
             t_so_far += np.sum(batch_lens)
-            print('BATCH DONE', t_so_far)
+            # print('BATCH DONE', t_so_far)
             i_so_far += 1
 
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
-            # V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
-
-            # A_k = batch_rewards_to_go - V.detach()
-            # A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
-
             for _ in range(self.n_updates_per_iteration):
                 frac = (t_so_far - 1.0) / total_time_steps
                 new_lr = self.lr * (1.0 - frac)
-                new_lr = max(new_lr, 0.0)
+                new_lr = max(new_lr, 0)
+                # print(new_lr)
+
                 self.actor_optim.param_groups[0]["lr"] = new_lr
                 self.critic_optim.param_groups[0]["lr"] = new_lr
 
-
-                # Calculate pi_theta(a_t | s_t)
                 V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
                 logratios = curr_log_probs - batch_log_probs
                 ratios = torch.exp(logratios)
@@ -85,8 +83,8 @@ class PPO:
 
 
                 surr1 = ratios * A_k
-                # surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
-                surr2 = ratios * A_k
+                surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
+                # surr2 = ratios * A_k
 
                 actor_loss = (-torch.min(surr1, surr2)).mean()
 
@@ -97,54 +95,56 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
+                # Print gradients of the actor network
+
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
 
-                critic_loss = nn.MSELoss()(V, batch_rewards_to_go)
-                # Calculate gradients and perform backward propagation for critic network
+                # for name, param in self.actor.named_parameters():
+                #     print(name, param.requires_grad, param.grad)
+
+                # critic_loss = nn.MSELoss()(V, batch_rewards_to_go)
+                # print(V.grad)
+                # print(batch_rewards_to_go)
+                # exit(0)
+                critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
+                # critic_loss = nn.MSELoss()(torch.autograd.Variable(V), batch_rewards_to_go)
+                # print(critic_loss)
                 self.critic_optim.zero_grad()
+                # print(critic_loss)
                 critic_loss.backward()
+                # print(critic_loss)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
-
+                # print(critic_loss)
+                # print("critic ann")
+                # for name, param in self.critic.named_parameters():
+                #     print(name, param.requires_grad, param.grad)
+                # print("DONE")
+                # exit(0)
                 if approx_kl > self.target_kl:
-                    break # if kl aboves threshold
+                    break
 
         eval_policy(self.actor, self.env)
         # torch.save(self.actor.state_dict(), './model.txt')
 
-    def evaluate(self, batch_obs, batch_acts):
-        # Query critic network for a value V for each obs in batch_obs.
+    def evaluate(self, batch_obs, batch_acts) -> tuple[torch.TensorType, any, any]:
         V = self.critic(batch_obs).squeeze()
-        # Calculate the log probabilities of batch actions using most
-        # recent actor network.
-        # This segment of code is similar to that in get_action()
         mean = self.actor(batch_obs)
         dist = MultivariateNormal(mean, self.covariance_mat)
         log_probs = dist.log_prob(batch_acts)
-        # Return predicted values V and log probs log_probs
         return V, log_probs, dist.entropy()
 
-    def compute_rtgs(self, batch_rewards):
-        # The rewards-to-go (rtg) per episode per batch to return.
-        # The shape will be (num timesteps per episode)
-        # print("reward")
-        # print(batch_rewards)
-        batch_rewards_to_go = []
-        # Iterate through each episode backwards to maintain same order
-        # in batch_rtgs
-        for ep_rews in reversed(batch_rewards):
-            discounted_reward = 0  # The discounted reward so far
-            for rew in reversed(ep_rews):
-                discounted_reward = rew + discounted_reward * self.gamma_reward_to_go
-                batch_rewards_to_go.insert(0, discounted_reward)
-        # Convert the rewards-to-go into a tensor
-        # print(batch_rewards_to_go)
-        batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float)
-        return batch_rewards_to_go
-
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
-        state = torch.tensor(state, dtype=torch.float).to(device)
+        # state = torch.tensor(state, dtype=torch.float).to(device)
+        # torch.autograd.set_detect_anomaly(True)
+
+        # state = np.array([
+        #     0.07142857142857142, 0.9, 0.6, 0.5,
+        #     0.4002998500749625, 0.0, 0.0,
+        #     0.43575867658626866,
+        #     0.013861386138613862
+        # ])
         mean = self.actor(state)
         dist = MultivariateNormal(mean, self.covariance_mat)
         action = dist.sample().cpu().numpy()
@@ -226,7 +226,7 @@ class PPO:
 
         return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones
 
-    def calculate_gae(self, rewards, values, dones):
+    def calculate_gae(self, rewards, values, dones) -> torch.Tensor:
         batch_advantages = []
         for ep_rews, ep_vals, ep_dones in zip(rewards, values, dones):
             advantages = []
@@ -247,7 +247,7 @@ class PPO:
 
             # batch_advantages.extend(advantages)
 
-            advantages = torch.tensor(advantages, dtype=torch.float).to(device)
+            # advantages = torch.tensor(advantages, dtype=torch.float).to(device)
             # advantages = torch.clamp(advantages, -0.2, 0.2)  # Adjust the clipping range as needed
             batch_advantages.extend(advantages)
 

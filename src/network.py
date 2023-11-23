@@ -9,8 +9,8 @@ import numpy as np
 #     def __init__(self, in_dim, out_dim, device):
 #         super(FeedForwardNN, self).__init__()
 #         self.device = device
-#         self.layer_1 = nn.Linear(in_dim, 256)
-#         self.layer_2 = nn.Linear(256, out_dim)
+#         self.layer_1 = nn.Linear(in_dim, 128)
+#         self.layer_2 = nn.Linear(128, out_dim)
 #
 #     def forward(self, state):
 #         if isinstance(state, np.ndarray):
@@ -97,18 +97,20 @@ class FeedForwardNN(nn.Module):
         self.device = device
         self.layer_1 = nn.Linear(in_dim, 256)
         self.layer_2 = nn.Linear(256, 512)
-        self.layer_3 = nn.Linear(512, 512)  # Increased complexity
+        self.layer_3 = nn.Linear(512, 512)
         self.layer_4 = nn.Linear(512, 256)
         self.layer_5 = nn.Linear(256, 128)
         self.layer_6 = nn.Linear(128, 64)
         self.layer_7 = nn.Linear(64, 32)
-        self.layer_8 = nn.Linear(32, 16)  # Increased complexity
-        self.layer_9 = nn.Linear(16, out_dim)  # Increased complexity
+        self.layer_8 = nn.Linear(32, 16)
+        self.layer_9 = nn.Linear(16, out_dim)
 
     def forward(self, state):
         if isinstance(state, np.ndarray):
             state = torch.tensor(state, dtype=torch.float).to(self.device)
         activation_1 = F.relu(self.layer_1(state))
+        # print(self.layer_1(state), state)
+        # print("Layer 1 input:", self.layer_1(state).grad_fn.next_functions[0][0])
         activation_2 = F.relu(self.layer_2(activation_1))
         activation_3 = F.relu(self.layer_3(activation_2))
         activation_4 = F.relu(self.layer_4(activation_3))
