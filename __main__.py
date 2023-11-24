@@ -102,16 +102,19 @@ def learn_weights(mars_surface: np.ndarray, init_rocket, env):
     y_max = 3000
     grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
     landing_spot = find_landing_spot(mars_surface)
+    landing_spot_points = []
+    for x in range(landing_spot[0][0], landing_spot[1][0]):
+        landing_spot_points.append(np.array([x, landing_spot[0][1]]))
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     initial_state = np.array([
         2500, 2500, 0, 0, 500, 0, 0,
-        distance_to_line_segment(np.array([500, 2700]), landing_spot[0], landing_spot[1]),
+        distance_to_line_segment(np.array([500, 2700]), landing_spot_points),
         distance_to_surface(np.array([500, 2700]), mars_surface)
     ])
     # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
     create_graph(mars_surface, 'Landing on Mars')
-    env = RocketLandingEnv(initial_state, landing_spot, grid, mars_surface)
+    env = RocketLandingEnv(initial_state, landing_spot, grid, mars_surface, landing_spot_points)
 
     np.set_printoptions(suppress=True)
     # torch.autograd.set_detect_anomaly(True)

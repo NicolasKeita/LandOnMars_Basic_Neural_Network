@@ -29,27 +29,23 @@ def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]
     return world
 
 
-def distance_to_line_segment(point, line_start, line_end):
+def distance_to_line_segment(point, landing_spot_points: list):
     def squared_distance(p1, p2):
         return np.sum((p1 - p2) ** 2)
 
-    squared_dist_start = squared_distance(point, line_start)
-    squared_dist_end = squared_distance(point, line_end)
-    squared_dist_line = squared_distance(line_start, line_end)
-
-    # Calculate the squared distance from the point to the line formed by the two end points
-    t = np.dot(point - line_start, line_end - line_start) / squared_dist_line
-    t = np.clip(t, 0, 1)  # Ensure the projection is within the line segment
-
-    projected_point = line_start + t * (line_end - line_start)
-    squared_dist_line_segment = squared_distance(point, projected_point)
-
-    if 0 <= t <= 1:
-        # The projection is within the line segment
-        return np.sqrt(squared_dist_line_segment)
-    else:
-        # The projection is outside the line segment, return the minimum distance to the end points
-        return np.sqrt(min(squared_dist_start, squared_dist_end))
+    if landing_spot_points[0][0] < point[0] < landing_spot_points[-1][0] and point[1] < landing_spot_points[0][1]:
+        return 0
+    # print(landing_spot_points.index([point[0], landing_spot_points[0][1]]))
+    # vertical_point_index = landing_spot_points.index(np.array([point[0], landing_spot_points[0][1]]))
+    # tmp = squared_distance(point, landing_spot_points[vertical_point_index])
+    # print(tmp)
+    # return squared_distance(point, landing_spot_points[vertical_point_index])
+    squared_distance(point, landing_spot_points.index())
+    for landing_spot_point in landing_spot_points:
+        squared_dist = squared_distance(point, landing_spot_point)
+        if squared_dist < distance:
+            distance = squared_dist
+    return distance
 
 
 def distance_to_surface(additional_point, surface_points):
@@ -89,11 +85,12 @@ def display_grid(grid):
 
 
 class RocketLandingEnv:
-    def __init__(self, initial_state: tuple, landing_spot, grid, surface):
+    def __init__(self, initial_state: tuple, landing_spot, grid, surface, landing_spot_points):
         self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
+        self.landing_spot_points = landing_spot_points
         self.grid = grid
         self.surface = surface
 
@@ -118,7 +115,8 @@ class RocketLandingEnv:
 
     @staticmethod
     def denormalize_state(normalized_state, raw_intervals):
-        cpu_state = normalized_state.cpu().numpy()
+        # cpu_state = normalized_state.cpu().numpy()
+        cpu_state = normalized_state
         denormalized_state = [val * (interval[1] - interval[0]) + interval[0]
                               for val, interval in
                               zip(cpu_state, raw_intervals)]
@@ -203,7 +201,7 @@ class RocketLandingEnv:
         new_state = (new_x, new_y, new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
-                     distance_to_line_segment([new_x, new_y], self.landing_spot[0], self.landing_spot[1]),
+                     distance_to_line_segment(np.array([new_x, new_y]), self.landing_spot_points),
                      distance_to_surface([new_x, new_y], self.surface)
         )
         return new_state
@@ -246,13 +244,20 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
 
 def normalize_unsuccessful_rewards(state, landing_spot):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
-    # norm_dist_landing_spot = (dist_landing_spot - 0) / (10000 - 0)
-    norm_dist = 1000.0 if dist_landing_spot == 0 else max(0, 1 - dist_landing_spot / 7000)
+
+    norm_dist = 1000.0 if dist_landing_spot == 0 else max(0, 1 - dist_landing_spot / 7000) -50
     norm_rotation = 1 - abs(rotation) / 90
-    norm_rotation = 1000 if norm_rotation == 1 else norm_rotation
-    # print([norm_dist, norm_rotation, norm_rotation + norm_dist])
-    # print(dist_landing_spot)
-    return norm_dist + norm_rotation
+    norm_rotation = 1000 if norm_rotation == 1 else norm_rotation -50
+    norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (
+            120 - 37)
+    norm_vs = 1000 if norm_vs == 1 else norm_vs - 50
+    norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (
+            120 - 17)
+    norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
+    # print([dist_landing_spot, norm_dist, norm_rotation, norm_rotation + norm_dist])
+
+    print(norm_dist + norm_rotation + norm_vs + norm_hs)
+    return norm_dist + norm_rotation + norm_vs + norm_hs
     # if norm_dist_landing_spot == 0:
     #     return 10
     #     norm_dist_landing_spot = -10

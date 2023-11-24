@@ -19,10 +19,10 @@ class PPO:
         self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 10 # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
-        self.n_updates_per_iteration = 10
+        self.n_updates_per_iteration = 5
         self.clip = 0.2
         self.lr = 0.0001
 
@@ -41,7 +41,7 @@ class PPO:
         self.reward_std = 1
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 5000
+        self.ent_coef = 50
         self.target_kl = 0.02
 
         self.lam = 0.98
@@ -147,7 +147,8 @@ class PPO:
         # ])
         mean = self.actor(state)
         dist = MultivariateNormal(mean, self.covariance_mat)
-        action = dist.sample().cpu().numpy()
+        action: np.ndarray = dist.sample().cpu().numpy()
+
         action[0] = np.clip(action[0], action_constraints[0][0], action_constraints[1][0])
         action[1] = np.clip(action[1], action_constraints[0][1], action_constraints[1][1])
         log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
@@ -196,7 +197,7 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
-                state = torch.tensor(state, dtype=torch.float).to(device)
+                # state = torch.tensor(state, dtype=torch.float).to(device)
                 trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
 
                 ep_rewards.append(reward)
@@ -214,13 +215,11 @@ class PPO:
             batch_vals.append(ep_vals)
             batch_dones.append(ep_dones)
 
+        batch_obs = np.array(batch_obs)
         batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
+        batch_actions = np.array(batch_actions)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
-
-        # batch_rewards = torch.tensor(batch_rewards, dtype=torch.float).to(device)
-        # batch_vals = torch.tensor(batch_vals, dtype=torch.float).to(device)
-        # batch_dones = torch.tensor(batch_dones, dtype=torch.float).to(device)
 
         display_graph(trajectories, self.roll_i)
 
