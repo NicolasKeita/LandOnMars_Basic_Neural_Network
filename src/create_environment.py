@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 
 
+# TODO changer GRID to function
 # False = underneath the surface
 def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]:
     def surface_function(x, sorted_points):

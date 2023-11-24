@@ -54,7 +54,6 @@ def learn_weights(mars_surface: np.ndarray, init_rocket, env):
     my_proximal_policy_optimization.learn(1000_000)
 
 
-
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
     env: list[list[bool]] = create_env(planet_surface, 7000, 3000)
