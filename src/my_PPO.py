@@ -61,7 +61,7 @@ class PPO:
 
         while t_so_far < total_time_steps:  # TODO for loop ?
             (batch_obs, batch_actions, batch_log_probs,
-             batch_rewards, batch_lens, batch_vals, batch_dones) = self.rollout_batch()
+             batch_rewards, batch_lens, batch_vals, batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
             V: torch.Tensor = self.critic(batch_obs).squeeze()
             batch_rewards_to_go = torch.add(A_k, V.detach())
@@ -134,6 +134,8 @@ class PPO:
                     break
 
             avg_reward = np.mean(np.concatenate(batch_rewards))
+            # print(batch_rewards)
+            # print(avg_reward)
             rewards_history.append(avg_reward)
 
             # print(rewards_history)
@@ -182,6 +184,7 @@ class PPO:
         batch_lens = []  # episodic lengths in batch
         batch_vals = []
         batch_dones = []
+        batch_rewards_not_normalized = []
 
         t = 0
         self.roll_i += 1
@@ -224,10 +227,12 @@ class PPO:
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            ep_rewards = z_score_normalization(ep_rewards)
-            batch_rewards.append(ep_rewards)
+            ep_rewards_normalized = z_score_normalization(ep_rewards)
+
+            batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
             batch_dones.append(ep_dones)
+            batch_rewards_not_normalized.append(ep_rewards)
 
         batch_obs = np.array(batch_obs)
         batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
@@ -237,7 +242,7 @@ class PPO:
 
         display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
 
-        return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones
+        return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones, batch_rewards_not_normalized
 
     def calculate_gae(self, rewards, values, dones) -> torch.Tensor:
         batch_advantages = []

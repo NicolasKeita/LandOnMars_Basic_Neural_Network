@@ -33,14 +33,14 @@ def distance_to_line_segment(point, landing_spot_points: list):
     def squared_distance(p1, p2):
         return np.sum((p1 - p2) ** 2)
 
-    if landing_spot_points[0][0] < point[0] < landing_spot_points[-1][0] and point[1] < landing_spot_points[0][1]:
+    landing_spot_left = landing_spot_points[0]
+    landing_spot_right = landing_spot_points[-1]
+    if landing_spot_left[0] < point[0] < landing_spot_right[0] and point[1] < landing_spot_left[1]:
         return 0
-    # print(landing_spot_points.index([point[0], landing_spot_points[0][1]]))
-    # vertical_point_index = landing_spot_points.index(np.array([point[0], landing_spot_points[0][1]]))
-    # tmp = squared_distance(point, landing_spot_points[vertical_point_index])
-    # print(tmp)
-    # return squared_distance(point, landing_spot_points[vertical_point_index])
-    # squared_distance(point, landing_spot_points.index())
+    if point[0] < landing_spot_left[0]:
+        return squared_distance(point, landing_spot_left)
+    elif point[0] > landing_spot_right[0]:
+        return squared_distance(point, landing_spot_right)
     distance = np.inf
     for landing_spot_point in landing_spot_points:
         squared_dist = squared_distance(point, landing_spot_point)
@@ -257,7 +257,7 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
     # print([dist_landing_spot, norm_dist, norm_rotation, norm_rotation + norm_dist])
 
-    # print(norm_dist + norm_rotation + norm_vs + norm_hs)
+    print(norm_dist + norm_rotation + norm_vs + norm_hs)
     return norm_dist + norm_rotation + norm_vs + norm_hs
     # if norm_dist_landing_spot == 0:
     #     return 10
