@@ -40,7 +40,8 @@ def distance_to_line_segment(point, landing_spot_points: list):
     # tmp = squared_distance(point, landing_spot_points[vertical_point_index])
     # print(tmp)
     # return squared_distance(point, landing_spot_points[vertical_point_index])
-    squared_distance(point, landing_spot_points.index())
+    # squared_distance(point, landing_spot_points.index())
+    distance = np.inf
     for landing_spot_point in landing_spot_points:
         squared_dist = squared_distance(point, landing_spot_point)
         if squared_dist < distance:
