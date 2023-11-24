@@ -113,7 +113,7 @@ def learn_weights(mars_surface: np.ndarray, init_rocket, env):
         distance_to_surface(np.array([500, 2700]), mars_surface)
     ])
     # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
-    create_graph(mars_surface, 'Landing on Mars')
+    # create_graph(mars_surface, 'Landing on Mars')
     env = RocketLandingEnv(initial_state, landing_spot, grid, mars_surface, landing_spot_points)
 
     np.set_printoptions(suppress=True)

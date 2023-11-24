@@ -1,11 +1,12 @@
 import torch
+from matplotlib import pyplot as plt
 from torch import nn
 from torch.optim import Adam
 from torch.distributions import MultivariateNormal
 import numpy as np
 
 from src.eval_policy import eval_policy
-from src.graph_handler import display_graph
+from src.graph_handler import display_graph, plot_rewards, create_graph
 from src.network import FeedForwardNN
 from src.create_environment import RocketLandingEnv
 
@@ -47,9 +48,16 @@ class PPO:
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
 
+        fig, (ax_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
+        self.fig = fig
+        self.ax_rewards = ax_rewards
+        self.ax_trajectories = ax_trajectories
+        create_graph(self.env.surface, 'Landing on Mars', ax_trajectories)
+
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
         i_so_far = 0
+        rewards_history = []
 
         while t_so_far < total_time_steps:  # TODO for loop ?
             (batch_obs, batch_actions, batch_log_probs,
@@ -124,6 +132,12 @@ class PPO:
                 # exit(0)
                 if approx_kl > self.target_kl:
                     break
+
+            avg_reward = np.mean(np.concatenate(batch_rewards))
+            rewards_history.append(avg_reward)
+
+            # print(rewards_history)
+            plot_rewards(rewards_history, ax=self.ax_rewards)
 
         eval_policy(self.actor, self.env)
         # torch.save(self.actor.state_dict(), './model.txt')
@@ -221,7 +235,7 @@ class PPO:
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
         batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
 
-        display_graph(trajectories, self.roll_i)
+        display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
 
         return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones
 

@@ -257,7 +257,7 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
     # print([dist_landing_spot, norm_dist, norm_rotation, norm_rotation + norm_dist])
 
-    print(norm_dist + norm_rotation + norm_vs + norm_hs)
+    # print(norm_dist + norm_rotation + norm_vs + norm_hs)
     return norm_dist + norm_rotation + norm_vs + norm_hs
     # if norm_dist_landing_spot == 0:
     #     return 10
