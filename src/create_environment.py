@@ -7,8 +7,10 @@ from itertools import product
 
 import torch
 from matplotlib import pyplot as plt
+from shapely import LineString, Point
 
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
+from src.math_utils import distance_squared
 
 
 # TODO changer GRID to function
@@ -31,92 +33,19 @@ def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]
     return world
 
 
-def distance_to_line_segment(point, landing_spot_points: list):
-    def squared_distance(p1, p2):
-        return np.sum((p1 - p2) ** 2)
-
-    landing_spot_left = landing_spot_points[0]
-    landing_spot_right = landing_spot_points[-1]
-    if landing_spot_left[0] < point[0] < landing_spot_right[0] and point[1] < landing_spot_left[1]:
-        return 0
-    if point[0] < landing_spot_left[0]:
-        return squared_distance(point, landing_spot_left)
-    elif point[0] > landing_spot_right[0]:
-        return squared_distance(point, landing_spot_right)
-    distance = np.inf
-    for landing_spot_point in landing_spot_points:
-        squared_dist = squared_distance(point, landing_spot_point)
-        if squared_dist < distance:
-            distance = squared_dist
-    return distance
+def distance_to_closest_point_to_line_segments(point, line_segments):
+    line = LineString(line_segments)
+    projected_point = line.interpolate(line.project(Point(point)))
+    return distance_squared(projected_point, Point(point))
 
 
+def distance_to_closest_point_on_segment(point_A, segment):
+    A = Point(point_A)
+    line = LineString(segment)
 
-def point_to_line_distance(point, line_segments):
-    line_segments = np.array(line_segments)
-    distances = []
-
-    for i in range(len(line_segments) - 1):
-        p1, p2 = line_segments[i], line_segments[i + 1]
-        d = distance.euclidean(point, closest_point_on_segment(point, p1, p2))
-        distances.append(d)
-
-    return min(distances)
-
-
-def closest_point_on_segment(point, p1, p2):
-    p1 = np.array(p1)
-    p2 = np.array(p2)
-    v = p2 - p1
-    w = point - p1
-
-    c1 = np.dot(w, v)
-    c2 = np.dot(v, v)
-
-    if c1 <= 0:
-        return p1
-    elif c2 <= c1:
-        return p2
-    else:
-        b = c1 / c2
-        pb = p1 + b * v
-        return pb
-
-
-# def distance_to_surface(additional_point, surface_points):
-#     def surface_function(x, sorted_points):
-#         for i in range(len(sorted_points) - 1):
-#             x1, y1 = sorted_points[i][0], sorted_points[i][1]
-#             x2, y2 = sorted_points[i + 1][0], sorted_points[i + 1][1]
-#             if x1 <= x <= x2:
-#                 return y1 + (x - x1) * (y2 - y1) / (x2 - x1)
-#         return 0
-#
-#     def distance_to_linear(x, y, x1, y1, x2, y2):
-#         # Calculate the distance from a point (x, y) to the line defined by (x1, y1) and (x2, y2)
-#         numerator = np.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1)
-#         denominator = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
-#         return numerator / denominator
-#
-#     sorted_points = sorted(surface_points, key=lambda p: p[0])
-#     closest_distance = distance_to_linear(additional_point[0], additional_point[1],
-#                                           sorted_points[0][0], surface_function(sorted_points[0][0], sorted_points),
-#                                           sorted_points[1][0], surface_function(sorted_points[1][0], sorted_points))
-#
-#     for i in range(1, len(sorted_points) - 1):
-#         distance = distance_to_linear(additional_point[0], additional_point[1],
-#                                       sorted_points[i][0], surface_function(sorted_points[i][0], sorted_points),
-#                                       sorted_points[i + 1][0], surface_function(sorted_points[i + 1][0], sorted_points))
-#         closest_distance = min(closest_distance, distance)
-#     return closest_distance
-
-def display_grid(grid):
-    # Convert the boolean values to integers (0 for False, 1 for True)
-    array_data = np.array(grid, dtype=int)
-
-    # Plot the binary image
-    plt.imshow(array_data, cmap='binary', interpolation='none', origin='lower')
-    plt.show()
+    closest_point = line.interpolate(line.project(A))
+    B = np.array(closest_point.xy).flatten()
+    return distance_squared(A, Point(B))
 
 
 class RocketLandingEnv:
@@ -141,8 +70,8 @@ class RocketLandingEnv:
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [-100, 10000],  # dist landing_spot
-            [-100, 10000]  # distance surface
+            [-100, 10_000 ** 2],  # dist landing_spot
+            [-100, 10_000 ** 2]  # distance surface
         ]
         self.action_constraints = [15, 1]
 
@@ -251,8 +180,8 @@ class RocketLandingEnv:
         new_state = (new_pos[0], new_pos[1], new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
-                     distance_to_line_segment(np.array(new_pos), self.landing_spot_points),
-                     point_to_line_distance(new_pos, self.surface_points)
+                     distance_to_closest_point_on_segment(np.array(new_pos), self.landing_spot_points),
+                     distance_to_closest_point_to_line_segments(new_pos, self.surface_points)
         )
         return new_state
 
@@ -284,47 +213,6 @@ def compute_reward(state, landing_spot) -> float:
     distance = numerator / denominator
     return -distance
 
-from shapely.geometry import LineString
-def find_intersection(segment1, segment2):
-
-
-    left1 = segment1[0]
-    right1 = segment1[1]
-    left2 = segment2[0]
-    right2 = segment2[1]
-    x1, y1 = left1
-    x2, y2 = right1
-    # x1, y1, x2, y2 = segment1
-    # x3, y3, x4, y4 = segment2
-    x3, y3 = left2
-    x4, y4 = right2
-
-    def orientation(x1, y1, x2, y2, x3, y3):
-        return (y2 - y1) * (x3 - x2) - (x2 - x1) * (y3 - y2)
-
-    def on_segment(xi, yi, xj, yj, xk, yk):
-        return (
-            (xi <= xk <= xj or xj <= xk <= xi) and
-            (yi <= yk <= yj or yj <= yk <= yi)
-        )
-
-    det = orientation(x1, y1, x2, y2, x3, y3) * orientation(x1, y1, x2, y2, x4, y4)
-    if det == 0:
-        return None  # Segments are parallel or collinear
-
-    intersection_x = (
-        (x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)
-    ) / det
-    intersection_y = (
-        (x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)
-    ) / det
-
-    if on_segment(x1, y1, x2, y2, intersection_x, intersection_y) and \
-       on_segment(x3, y3, x4, y4, intersection_x, intersection_y):
-        return intersection_x, intersection_y
-    else:
-        return None
-
 
 def reward_function(state, grid, landing_spot) -> (float, bool):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
@@ -336,7 +224,7 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     # is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
     #               grid[round(y)][round(x)] is False or remaining_fuel < -4)
 
-    print(dist_surface, state)
+    # print(dist_surface, state)
 
     is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
                   dist_surface == 0 or remaining_fuel < -4)
@@ -348,6 +236,7 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     reward = compute_reward(state, landing_spot)
     done = False
     if is_crashed:
+        print("CRASH", state)
         done = True
         reward -= 100
     return reward, done

@@ -2,8 +2,8 @@
 import numpy as np
 
 from src.my_PPO import PPO
-from src.create_environment import create_env, distance_to_line_segment, RocketLandingEnv, \
-    point_to_line_distance
+from src.create_environment import create_env, RocketLandingEnv, distance_to_closest_point_on_segment, \
+    distance_to_closest_point_to_line_segments
 
 
 def parse_planet_surface() -> np.ndarray:
@@ -42,9 +42,10 @@ if __name__ == '__main__':
     # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     initial_state = np.array([
         2500, 2500, 0, 0, 500, 0, 0,
-        distance_to_line_segment(np.array([500, 2700]), landing_spot_points),
-        point_to_line_distance(np.array([500, 2700]), planet_surface)
+        distance_to_closest_point_on_segment(np.array([500, 2700]), landing_spot_points),
+        distance_to_closest_point_to_line_segments(np.array([500, 2700]), planet_surface)
     ])
+    print(initial_state)
     # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
     # create_graph(mars_surface, 'Landing on Mars')
     env = RocketLandingEnv(initial_state, landing_spot, grid, planet_surface, landing_spot_points)

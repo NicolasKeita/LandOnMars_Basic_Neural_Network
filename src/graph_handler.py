@@ -1,3 +1,4 @@
+import numpy as np
 from matplotlib import pyplot as plt, cm
 
 
@@ -43,3 +44,10 @@ def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color:
         plt.pause(0.0001)
 
 
+def display_grid(grid):
+    # Convert the boolean values to integers (0 for False, 1 for True)
+    array_data = np.array(grid, dtype=int)
+
+    # Plot the binary image
+    plt.imshow(array_data, cmap='binary', interpolation='none', origin='lower')
+    plt.show()

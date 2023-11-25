@@ -152,15 +152,7 @@ class PPO:
         return V, log_probs, dist.entropy()
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
-        # state = torch.tensor(state, dtype=torch.float).to(device)
-        # torch.autograd.set_detect_anomaly(True)
 
-        # state = np.array([
-        #     0.07142857142857142, 0.9, 0.6, 0.5,
-        #     0.4002998500749625, 0.0, 0.0,
-        #     0.43575867658626866,
-        #     0.013861386138613862
-        # ])
         mean = self.actor(state)
         dist = MultivariateNormal(mean, self.covariance_mat)
         action: np.ndarray = dist.sample().cpu().numpy()
@@ -169,11 +161,6 @@ class PPO:
         action[1] = np.clip(action[1], action_constraints[0][1], action_constraints[1][1])
         log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
 
-        # action[0] = action[]
-        # constrained_action = prev_action + np.clip(new_action - prev_action, -0.15, 0.15)
-        # log_prob = dist.log_prob(action)
-
-        # return action.detach().cpu().numpy(), log_prob.detach()
         return action, log_prob.detach()
 
     def rollout_batch(self):
