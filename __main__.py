@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from src.create_environment import create_env, distance_to_line_segment, distance_to_surface, RocketLandingEnv
-from src.graph_handler import create_graph
 import numpy as np
 
 from src.my_PPO import PPO
+from src.create_environment import create_env, distance_to_line_segment, RocketLandingEnv, \
+    point_to_line_distance
 
 
 def parse_planet_surface() -> np.ndarray:
@@ -28,11 +28,13 @@ def find_landing_spot(mars_surface):
     raise Exception('no landing site on test-case data')
 
 
-def learn_weights(mars_surface: np.ndarray, init_rocket, env):
+if __name__ == '__main__':
+    planet_surface = parse_planet_surface()
+
     x_max = 7000
     y_max = 3000
-    grid: list[list[bool]] = create_env(mars_surface, x_max, y_max)
-    landing_spot = find_landing_spot(mars_surface)
+    grid: list[list[bool]] = create_env(planet_surface, x_max, y_max)
+    landing_spot = find_landing_spot(planet_surface)
     landing_spot_points = []
     for x in range(landing_spot[0][0], landing_spot[1][0]):
         landing_spot_points.append(np.array([x, landing_spot[0][1]]))
@@ -41,22 +43,15 @@ def learn_weights(mars_surface: np.ndarray, init_rocket, env):
     initial_state = np.array([
         2500, 2500, 0, 0, 500, 0, 0,
         distance_to_line_segment(np.array([500, 2700]), landing_spot_points),
-        distance_to_surface(np.array([500, 2700]), mars_surface)
+        point_to_line_distance(np.array([500, 2700]), planet_surface)
     ])
     # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
     # create_graph(mars_surface, 'Landing on Mars')
-    env = RocketLandingEnv(initial_state, landing_spot, grid, mars_surface, landing_spot_points)
+    env = RocketLandingEnv(initial_state, landing_spot, grid, planet_surface, landing_spot_points)
 
     np.set_printoptions(suppress=True)
     # torch.autograd.set_detect_anomaly(True)
 
     my_proximal_policy_optimization = PPO(env)
     my_proximal_policy_optimization.learn(1000_000)
-
-
-if __name__ == '__main__':
-    planet_surface = parse_planet_surface()
-    env: list[list[bool]] = create_env(planet_surface, 7000, 3000)
-
-    weights = learn_weights(planet_surface, None, env)
     print("----------- Learn Weight ends success")

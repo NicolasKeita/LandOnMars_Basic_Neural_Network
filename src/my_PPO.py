@@ -20,12 +20,12 @@ class PPO:
         self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 6  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
-        self.n_updates_per_iteration = 5
+        self.n_updates_per_iteration = 6
         self.clip = 0.2
-        self.lr = 0.0001
+        self.lr = 0.00009
 
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -52,7 +52,7 @@ class PPO:
         self.fig = fig
         self.ax_rewards = ax_rewards
         self.ax_trajectories = ax_trajectories
-        create_graph(self.env.surface, 'Landing on Mars', ax_trajectories)
+        create_graph(self.env.surface_points, 'Landing on Mars', ax_trajectories)
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
