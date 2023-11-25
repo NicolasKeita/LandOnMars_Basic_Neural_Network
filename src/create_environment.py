@@ -2,11 +2,6 @@ import math
 import random
 
 import numpy as np
-from scipy.spatial import distance
-from itertools import product
-
-import torch
-from matplotlib import pyplot as plt
 from shapely import LineString, Point
 
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
@@ -40,7 +35,7 @@ def distance_squared_to_closest_point_to_line_segments(point, line_segments):
 
 
 class RocketLandingEnv:
-    def __init__(self, initial_state: np.ndarray, landing_spot, surface: np.ndarray):
+    def __init__(self, initial_state: list[int], landing_spot, surface: np.ndarray):
         self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
@@ -55,8 +50,8 @@ class RocketLandingEnv:
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [-100, 10_000 ** 2],  # dist landing_spot
-            [-100, 10_000 ** 2]  # distance surface
+            [0, 10_000 ** 2],  # dist landing_spot
+            [0, 10_000 ** 2]  # distance surface
         ]
         self.action_constraints = [15, 1]
 
@@ -181,7 +176,7 @@ def compute_reward(state, landing_spot) -> float:
     hs_normalized = norm_reward(hs, 0, 550)
     vs_normalized = norm_reward(vs, 0, 550)
     rotation_normalized = norm_reward(rotation, 0, 90)
-    # print(dist_normalized, hs_normalized, vs_normalized, rotation_normalized)
+    print([dist_normalized, hs_normalized, vs_normalized, rotation_normalized])
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
     x1 = landing_spot[0].x
     y1 = landing_spot[0].y
@@ -202,12 +197,6 @@ def reward_function(state, landing_spot) -> (float, bool):
     is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
                              landing_spot[0][1] >= y and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
-
-    # is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
-    #               grid[round(y)][round(x)] is False or remaining_fuel < -4)
-
-    # print(dist_surface, state)
-
     is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
                   dist_surface < 1 or remaining_fuel < -4)
 

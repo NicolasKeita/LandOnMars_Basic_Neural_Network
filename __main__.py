@@ -18,19 +18,19 @@ def parse_planet_surface() -> np.ndarray:
     return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
 
 
-def find_landing_spot(mars_surface):
-    for i in range(len(mars_surface) - 1):
-        if mars_surface[i + 1][1] == mars_surface[i][1]:
-            landing_spot_start = (int(mars_surface[i][0]), int(mars_surface[i][1]))
-            landing_spot_end = (int(mars_surface[i + 1][0]), int(mars_surface[i + 1][1]))
-            return np.array([landing_spot_start, landing_spot_end])
+def find_landing_spot(planet_surface):
+    for i in range(len(planet_surface) - 1):
+        if planet_surface[i + 1][1] == planet_surface[i][1]:
+            landing_spot_start = (planet_surface[i][0], planet_surface[i][1])
+            landing_spot_end = (planet_surface[i + 1][0], planet_surface[i + 1][1])
+            return landing_spot_start, landing_spot_end
     raise Exception('no landing site on test-case data')
 
 
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
     landing_spot = find_landing_spot(planet_surface)
-    initial_state = np.array([
+    initial_state = [
         2500,  # x
         2500,  # y
         0,  # horizontal speed
@@ -38,16 +38,10 @@ if __name__ == '__main__':
         500,  # fuel remaining
         0,  # rotation
         0,  # thrust power
-        distance_squared_to_closest_point_to_line_segments(np.array([500, 2700]), landing_spot),  # distance to landing spot
-        distance_squared_to_closest_point_to_line_segments(np.array([500, 2700]), planet_surface)  # distance to surface
-    ])
-    # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
-    # create_graph(mars_surface, 'Landing on Mars')
+        distance_squared_to_closest_point_to_line_segments([500, 2700], landing_spot),  # distance to landing spot
+        distance_squared_to_closest_point_to_line_segments([500, 2700], planet_surface)  # distance to surface
+    ]
     env = RocketLandingEnv(initial_state, landing_spot, planet_surface)
 
-    np.set_printoptions(suppress=True)
-    # torch.autograd.set_detect_anomaly(True)
-
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(1000_000)
-    print("----------- Learn Weight ends success")
+    my_proximal_policy_optimization.learn(1_000_000)
