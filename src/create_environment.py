@@ -33,33 +33,18 @@ def create_env(surface_points: list, x_max: int, y_max: int) -> list[list[bool]]
     return world
 
 
-def distance_to_closest_point_to_line_segments(point, line_segments):
+def distance_squared_to_closest_point_to_line_segments(point, line_segments):
     line = LineString(line_segments)
     projected_point = line.interpolate(line.project(Point(point)))
     return distance_squared(projected_point, Point(point))
 
 
-def distance_to_closest_point_on_segment(point_A, segment):
-    A = Point(point_A)
-    line = LineString(segment)
-
-    closest_point = line.interpolate(line.project(A))
-    B = np.array(closest_point.xy).flatten()
-    return distance_squared(A, Point(B))
-
-
 class RocketLandingEnv:
-    def __init__(self, initial_state: tuple,
-                 landing_spot,
-                 grid,
-                 surface: np.ndarray,
-                 landing_spot_points):
+    def __init__(self, initial_state: np.ndarray, landing_spot, surface: np.ndarray):
         self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
         self.landing_spot = landing_spot
-        self.landing_spot_points = landing_spot_points
-        self.grid = grid
         self.surface_points = surface
 
         self.raw_intervals = [
@@ -129,7 +114,7 @@ class RocketLandingEnv:
         # action = self.action_space[action_index]
         next_state = self.compute_next_state(self.state, action)
         self.state = next_state
-        reward, done = reward_function(next_state, self.grid, self.landing_spot)
+        reward, done = reward_function(next_state, self.landing_spot)
         next_state = self.normalize_state(next_state, self.raw_intervals)
         return next_state, reward, done, None
 
@@ -171,17 +156,14 @@ class RocketLandingEnv:
         line2 = LineString([curr_pos, new_pos])
         intersection: LineString = line1.intersection(line2)
         if intersection:
-            new_x = intersection.coords.xy[0][0]
-            new_y = intersection.coords.xy[1][0]
-            new_pos = np.array([new_x, new_y])
-
+            new_pos = np.array(intersection.xy).flatten()
         remaining_fuel = state[4] - thrust
 
         new_state = (new_pos[0], new_pos[1], new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
-                     distance_to_closest_point_on_segment(np.array(new_pos), self.landing_spot_points),
-                     distance_to_closest_point_to_line_segments(new_pos, self.surface_points)
+                     distance_squared_to_closest_point_to_line_segments(np.array(new_pos), self.landing_spot),
+                     distance_squared_to_closest_point_to_line_segments(new_pos, self.surface_points)
         )
         return new_state
 
@@ -214,7 +196,7 @@ def compute_reward(state, landing_spot) -> float:
     return -distance
 
 
-def reward_function(state, grid, landing_spot) -> (float, bool):
+def reward_function(state, landing_spot) -> (float, bool):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
     is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
@@ -227,7 +209,7 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
     # print(dist_surface, state)
 
     is_crashed = (y < 0 or y >= 3000 - 1 or x < 0 or x >= 7000 - 1 or
-                  dist_surface == 0 or remaining_fuel < -4)
+                  dist_surface < 1 or remaining_fuel < -4)
 
     if is_successful_landing:
         print("GOOD", x, remaining_fuel)
@@ -262,7 +244,7 @@ def normalize_unsuccessful_rewards(state, landing_spot):
     # norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
     # print([dist_landing_spot, norm_dist, norm_rotation, norm_rotation + norm_dist])
 
-    print(norm_dist + norm_rotation + norm_vs + norm_hs)
+    # print(norm_dist + norm_rotation + norm_vs + norm_hs)
     return norm_dist + norm_rotation + norm_vs + norm_hs
     # if norm_dist_landing_spot == 0:
     #     return 10

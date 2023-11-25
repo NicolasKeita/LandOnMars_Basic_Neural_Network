@@ -2,8 +2,7 @@
 import numpy as np
 
 from src.my_PPO import PPO
-from src.create_environment import create_env, RocketLandingEnv, distance_to_closest_point_on_segment, \
-    distance_to_closest_point_to_line_segments
+from src.create_environment import RocketLandingEnv, distance_squared_to_closest_point_to_line_segments
 
 
 def parse_planet_surface() -> np.ndarray:
@@ -30,25 +29,21 @@ def find_landing_spot(mars_surface):
 
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
-
-    x_max = 7000
-    y_max = 3000
-    grid: list[list[bool]] = create_env(planet_surface, x_max, y_max)
     landing_spot = find_landing_spot(planet_surface)
-    landing_spot_points = []
-    for x in range(landing_spot[0][0], landing_spot[1][0]):
-        landing_spot_points.append(np.array([x, landing_spot[0][1]]))
-    # initial_state = (2500, 2700, 0, 0, 550, 0, 0, env, landing_spot)
-    # initial_state = (2500, 2700, 0, 0, 550, 0, 0)
     initial_state = np.array([
-        2500, 2500, 0, 0, 500, 0, 0,
-        distance_to_closest_point_on_segment(np.array([500, 2700]), landing_spot_points),
-        distance_to_closest_point_to_line_segments(np.array([500, 2700]), planet_surface)
+        2500,  # x
+        2500,  # y
+        0,  # horizontal speed
+        0,  # vertical speed
+        500,  # fuel remaining
+        0,  # rotation
+        0,  # thrust power
+        distance_squared_to_closest_point_to_line_segments(np.array([500, 2700]), landing_spot),  # distance to landing spot
+        distance_squared_to_closest_point_to_line_segments(np.array([500, 2700]), planet_surface)  # distance to surface
     ])
-    print(initial_state)
     # initial_state = np.concatenate([initial_state, mars_surface.flatten()])
     # create_graph(mars_surface, 'Landing on Mars')
-    env = RocketLandingEnv(initial_state, landing_spot, grid, planet_surface, landing_spot_points)
+    env = RocketLandingEnv(initial_state, landing_spot, planet_surface)
 
     np.set_printoptions(suppress=True)
     # torch.autograd.set_detect_anomaly(True)
