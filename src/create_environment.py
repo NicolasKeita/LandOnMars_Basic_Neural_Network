@@ -209,7 +209,17 @@ class RocketLandingEnv:
         return new_state
 
 
+def norm_reward(feature, interval_low, interval_high):
+    return max(0, 1 - abs(feature) / interval_high)
+
 def compute_reward(state, landing_spot) -> float:
+    # dist_landing_spot = state[7]
+    x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+    dist_normalized = norm_reward(dist_landing_spot, 0, 7000)
+    hs_normalized = norm_reward(hs, 0, 550)
+    vs_normalized = norm_reward(vs, 0, 550)
+    rotation_normalized = norm_reward(rotation, 0, 90)
+    return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
     x1 = landing_spot[0].x
     y1 = landing_spot[0].y
     x2 = landing_spot[1].x
@@ -237,25 +247,32 @@ def reward_function(state, grid, landing_spot) -> (float, bool):
         print("GOOD", x, remaining_fuel)
         exit(42)
         # return remaining_fuel * 10, True
-    elif is_crashed:
-        return normalize_unsuccessful_rewards(state, landing_spot), True
-    else:
-        return 0, False
+    reward = compute_reward(state, landing_spot)
+    done = False
+    if is_crashed:
+        done = True
+        reward -= 100
+    return reward, done
+    # elif is_crashed:
+    #     return normalize_unsuccessful_rewards(state, landing_spot), True
+    # else:
+    #     return 0, False
         # return compute_reward(state, landing_spot), False
+
 
 
 def normalize_unsuccessful_rewards(state, landing_spot):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
-    norm_dist = 1000.0 if dist_landing_spot == 0 else max(0, 1 - dist_landing_spot / 7000) -50
+    norm_dist = 1 if dist_landing_spot == 0 else max(0, 1 - dist_landing_spot / 7000)
     norm_rotation = 1 - abs(rotation) / 90
-    norm_rotation = 1000 if norm_rotation == 1 else norm_rotation -50
+    # norm_rotation = 1000 if norm_rotation == 1 else norm_rotation -50
     norm_vs = 1.0 if abs(vs) <= 0 else 0.0 if abs(vs) > 120 else 1.0 if abs(vs) <= 37 else 1.0 - (abs(vs) - 37) / (
             120 - 37)
-    norm_vs = 1000 if norm_vs == 1 else norm_vs - 50
+    # norm_vs = 1000 if norm_vs == 1 else norm_vs - 50
     norm_hs = 1.0 if abs(hs) <= 0 else 0.0 if abs(hs) > 120 else 1.0 if abs(hs) <= 17 else 1.0 - (abs(hs) - 17) / (
             120 - 17)
-    norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
+    # norm_hs = 1000 if norm_hs == 1 else norm_hs - 50
     # print([dist_landing_spot, norm_dist, norm_rotation, norm_rotation + norm_dist])
 
     print(norm_dist + norm_rotation + norm_vs + norm_hs)

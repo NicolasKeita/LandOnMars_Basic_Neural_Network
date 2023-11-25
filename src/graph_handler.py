@@ -14,7 +14,7 @@ def create_graph(points: list, title: str, ax):
 
 
 def plot_rewards(rewards, ax):
-    ax.plot(rewards)
+    ax.plot(rewards, color='red')
     ax.set_xlabel('Iteration')
     ax.set_ylabel('Average Reward')
     ax.set_title('Training Progress - Rewards')
