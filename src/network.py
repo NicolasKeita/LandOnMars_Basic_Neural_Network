@@ -109,8 +109,6 @@ class FeedForwardNN(nn.Module):
         if isinstance(state, np.ndarray):
             state = torch.tensor(state, dtype=torch.float).to(self.device)
         activation_1 = F.relu(self.layer_1(state))
-        # print(self.layer_1(state), state)
-        # print("Layer 1 input:", self.layer_1(state).grad_fn.next_functions[0][0])
         activation_2 = F.relu(self.layer_2(activation_1))
         activation_3 = F.relu(self.layer_3(activation_2))
         activation_4 = F.relu(self.layer_4(activation_3))

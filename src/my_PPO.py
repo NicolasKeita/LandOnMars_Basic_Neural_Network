@@ -20,7 +20,7 @@ class PPO:
         self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 8  # timesteps per batch
         self.max_time_steps_per_episode = 100  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 6

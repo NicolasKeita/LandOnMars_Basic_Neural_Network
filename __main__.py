@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
 
+from src.math_utils import distance_squared_to_closest_point_to_line_segments
 from src.my_PPO import PPO
-from src.create_environment import RocketLandingEnv, distance_squared_to_closest_point_to_line_segments
+from src.create_environment import RocketLandingEnv
 
 
 def parse_planet_surface() -> np.ndarray:
@@ -30,6 +31,8 @@ def find_landing_spot(planet_surface):
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
     landing_spot = find_landing_spot(planet_surface)
+    planet_surface = np.vstack(([0, 0], planet_surface, [7000, 0]))
+
     initial_state = [
         2500,  # x
         2500,  # y
@@ -44,4 +47,4 @@ if __name__ == '__main__':
     env = RocketLandingEnv(initial_state, landing_spot, planet_surface)
 
     my_proximal_policy_optimization = PPO(env)
-    my_proximal_policy_optimization.learn(1_000_000)
+    my_proximal_policy_optimization.learn(10_000_000)
