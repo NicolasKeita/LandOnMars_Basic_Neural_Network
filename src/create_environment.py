@@ -131,10 +131,21 @@ def norm_reward(feature, interval_low, interval_high) -> float:
 
 def compute_reward(state) -> float:
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
-    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9000000) * 3
-    hs_normalized = norm_reward(hs, 0, 400) * 2
-    vs_normalized = norm_reward(vs, 0, 400) * 2
-    rotation_normalized = norm_reward(rotation, 0, 90)
+    speed_scaling = 1  # Scaling factor for speed rewards
+    rotation_scaling = 1  # Scaling factor for rotation rewards
+    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9_000_000) * 1
+    dist_to_surface_normalized = norm_reward(dist_surface, 0, 9_000_000)
+    if abs(hs) <= 20:
+        hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
+    else:
+        hs_normalized = norm_reward(hs, 0, 400) * speed_scaling * dist_to_surface_normalized
+
+    if abs(vs) <= 40:
+        vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
+    else:
+        vs_normalized = norm_reward(vs, 0, 400) * speed_scaling * dist_to_surface_normalized
+
+    rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
@@ -148,13 +159,13 @@ def reward_function(state) -> (float, bool):
 
     reward = compute_reward(state)
     done = False
-    if is_crashed:
-        print("Crash, ", state)
-        done = True
-        reward -= 20
-    elif is_successful_landing:
+    if is_successful_landing:
         print("SUCCESSFUL LANDING !")
         done = True
-        reward += 20
+        reward += 10
         exit(0)
+    elif is_crashed:
+        print("Crash, ", state)
+        done = True
+        reward -= 10
     return reward, done

@@ -21,12 +21,12 @@ class PPO:
         self.action_dim = 2
 
         self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
-        self.max_time_steps_per_episode = 1000  # timesteps per episode
+        self.max_time_steps_per_episode = 700  # timesteps per episode
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 9
         self.clip = 0.2
-        self.lr = 0.004
-        # self.lr = 1555
+        # self.lr = 0.004
+        self.lr = 0.01
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
@@ -73,7 +73,8 @@ class PPO:
             # batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float).to(device)
 
             t_so_far += np.sum(batch_lens)
-            # print('BATCH DONE', t_so_far)
+            print('BATCH DONE (more like steps)', t_so_far)
+            print("Iter so far ", i_so_far)
             i_so_far += 1
 
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
@@ -151,14 +152,15 @@ class PPO:
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         mean = self.actor(state)
+        # mean = torch.zeros_like(self.actor(state))
         n_mean = torch.clamp(mean,
                              torch.tensor(action_constraints[0], dtype=torch.float, device=device),
                              torch.tensor(action_constraints[1], dtype=torch.float, device=device))
-        # n_mean[0] = 0
+        n_mean[0] = 0
         dist = MultivariateNormal(n_mean, self.covariance_mat)
         action: np.ndarray = dist.sample().cpu().numpy()
-        action = np.clip(action, action_constraints[0], action_constraints[1])
-        # action[0] = 0
+        # action = np.clip(action, action_constraints[0], action_constraints[1])
+        action[0] = 0
         log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
 
         return action, log_prob.detach()
@@ -259,9 +261,9 @@ class PPO:
 
 
 def min_max_scaling(ep_rewards):
-    sum = 8
+    sum = 4
     x_min, x_max = 0, sum
-    x_min_last, x_max_last = -20, sum + 20
+    x_min_last, x_max_last = -10, sum + 10
     return [(reward - x_min_last) / (x_max_last - x_min_last)
             if i == len(ep_rewards) - 1
             else (reward - x_min) / (x_max - x_min)
