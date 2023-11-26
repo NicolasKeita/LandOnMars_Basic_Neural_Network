@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 from shapely import LineString
-from shapely.wkt import loads
 
-from src.math_utils import distance_squared_to_closest_point_to_line_segments
 from src.my_PPO import PPO
 from src.create_environment import RocketLandingEnv
 
@@ -33,7 +31,7 @@ def find_landing_spot(planet_surface):
 
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
-    planet_surface = np.array(planet_surface.xy).T # remove
+    planet_surface = np.array(planet_surface.xy).T  # remove
     landing_spot = find_landing_spot(planet_surface)
 
     env = RocketLandingEnv(landing_spot, planet_surface)

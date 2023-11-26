@@ -14,7 +14,7 @@ class RocketLandingEnv:
             2500,  # y
             0,  # horizontal speed
             0,  # vertical speed
-            500,  # fuel remaining
+            20000,  # fuel remaining
             0,  # rotation
             0,  # thrust power
             distance_squared_to_closest_point_to_line_segments([500, 2700], landing_spot),  # distance to landing spot
@@ -34,8 +34,8 @@ class RocketLandingEnv:
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [0, 10_000 ** 2],  # distance squared landing_spot
-            [0, 10_000 ** 2]  # distance squared surface
+            [0, 3000 ** 2],  # distance squared landing_spot
+            [0, 3000 ** 2]  # distance squared surface
         ]
         self.action_constraints = [15, 1]
 
@@ -131,9 +131,9 @@ def norm_reward(feature, interval_low, interval_high) -> float:
 
 def compute_reward(state) -> float:
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
-    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 49000000) * 8.0
-    hs_normalized = norm_reward(hs, 0, 550) * 3.0
-    vs_normalized = norm_reward(vs, 0, 550) * 3.0
+    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9000000) * 3
+    hs_normalized = norm_reward(hs, 0, 400) * 2
+    vs_normalized = norm_reward(vs, 0, 400) * 2
     rotation_normalized = norm_reward(rotation, 0, 90)
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 

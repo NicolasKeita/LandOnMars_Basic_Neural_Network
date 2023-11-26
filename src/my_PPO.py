@@ -20,13 +20,13 @@ class PPO:
         self.obs_dim = self.env.feature_amount
         self.action_dim = 2
 
-        self.time_steps_per_batch = 1 + 80 * 8  # timesteps per batch
-        self.max_time_steps_per_episode = 100  # timesteps per episode
+        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
+        self.max_time_steps_per_episode = 1000  # timesteps per episode
         self.gamma_reward_to_go = 0.95
-        self.n_updates_per_iteration = 10
+        self.n_updates_per_iteration = 9
         self.clip = 0.2
         self.lr = 0.004
-
+        # self.lr = 1555
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
@@ -42,7 +42,7 @@ class PPO:
         self.reward_std = 1
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 5
+        self.ent_coef = 0
         self.target_kl = 0.02
 
         self.lam = 0.98
@@ -88,6 +88,7 @@ class PPO:
                 self.critic_optim.param_groups[0]["lr"] = new_lr
 
                 V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
+
                 logratios = curr_log_probs - batch_log_probs
                 ratios = torch.exp(logratios)
                 approx_kl = ((ratios - 1) - logratios).mean()
@@ -132,13 +133,18 @@ class PPO:
     # TODO check if I need to constraints this too
     def evaluate(self, batch_obs, batch_acts) -> tuple[torch.TensorType, any, any]:
         V = self.critic(batch_obs).squeeze()
-        # print(batch_obs)
         mean = self.actor(batch_obs)
-        # print(mean)
-        # exit(1)
-        # n_mean = torch.clamp(mean,
-        #                      torch.tensor(action_constraints[0], dtype=torch.float, device=device),
-        #                      torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        # for i, batch_ob in enumerate(batch_obs):
+        #     ob = batch_ob.cpu().detach().numpy()
+        #     previous_rot = ob[5]
+        #     previous_thrust = ob[6]
+        #
+        #     previous_action = self.env.denormalize_action([previous_rot, previous_thrust])
+        #     action_constraints = self.env.get_action_constraints(previous_action)
+        #     n_mean = torch.clamp_(mean[i],
+        #                           torch.tensor(action_constraints[0], dtype=torch.float, device=device),
+        #                           torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        # mean[:, 0] = 0
         dist = MultivariateNormal(mean, self.covariance_mat)
         log_probs = dist.log_prob(batch_acts)
         return V, log_probs, dist.entropy()
@@ -253,8 +259,9 @@ class PPO:
 
 
 def min_max_scaling(ep_rewards):
-    x_min, x_max = 0, 15
-    x_min_last, x_max_last = -20, 15 + 20
+    sum = 8
+    x_min, x_max = 0, sum
+    x_min_last, x_max_last = -20, sum + 20
     return [(reward - x_min_last) / (x_max_last - x_min_last)
             if i == len(ep_rewards) - 1
             else (reward - x_min) / (x_max - x_min)
