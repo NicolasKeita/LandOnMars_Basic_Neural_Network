@@ -53,10 +53,11 @@ class RocketLandingEnv:
                               zip(normalized_state, raw_intervals)]
         return np.array(denormalized_state)
 
+    # Check this fct
     @staticmethod
     def denormalize_action(raw_output):
         def sig(x):
-            return 1 / (1 + np.exp(-np.clip(x, -700, 700)))
+            return 1 / (1 + np.exp(-np.clip(x, -100, 100)))
 
         output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
         output_dim2 = np.round(sig(raw_output[1]) * 4.0)
@@ -70,10 +71,9 @@ class RocketLandingEnv:
             x = np.clip(x, epsilon, 1 - epsilon)
             return np.log(x / (1 - x))
 
-        norm_dim1 = np.tanh(action[0] / 90)
+        norm_dim1 = np.arctan(action[0] / 90)
         norm_dim2 = inv_sig(action[1] / 4.0)
-        normalized_output = np.array([norm_dim1, norm_dim2])
-        return normalized_output
+        return np.array([norm_dim1, norm_dim2])
 
     def get_action_constraints(self, previous_action):
         if previous_action is None:

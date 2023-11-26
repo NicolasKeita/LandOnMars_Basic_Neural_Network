@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import numpy as np
+from shapely import LineString
+from shapely.wkt import loads
 
 from src.math_utils import distance_squared_to_closest_point_to_line_segments
 from src.my_PPO import PPO
 from src.create_environment import RocketLandingEnv
 
 
-def parse_planet_surface() -> np.ndarray:
+def parse_planet_surface() -> LineString:
     input_file = '''
         6
         0 100
@@ -16,7 +18,8 @@ def parse_planet_surface() -> np.ndarray:
         5000 1500
         6999 1000
     '''
-    return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
+    points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
+    return LineString(points_coordinates)
 
 #TODO move to env
 def find_landing_spot(planet_surface):
@@ -30,6 +33,7 @@ def find_landing_spot(planet_surface):
 
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
+    planet_surface = np.array(planet_surface.xy).T # remove
     landing_spot = find_landing_spot(planet_surface)
 
     env = RocketLandingEnv(landing_spot, planet_surface)
