@@ -18,7 +18,7 @@ def parse_planet_surface() -> np.ndarray:
     '''
     return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
 
-
+#TODO move to env
 def find_landing_spot(planet_surface):
     for i in range(len(planet_surface) - 1):
         if planet_surface[i + 1][1] == planet_surface[i][1]:
@@ -31,20 +31,8 @@ def find_landing_spot(planet_surface):
 if __name__ == '__main__':
     planet_surface = parse_planet_surface()
     landing_spot = find_landing_spot(planet_surface)
-    planet_surface = np.vstack(([0, 0], planet_surface, [7000, 0]))
 
-    initial_state = [
-        2500,  # x
-        2500,  # y
-        0,  # horizontal speed
-        0,  # vertical speed
-        500,  # fuel remaining
-        0,  # rotation
-        0,  # thrust power
-        distance_squared_to_closest_point_to_line_segments([500, 2700], landing_spot),  # distance to landing spot
-        distance_squared_to_closest_point_to_line_segments([500, 2700], planet_surface)  # distance to surface
-    ]
-    env = RocketLandingEnv(initial_state, landing_spot, planet_surface)
+    env = RocketLandingEnv(landing_spot, planet_surface)
 
     my_proximal_policy_optimization = PPO(env)
     my_proximal_policy_optimization.learn(10_000_000)

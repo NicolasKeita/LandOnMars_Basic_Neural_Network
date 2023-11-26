@@ -6,7 +6,7 @@ from torch.distributions import MultivariateNormal
 import numpy as np
 
 from src.eval_policy import eval_policy
-from src.graph_handler import display_graph, plot_rewards, create_graph
+from src.graph_handler import display_graph, plot_mean_rewards, create_graph, plot_terminal_state_rewards
 from src.network import FeedForwardNN
 from src.create_environment import RocketLandingEnv
 
@@ -25,7 +25,7 @@ class PPO:
         self.gamma_reward_to_go = 0.95
         self.n_updates_per_iteration = 6
         self.clip = 0.2
-        self.lr = 0.00009
+        self.lr = 0.001
 
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -42,22 +42,25 @@ class PPO:
         self.reward_std = 1
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 50
+        self.ent_coef = 5
         self.target_kl = 0.02
 
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
 
-        fig, (ax_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
+        # fig, (ax_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
+        fig, (ax_terminal_state_rewards, ax_mean_rewards, ax_trajectories) = plt.subplots(3, 1, figsize=(10, 8))
         self.fig = fig
-        self.ax_rewards = ax_rewards
+        self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
+        self.ax_terminal_state_rewards = ax_terminal_state_rewards
         create_graph(self.env.surface_points, 'Landing on Mars', ax_trajectories)
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
         i_so_far = 0
-        rewards_history = []
+        mean_rewards_history = []
+        terminal_state_reward_history = []
 
         while t_so_far < total_time_steps:  # TODO for loop ?
             (batch_obs, batch_actions, batch_log_probs,
@@ -96,50 +99,37 @@ class PPO:
 
                 actor_loss = (-torch.min(surr1, surr2)).mean()
 
-                # Entropy Regularization
                 entropy_loss = entropy.mean()
-                # Discount entropy loss by given coefficient
                 actor_loss = actor_loss - self.ent_coef * entropy_loss
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
-                # Print gradients of the actor network
-
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
 
-                # for name, param in self.actor.named_parameters():
-                #     print(name, param.requires_grad, param.grad)
-
-                # critic_loss = nn.MSELoss()(V, batch_rewards_to_go)
-                # print(V.grad)
-                # print(batch_rewards_to_go)
-                # exit(0)
                 critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
-                # critic_loss = nn.MSELoss()(torch.autograd.Variable(V), batch_rewards_to_go)
-                # print(critic_loss)
                 self.critic_optim.zero_grad()
-                # print(critic_loss)
                 critic_loss.backward()
-                # print(critic_loss)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
-                # print(critic_loss)
-                # print("critic ann")
-                # for name, param in self.critic.named_parameters():
-                #     print(name, param.requires_grad, param.grad)
-                # print("DONE")
-                # exit(0)
                 if approx_kl > self.target_kl:
                     break
 
-            avg_reward = np.mean(np.concatenate(batch_rewards_not_normalized))
-            # print(batch_rewards)
-            # print(avg_reward)
-            rewards_history.append(avg_reward)
+            avg_reward = np.mean(np.concatenate(batch_rewards))
+            mean_rewards_history.append(avg_reward)
 
-            # print(rewards_history)
-            plot_rewards(rewards_history, ax=self.ax_rewards)
+            # import pprint
+            # pp = pprint.PrettyPrinter(indent=4)
+            # pp.pprint(batch_rewards)
+            # exit(0)
+            avg_reward = []
+            for batch in batch_rewards:
+                avg_reward.append(batch[-1])
+            avg_reward = np.mean(avg_reward)
+            terminal_state_reward_history.append(avg_reward)
+
+            plot_mean_rewards(mean_rewards_history, ax=self.ax_rewards)
+            plot_terminal_state_rewards(terminal_state_reward_history, ax=self.ax_terminal_state_rewards)
 
         eval_policy(self.actor, self.env)
         # torch.save(self.actor.state_dict(), './model.txt')
@@ -201,7 +191,6 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
-                # state = torch.tensor(state, dtype=torch.float).to(device)
                 trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
 
                 ep_rewards.append(reward)
@@ -214,7 +203,8 @@ class PPO:
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            ep_rewards_normalized = z_score_normalization(ep_rewards)
+            # ep_rewards_normalized = z_score_normalization(ep_rewards)
+            ep_rewards_normalized = min_max_scaling(ep_rewards)
 
             batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
@@ -239,10 +229,10 @@ class PPO:
 
             ep_dones = torch.tensor(ep_dones, dtype=torch.float).to(device)
             for t in reversed(range(len(ep_rews))):
-                # if t + 1 < len(ep_rews):
-                #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
-                if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
-                    delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
+                if t + 1 < len(ep_rews):
+                    delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
+                # if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
+                #     delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
                 else:
                     delta = ep_rews[t] - ep_vals[t]
 
@@ -258,9 +248,18 @@ class PPO:
 
         return torch.tensor(batch_advantages, dtype=torch.float).to(device)
 
+
 def z_score_normalization(ep_rewards):
     mean = np.mean(ep_rewards)
     std_dev = np.std(ep_rewards)
     return [(reward - mean) / (std_dev + 1e-8) for reward in ep_rewards]
 
+
+def min_max_scaling(ep_rewards):
+    x_min, x_max = 0, 15
+    x_min_last, x_max_last = -20, 15 + 20
+    return [(reward - x_min_last) / (x_max_last - x_min_last)
+            if i == len(ep_rewards) - 1
+            else (reward - x_min) / (x_max - x_min)
+            for i, reward in enumerate(ep_rewards)]
 

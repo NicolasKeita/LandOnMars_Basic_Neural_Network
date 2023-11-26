@@ -1,14 +1,25 @@
 import math
-import random
 import numpy as np
-from shapely import LineString
+from shapely import LineString, Point
 
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 from src.math_utils import distance_squared_to_closest_point_to_line_segments
 
 
 class RocketLandingEnv:
-    def __init__(self, initial_state: list[int], landing_spot, surface: np.ndarray):
+    def __init__(self, landing_spot, surface: np.ndarray):
+
+        initial_state = [
+            2500,  # x
+            2500,  # y
+            0,  # horizontal speed
+            0,  # vertical speed
+            500,  # fuel remaining
+            0,  # rotation
+            0,  # thrust power
+            distance_squared_to_closest_point_to_line_segments([500, 2700], landing_spot),  # distance to landing spot
+            distance_squared_to_closest_point_to_line_segments([500, 2700], surface)  # distance to surface
+        ]
         self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
@@ -69,43 +80,20 @@ class RocketLandingEnv:
             return [self.normalize_action([-15, 0]), self.normalize_action([15, 1])]
         action = self.denormalize_action(previous_action)
         legal_min_max = actions_min_max(action)
-        minimun = self.normalize_action((legal_min_max[0][0], legal_min_max[1][0]))
-        maximun = self.normalize_action((legal_min_max[0][1], legal_min_max[1][1]))
-        return [minimun, maximun]
+        minimum = self.normalize_action((legal_min_max[0][0], legal_min_max[1][0]))
+        maximum = self.normalize_action((legal_min_max[0][1], legal_min_max[1][1]))
+        return [minimum, maximum]
 
     def reset(self):
         self.state = np.array(self.initial_state)
         return self.normalize_state(self.state, self.raw_intervals)
 
     def step(self, action: tuple[int, int]):
-        # action = self.action_space[action_index]
         next_state = self.compute_next_state(self.state, action)
         self.state = next_state
-        reward, done = reward_function(next_state, self.landing_spot)
+        reward, done = reward_function(next_state)
         next_state = self.normalize_state(next_state, self.raw_intervals)
         return next_state, reward, done, None
-
-    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, tuple[int, int]]:
-        action_min_max = actions_min_max((old_power_thrust, old_rota))
-        random_action = (
-            random.randint(action_min_max[1][0], action_min_max[1][1]),
-            random.randint(action_min_max[0][0], action_min_max[0][1])
-        )
-        return self.action_space.index(random_action), random_action
-
-    def action_indexes_to_real_action(self, action_indexes):
-        real_actions = []
-        for i in action_indexes:
-            real_actions.append(self.action_space[i])
-        return real_actions
-
-    def real_actions_to_indexes(self, policy):
-        indexes = []
-        for action in policy:
-            act_1 = np.clip(round(action[0]), -90, 90)
-            act_2 = np.clip(round(action[1]), 0, 4)
-            indexes.append(self.action_space.index((act_1, act_2)))
-        return indexes
 
     def compute_next_state(self, state, action: tuple[int, int]):
         curr_pos = [state[0], state[1]]
@@ -117,16 +105,18 @@ class RocketLandingEnv:
         new_vertical_speed = state[3] + y_acceleration
         new_x = curr_pos[0] + state[2] - 0.5 * x_acceleration
         new_y = curr_pos[1] + state[3] + 0.5 * y_acceleration
-        new_pos: LineString | list = [new_x, new_y]
+        new_pos: Point | list = [np.clip(new_x, 0, 7000), np.clip(new_y, 0, 3000)]
 
         line1 = LineString(self.surface_points)
         line2 = LineString([curr_pos, new_pos])
-        intersection: LineString = line1.intersection(line2)
-        if intersection:
+        intersection: Point = line1.intersection(line2)
+        if not intersection.is_empty and isinstance(intersection, Point):
             new_pos = np.array(intersection.xy).flatten()
         remaining_fuel = state[4] - thrust
 
-        new_state = (new_pos[0], new_pos[1], new_horizontal_speed,
+        new_state = (new_pos[0],
+                     new_pos[1],
+                     new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
                      distance_squared_to_closest_point_to_line_segments(np.array(new_pos), self.landing_spot),
@@ -141,32 +131,30 @@ def norm_reward(feature, interval_low, interval_high) -> float:
 
 def compute_reward(state) -> float:
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
-    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 49000000) * 2.0
+    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 49000000) * 8.0
     hs_normalized = norm_reward(hs, 0, 550) * 3.0
     vs_normalized = norm_reward(vs, 0, 550) * 3.0
     rotation_normalized = norm_reward(rotation, 0, 90)
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
-def reward_function(state, landing_spot) -> (float, bool):
+def reward_function(state) -> (float, bool):
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
-    print(state)
     is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
-    # is_successful_landing = (landing_spot[0][0] <= x <= landing_spot[1][0] and
-    #                          landing_spot[0][1] >= y and rotation == 0 and
-    #                          abs(vs) <= 40 and abs(hs) <= 20)
     is_crashed = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
                   dist_surface < 1 or remaining_fuel < -4)
 
-    if is_successful_landing:
-        print("SUCCESS", x, remaining_fuel)
-        exit(0)
     reward = compute_reward(state)
     done = False
     if is_crashed:
-        # print("CRASH", state)
+        print("Crash, ", state)
         done = True
-        reward -= 100
+        reward -= 20
+    elif is_successful_landing:
+        print("SUCCESSFUL LANDING !")
+        done = True
+        reward += 20
+        exit(0)
     return reward, done

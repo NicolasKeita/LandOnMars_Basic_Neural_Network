@@ -34,3 +34,8 @@ sympy==1.12
 torch==2.1.1
 triton==2.1.0
 typing_extensions==4.8.0
+
+shapely~=2.0.2
+pip~=23.0.1
+scipy~=1.11.4
+setuptools~=66.1.1

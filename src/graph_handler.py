@@ -11,18 +11,22 @@ def create_graph(points: list, title: str, ax):
     ax.plot(*zip(*[(point[0], point[1]) for point in points]), marker='o', label='Mars Surface')
     ax.legend()
     ax.grid(True)
-    # ax.draw()
 
 
-def plot_rewards(rewards, ax):
+def plot_mean_rewards(rewards, ax):
     ax.plot(rewards, color='red')
     ax.set_xlabel('Iteration')
     ax.set_ylabel('Average Reward')
-    ax.set_title('Training Progress - Rewards')
+    ax.set_title('Training Progress - mean rewards during entire horizon')
     plt.pause(0.0001)
-    # ax.pause(0.0001)
-    # plt.show()
-    # plt.pause(0.0001)
+
+
+def plot_terminal_state_rewards(rewards, ax):
+    ax.plot(rewards, color='red')
+    ax.set_xlabel('Iteration')
+    ax.set_ylabel('Average Reward')
+    ax.set_title('Training Progress - terminal state reward')
+    plt.pause(0.0001)
 
 
 def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color: int, ax):
