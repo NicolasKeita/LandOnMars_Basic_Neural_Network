@@ -31,12 +31,9 @@ def find_landing_spot(planet_surface: MultiPoint) -> LineString:
 
 class RocketLandingEnv:
     def __init__(self):
-
-        planet_surface = parse_planet_surface()
-        landing_spot = find_landing_spot(planet_surface)
-
-        landing_spot = np.array(landing_spot.xy).T  # TODO remove
-        surface = np.array([(point.x, point.y) for point in planet_surface.geoms])  # TODO remove
+        surface_points = parse_planet_surface()
+        self.surface = LineString(surface_points.geoms)
+        self.landing_spot = find_landing_spot(surface_points)
 
         initial_state = [
             2500,  # x
@@ -46,14 +43,12 @@ class RocketLandingEnv:
             20000,  # fuel remaining
             0,  # rotation
             0,  # thrust power
-            distance_squared_to_closest_point_to_line_segments([500, 2700], landing_spot),  # distance to landing spot
-            distance_squared_to_closest_point_to_line_segments([500, 2700], surface)  # distance to surface
+            distance_squared_to_closest_point_to_line_segments([500, 2700], self.landing_spot),  # distance to landing spot
+            distance_squared_to_closest_point_to_line_segments([500, 2700], self.surface)  # distance to surface
         ]
         self.feature_amount = len(initial_state)
         self.initial_state = initial_state
         self.state = np.array(initial_state)
-        self.landing_spot = landing_spot
-        self.surface_points = surface
 
         self.raw_intervals = [
             [0, 7000],  # x
@@ -136,7 +131,7 @@ class RocketLandingEnv:
         new_y = curr_pos[1] + state[3] + 0.5 * y_acceleration
         new_pos: Point | list = [np.clip(new_x, 0, 7000), np.clip(new_y, 0, 3000)]
 
-        line1 = LineString(self.surface_points)
+        line1 = LineString(self.surface)
         line2 = LineString([curr_pos, new_pos])
         intersection: Point = line1.intersection(line2)
         if not intersection.is_empty and isinstance(intersection, Point):
@@ -149,7 +144,7 @@ class RocketLandingEnv:
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
                      distance_squared_to_closest_point_to_line_segments(np.array(new_pos), self.landing_spot),
-                     distance_squared_to_closest_point_to_line_segments(new_pos, self.surface_points)
+                     distance_squared_to_closest_point_to_line_segments(new_pos, self.surface)
         )
         return new_state
 

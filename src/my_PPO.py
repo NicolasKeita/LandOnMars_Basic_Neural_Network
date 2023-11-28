@@ -1,5 +1,6 @@
 import torch
 from matplotlib import pyplot as plt
+from shapely import MultiPoint
 from torch import nn
 from torch.optim import Adam
 from torch.distributions import MultivariateNormal
@@ -22,39 +23,40 @@ class PPO:
 
         self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 700  # timesteps per episode
-        self.gamma_reward_to_go = 0.95
+        self.gamma_reward_to_go = 0.98
+        # self.gamma_reward_to_go = 0.80
+        # self.gamma_reward_to_go = 1
         self.n_updates_per_iteration = 9
         self.clip = 0.2
-        # self.lr = 0.004
-        self.lr = 0.01
+        # self.lr = 0.01
+        self.lr = 0.005
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
         self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.000000000000001).to(device)
+        # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
         self.roll_i = 0
 
-        self.reward_mean = 0
-        self.reward_std = 1
         self.max_grad_norm = 0.5
 
         self.ent_coef = 0
         self.target_kl = 0.02
-
+        # self.target_kl = 10
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
 
-        # fig, (ax_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
-        fig, (ax_terminal_state_rewards, ax_mean_rewards, ax_trajectories) = plt.subplots(3, 1, figsize=(10, 8))
+        fig, (ax_terminal_state_rewards, ax_mean_rewards, ax_trajectories) = plt.subplots(3,
+                                                                                          1, figsize=(10, 8))
         self.fig = fig
         self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
-        create_graph(self.env.surface_points, 'Landing on Mars', ax_trajectories)
+        create_graph(self.env.surface, 'Landing on Mars', ax_trajectories)
 
     def learn(self, total_time_steps=200_000_000):
         t_so_far = 0
@@ -68,25 +70,25 @@ class PPO:
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
             V: torch.Tensor = self.critic(batch_obs).squeeze()
             batch_rewards_to_go = torch.add(A_k, V.detach())
-            # batch_rewards_to_go = A_k + V.detach()
-            # batch_rewards_to_go = A_k + V.detach().clone()
-            # batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float).to(device)
 
             t_so_far += np.sum(batch_lens)
             print('BATCH DONE (more like steps)', t_so_far)
             print("Iter so far ", i_so_far)
             i_so_far += 1
 
-            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+            # print(A_k)
+            # A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+            # print(A_k)
+            # exit(9)
 
-            for _ in range(self.n_updates_per_iteration):
-                frac = (t_so_far - 1.0) / total_time_steps
-                new_lr = self.lr * (1.0 - frac)
-                new_lr = max(new_lr, 0)
+            for i in range(self.n_updates_per_iteration):
+                # frac = (t_so_far - 1.0) / total_time_steps
+                # new_lr = self.lr * (1.0 - frac)
+                # new_lr = max(new_lr, 0)
                 # print(new_lr)
 
-                self.actor_optim.param_groups[0]["lr"] = new_lr
-                self.critic_optim.param_groups[0]["lr"] = new_lr
+                # self.actor_optim.param_groups[0]["lr"] = new_lr
+                # self.critic_optim.param_groups[0]["lr"] = new_lr
 
                 V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
 
@@ -145,25 +147,30 @@ class PPO:
         #     n_mean = torch.clamp_(mean[i],
         #                           torch.tensor(action_constraints[0], dtype=torch.float, device=device),
         #                           torch.tensor(action_constraints[1], dtype=torch.float, device=device))
-        # mean[:, 0] = 0
+        mean[:, 0] = 0
         dist = MultivariateNormal(mean, self.covariance_mat)
         log_probs = dist.log_prob(batch_acts)
         return V, log_probs, dist.entropy()
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         mean = self.actor(state)
-        # mean = torch.zeros_like(self.actor(state))
         n_mean = torch.clamp(mean,
                              torch.tensor(action_constraints[0], dtype=torch.float, device=device),
                              torch.tensor(action_constraints[1], dtype=torch.float, device=device))
         n_mean[0] = 0
-        dist = MultivariateNormal(n_mean, self.covariance_mat)
-        action: np.ndarray = dist.sample().cpu().numpy()
-        # action = np.clip(action, action_constraints[0], action_constraints[1])
-        action[0] = 0
-        log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
 
-        return action, log_prob.detach()
+        dist = MultivariateNormal(n_mean, self.covariance_mat)
+        # print(dist)
+        # exit(0)
+
+        # action: np.ndarray = dist.sample().cpu().numpy()
+        action = dist.sample()
+        # action = np.clip(action, action_constraints[0], action_constraints[1])
+        # action[0] = 0
+        # log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
+        log_prob = dist.log_prob(action)
+
+        return action, log_prob
 
     def rollout_batch(self):
         batch_obs = []  # batch observations
@@ -199,6 +206,7 @@ class PPO:
 
                 action_constraints = self.env.get_action_constraints(prev_action)
                 action, log_prob = self.get_action(state, action_constraints)
+                action = action.cpu().detach()
                 prev_action = action
                 val = self.critic(state)
 
@@ -209,6 +217,7 @@ class PPO:
                 ep_vals.append(val.flatten())
                 batch_actions.append(action)
                 batch_log_probs.append(log_prob)
+                # print(log_prob)
                 if done:
                     break
 
@@ -262,6 +271,7 @@ class PPO:
 
 def min_max_scaling(ep_rewards):
     sum = 4
+    # sum = 10000
     x_min, x_max = 0, sum
     x_min_last, x_max_last = -10, sum + 10
     return [(reward - x_min_last) / (x_max_last - x_min_last)

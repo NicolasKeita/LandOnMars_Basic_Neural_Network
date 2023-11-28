@@ -1,14 +1,17 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt, cm
 
 
-def create_graph(points: list, title: str, ax):
+def create_graph(line, title: str, ax):
     ax.set_xlim(0, 7000)
     ax.set_ylim(0, 3000)
     ax.set_xlabel('X Coordinate')
     ax.set_ylabel('Y Coordinate')
     ax.set_title(title)
-    ax.plot(*zip(*[(point[0], point[1]) for point in points]), marker='o', label='Mars Surface')
+    x, y = line.xy
+    ax.plot(x, y, marker='o', label='Mars Surface')
     ax.legend()
     ax.grid(True)
 
