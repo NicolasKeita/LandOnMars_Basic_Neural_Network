@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
-matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt, cm
+matplotlib.use('Qt5Agg')
 
 
 def create_graph(line, title: str, ax):

@@ -3,7 +3,7 @@ import numpy as np
 from shapely import LineString, Point, MultiPoint
 
 from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
-from src.math_utils import distance_squared_to_closest_point_to_line_segments
+from src.math_utils import distance_squared_to_line
 
 
 def parse_planet_surface() -> MultiPoint:
@@ -35,7 +35,7 @@ class RocketLandingEnv:
         self.surface = LineString(surface_points.geoms)
         self.landing_spot = find_landing_spot(surface_points)
 
-        initial_state = [
+        self.initial_state = [
             2500,  # x
             2500,  # y
             0,  # horizontal speed
@@ -43,13 +43,9 @@ class RocketLandingEnv:
             20000,  # fuel remaining
             0,  # rotation
             0,  # thrust power
-            distance_squared_to_closest_point_to_line_segments([500, 2700], self.landing_spot),  # distance to landing spot
-            distance_squared_to_closest_point_to_line_segments([500, 2700], self.surface)  # distance to surface
+            distance_squared_to_line([500, 2700], self.landing_spot),  # distance to landing spot
+            distance_squared_to_line([500, 2700], self.surface)  # distance to surface
         ]
-        self.feature_amount = len(initial_state)
-        self.initial_state = initial_state
-        self.state = np.array(initial_state)
-
         self.raw_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
@@ -61,6 +57,8 @@ class RocketLandingEnv:
             [0, 3000 ** 2],  # distance squared landing_spot
             [0, 3000 ** 2]  # distance squared surface
         ]
+        # self.feature_amount = len(self.initial_state)
+        self.state = np.array(self.initial_state)
         self.action_constraints = [15, 1]
 
     @staticmethod
@@ -77,7 +75,6 @@ class RocketLandingEnv:
                               zip(normalized_state, raw_intervals)]
         return np.array(denormalized_state)
 
-    # Check this fct
     @staticmethod
     def denormalize_action(raw_output):
         def sig(x):
@@ -143,8 +140,8 @@ class RocketLandingEnv:
                      new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
-                     distance_squared_to_closest_point_to_line_segments(np.array(new_pos), self.landing_spot),
-                     distance_squared_to_closest_point_to_line_segments(new_pos, self.surface)
+                     distance_squared_to_line(np.array(new_pos), self.landing_spot),
+                     distance_squared_to_line(new_pos, self.surface)
         )
         return new_state
 

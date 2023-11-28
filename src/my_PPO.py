@@ -18,7 +18,7 @@ class PPO:
     def __init__(self, env: RocketLandingEnv):
         self.env = env
 
-        self.obs_dim = self.env.feature_amount
+        self.obs_dim = len(self.env.state)
         self.action_dim = 2
 
         self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
@@ -29,7 +29,7 @@ class PPO:
         self.n_updates_per_iteration = 9
         self.clip = 0.2
         # self.lr = 0.01
-        self.lr = 0.005
+        self.lr = 0.001
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
@@ -46,7 +46,6 @@ class PPO:
 
         self.ent_coef = 0
         self.target_kl = 0.02
-        # self.target_kl = 10
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
 
@@ -92,9 +91,10 @@ class PPO:
 
                 V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
 
-                logratios = curr_log_probs - batch_log_probs
-                ratios = torch.exp(logratios)
-                approx_kl = ((ratios - 1) - logratios).mean()
+                log_ratios = curr_log_probs - batch_log_probs[0]  # TODO remove [0]
+                ratios = torch.exp(log_ratios)
+                # print(ratios)
+                approx_kl = ((ratios - 1) - log_ratios).mean()
 
                 surr1 = ratios * A_k
                 surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
@@ -169,7 +169,6 @@ class PPO:
         # action[0] = 0
         # log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
         log_prob = dist.log_prob(action)
-
         return action, log_prob
 
     def rollout_batch(self):
@@ -235,7 +234,9 @@ class PPO:
         batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
         batch_actions = np.array(batch_actions)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
-        batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
+        # print(batch_log_probs)
+        # exit(1)
+        # batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
 
         display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
 
