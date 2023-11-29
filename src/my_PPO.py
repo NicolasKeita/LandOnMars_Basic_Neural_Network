@@ -19,32 +19,33 @@ class PPO:
         self.env = env
 
         self.obs_dim = len(self.env.state)
-        self.action_dim = 2
+        self.action_dim = self.env.action_space_dimension
 
         self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 700  # timesteps per episode
-        self.gamma_reward_to_go = 0.98
+        self.gamma_reward_to_go = 0.95
         # self.gamma_reward_to_go = 0.80
         # self.gamma_reward_to_go = 1
-        self.n_updates_per_iteration = 9
+        self.n_updates_per_iteration = 3
         self.clip = 0.2
         # self.lr = 0.01
         self.lr = 0.001
+        # self.lr = 0.000001
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
 
         self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.000000000000001).to(device)
-        # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
+        # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.000000000000001).to(device)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
         self.roll_i = 0
 
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 0
+        self.ent_coef = 0.2
         self.target_kl = 0.02
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
@@ -65,20 +66,20 @@ class PPO:
 
         while t_so_far < total_time_steps:  # TODO for loop ?
             (batch_obs, batch_actions, batch_log_probs,
-             batch_rewards, batch_lens, batch_vals, batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
+             batch_rewards, batch_lens, batch_vals,
+             batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
-            V: torch.Tensor = self.critic(batch_obs).squeeze()
-            batch_rewards_to_go = torch.add(A_k, V.detach())
+            # V: torch.Tensor = self.critic(batch_obs).squeeze()
+            V = self.critic(batch_obs)
+            batch_rewards_to_go = A_k + V.view(-1)
 
             t_so_far += np.sum(batch_lens)
             print('BATCH DONE (more like steps)', t_so_far)
             print("Iter so far ", i_so_far)
             i_so_far += 1
 
-            # print(A_k)
             # A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
-            # print(A_k)
-            # exit(9)
+
 
             for i in range(self.n_updates_per_iteration):
                 # frac = (t_so_far - 1.0) / total_time_steps
@@ -93,7 +94,6 @@ class PPO:
 
                 log_ratios = curr_log_probs - batch_log_probs[0]  # TODO remove [0]
                 ratios = torch.exp(log_ratios)
-                # print(ratios)
                 approx_kl = ((ratios - 1) - log_ratios).mean()
 
                 surr1 = ratios * A_k
@@ -107,12 +107,18 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
+                # for param in self.actor.parameters():
+                #     print(param.grad)
+                # print('ACTOR DONE')
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
 
-                critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
+                # critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
+                critic_loss = nn.SmoothL1Loss()(V, batch_rewards_to_go)
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
+                # for param in self.critic.parameters():
+                #     print(param.grad)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
                 if approx_kl > self.target_kl:
@@ -147,7 +153,7 @@ class PPO:
         #     n_mean = torch.clamp_(mean[i],
         #                           torch.tensor(action_constraints[0], dtype=torch.float, device=device),
         #                           torch.tensor(action_constraints[1], dtype=torch.float, device=device))
-        mean[:, 0] = 0
+        # mean[:, 0] = 0
         dist = MultivariateNormal(mean, self.covariance_mat)
         log_probs = dist.log_prob(batch_acts)
         return V, log_probs, dist.entropy()
@@ -157,7 +163,7 @@ class PPO:
         n_mean = torch.clamp(mean,
                              torch.tensor(action_constraints[0], dtype=torch.float, device=device),
                              torch.tensor(action_constraints[1], dtype=torch.float, device=device))
-        n_mean[0] = 0
+        # n_mean[0] = 0
 
         dist = MultivariateNormal(n_mean, self.covariance_mat)
         # print(dist)
@@ -210,7 +216,7 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
-                trajectory_plot.append(self.env.denormalize_state(state, self.env.raw_intervals))
+                trajectory_plot.append(self.env.denormalize_state(state, self.env.state_intervals))
 
                 ep_rewards.append(reward)
                 ep_vals.append(val.flatten())
@@ -248,7 +254,7 @@ class PPO:
             advantages = []
             last_advantage = 0
 
-            ep_dones = torch.tensor(ep_dones, dtype=torch.float).to(device)
+            # ep_dones = torch.tensor(ep_dones, dtype=torch.float).to(device)
             for t in reversed(range(len(ep_rews))):
                 # if t + 1 < len(ep_rews):
                 #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
@@ -272,6 +278,7 @@ class PPO:
 
 def min_max_scaling(ep_rewards):
     sum = 4
+
     # sum = 10000
     x_min, x_max = 0, sum
     x_min_last, x_max_last = -10, sum + 10

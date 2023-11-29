@@ -42,8 +42,10 @@ class FeedForwardNN(nn.Module):
         self.apply(init_weights)
 
     def forward(self, state):
-        if isinstance(state, np.ndarray):
+        if not isinstance(state, torch.Tensor):
             state = torch.tensor(state, dtype=torch.float).to(self.device)
+        # if isinstance(state, np.ndarray):
+        #     state = torch.tensor(state, dtype=torch.float).to(self.device)
         activation_1 = F.relu(self.layer_1(state))
         activation_2 = F.relu(self.layer_2(activation_1))
         activation_3 = F.relu(self.layer_3(activation_2))

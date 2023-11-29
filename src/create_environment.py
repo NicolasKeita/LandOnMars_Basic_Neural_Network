@@ -6,35 +6,11 @@ from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 from src.math_utils import distance_squared_to_line
 
 
-def parse_planet_surface() -> MultiPoint:
-    input_file = '''
-        6
-        0 100
-        1000 500
-        1500 100
-        3000 100
-        5000 1500
-        6999 1000
-    '''
-    points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
-    return MultiPoint(points_coordinates)
-
-
-def find_landing_spot(planet_surface: MultiPoint) -> LineString:
-    points: list[Point] = planet_surface.geoms
-
-    for i in range(len(points) - 1):
-        if points[i].y == points[i + 1].y:
-            return LineString([points[i], points[i + 1]])
-    raise Exception('no landing site on test-case data')
-
-
 class RocketLandingEnv:
     def __init__(self):
-        surface_points = parse_planet_surface()
+        surface_points = self.parse_planet_surface()
         self.surface = LineString(surface_points.geoms)
-        self.landing_spot = find_landing_spot(surface_points)
-
+        self.landing_spot = self.find_landing_spot(surface_points)
         self.initial_state = [
             2500,  # x
             2500,  # y
@@ -46,7 +22,7 @@ class RocketLandingEnv:
             distance_squared_to_line([500, 2700], self.landing_spot),  # distance to landing spot
             distance_squared_to_line([500, 2700], self.surface)  # distance to surface
         ]
-        self.raw_intervals = [
+        self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
             [-500, 500],  # vs
@@ -57,23 +33,42 @@ class RocketLandingEnv:
             [0, 3000 ** 2],  # distance squared landing_spot
             [0, 3000 ** 2]  # distance squared surface
         ]
-        # self.feature_amount = len(self.initial_state)
-        self.state = np.array(self.initial_state)
+        self.state = self.initial_state
         self.action_constraints = [15, 1]
+        self.action_space_dimension = 2
+
+    @staticmethod
+    def parse_planet_surface() -> MultiPoint:
+        input_file = '''
+            6
+            0 100
+            1000 500
+            1500 100
+            3000 100
+            5000 1500
+            6999 1000
+        '''
+        points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
+        return MultiPoint(points_coordinates)
+
+    @staticmethod
+    def find_landing_spot(planet_surface: MultiPoint) -> LineString:
+        points: list[Point] = planet_surface.geoms
+
+        for i in range(len(points) - 1):
+            if points[i].y == points[i + 1].y:
+                return LineString([points[i], points[i + 1]])
+        raise Exception('no landing site on test-case data')
 
     @staticmethod
     def normalize_state(raw_state, raw_intervals):
-        normalized_state = [(val - interval[0]) / (interval[1] - interval[0])
-                            for val, interval in
-                            zip(raw_state, raw_intervals)]
-        return np.array(normalized_state)
+        return [(val - interval[0]) / (interval[1] - interval[0])
+                for val, interval in zip(raw_state, raw_intervals)]
 
     @staticmethod
     def denormalize_state(normalized_state, raw_intervals):
-        denormalized_state = [val * (interval[1] - interval[0]) + interval[0]
-                              for val, interval in
-                              zip(normalized_state, raw_intervals)]
-        return np.array(denormalized_state)
+        return [val * (interval[1] - interval[0]) + interval[0]
+                for val, interval in zip(normalized_state, raw_intervals)]
 
     @staticmethod
     def denormalize_action(raw_output):
@@ -107,13 +102,13 @@ class RocketLandingEnv:
 
     def reset(self):
         self.state = np.array(self.initial_state)
-        return self.normalize_state(self.state, self.raw_intervals)
+        return self.normalize_state(self.state, self.state_intervals)
 
     def step(self, action: tuple[int, int]):
         next_state = self.compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state)
-        next_state = self.normalize_state(next_state, self.raw_intervals)
+        next_state = self.normalize_state(next_state, self.state_intervals)
         return next_state, reward, done, None
 
     def compute_next_state(self, state, action: tuple[int, int]):
@@ -142,7 +137,7 @@ class RocketLandingEnv:
                      thrust,
                      distance_squared_to_line(np.array(new_pos), self.landing_spot),
                      distance_squared_to_line(new_pos, self.surface)
-        )
+                     )
         return new_state
 
 
