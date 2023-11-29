@@ -25,8 +25,8 @@ class RocketLandingEnv:
         self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
-            [-500, 500],  # vs
-            [-500, 500],  # hs
+            [-300, 300],  # vs
+            [-300, 300],  # hs
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
@@ -60,23 +60,21 @@ class RocketLandingEnv:
                 return LineString([points[i], points[i + 1]])
         raise Exception('no landing site on test-case data')
 
-    @staticmethod
-    def normalize_state(raw_state, raw_intervals):
+    def normalize_state(self, raw_state):
         return [(val - interval[0]) / (interval[1] - interval[0])
-                for val, interval in zip(raw_state, raw_intervals)]
+                for val, interval in zip(raw_state, self.state_intervals)]
 
-    @staticmethod
-    def denormalize_state(normalized_state, raw_intervals):
+    def denormalize_state(self, normalized_state):
         return [val * (interval[1] - interval[0]) + interval[0]
-                for val, interval in zip(normalized_state, raw_intervals)]
+                for val, interval in zip(normalized_state, self.state_intervals)]
 
     @staticmethod
     def denormalize_action(raw_output):
-        def sig(x):
+        def sigmoid(x):
             return 1 / (1 + np.exp(-np.clip(x, -100, 100)))
 
         output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
-        output_dim2 = np.round(sig(raw_output[1]) * 4.0)
+        output_dim2 = np.round(sigmoid(raw_output[1]) * 4.0)
         output = np.array([output_dim1, output_dim2], dtype=int)
         return output
 
@@ -102,13 +100,13 @@ class RocketLandingEnv:
 
     def reset(self):
         self.state = np.array(self.initial_state)
-        return self.normalize_state(self.state, self.state_intervals)
+        return self.normalize_state(self.state)
 
     def step(self, action: tuple[int, int]):
         next_state = self.compute_next_state(self.state, action)
         self.state = next_state
         reward, done = reward_function(next_state)
-        next_state = self.normalize_state(next_state, self.state_intervals)
+        next_state = self.normalize_state(next_state)
         return next_state, reward, done, None
 
     def compute_next_state(self, state, action: tuple[int, int]):
@@ -154,14 +152,17 @@ def compute_reward(state) -> float:
     if abs(hs) <= 20:
         hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
-        hs_normalized = norm_reward(hs, 0, 400) * speed_scaling * dist_to_surface_normalized
+        hs_normalized = norm_reward(hs, 0, 300) * speed_scaling * dist_to_surface_normalized
 
     if abs(vs) <= 40:
         vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
-        vs_normalized = norm_reward(vs, 0, 400) * speed_scaling * dist_to_surface_normalized
+        vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
 
-    rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
+    if dist_landing_spot_squared > 700 ** 2:
+        rotation_normalized = 1
+    else:
+        rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 

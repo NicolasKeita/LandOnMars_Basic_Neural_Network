@@ -37,8 +37,8 @@ class PPO:
         self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.000000000000001).to(device)
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.1).to(device)
+        # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
         self.roll_i = 0
@@ -216,7 +216,7 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
-                trajectory_plot.append(self.env.denormalize_state(state, self.env.state_intervals))
+                trajectory_plot.append(self.env.denormalize_state(state))
 
                 ep_rewards.append(reward)
                 ep_vals.append(val.flatten())
