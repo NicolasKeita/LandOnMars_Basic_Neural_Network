@@ -20,7 +20,7 @@ def plot_mean_rewards(rewards, ax):
     ax.plot(rewards, color='red')
     ax.set_xlabel('Iteration')
     ax.set_ylabel('Average Reward')
-    ax.set_title('Training Progress - mean rewards during entire horizon')
+    ax.set_title('Training Progress - average rewards throughout entire horizon')
     plt.pause(0.001)
 
 

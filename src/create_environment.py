@@ -38,7 +38,7 @@ class RocketLandingEnv:
         self.action_space_dimension = 2
 
     @staticmethod
-    def parse_planet_surface() -> MultiPoint:
+    def parse_planet_surface():
         input_file = '''
             6
             0 100
@@ -60,34 +60,33 @@ class RocketLandingEnv:
                 return LineString([points[i], points[i + 1]])
         raise Exception('no landing site on test-case data')
 
-    def normalize_state(self, raw_state):
+    def normalize_state(self, raw_state: list):
         return [(val - interval[0]) / (interval[1] - interval[0])
                 for val, interval in zip(raw_state, self.state_intervals)]
 
-    def denormalize_state(self, normalized_state):
+    def denormalize_state(self, normalized_state: list):
         return [val * (interval[1] - interval[0]) + interval[0]
                 for val, interval in zip(normalized_state, self.state_intervals)]
 
     @staticmethod
-    def denormalize_action(raw_output):
+    def denormalize_action(normalized_actions: list):
         def sigmoid(x):
             return 1 / (1 + np.exp(-np.clip(x, -100, 100)))
 
-        output_dim1 = np.round(np.tanh(raw_output[0]) * 90.0)
-        output_dim2 = np.round(sigmoid(raw_output[1]) * 4.0)
-        output = np.array([output_dim1, output_dim2], dtype=int)
-        return output
+        action_1 = np.round(np.tanh(normalized_actions[0]) * 90.0)
+        action_2 = np.round(sigmoid(normalized_actions[1]) * 4.0)
+        return [action_1, action_2]
 
     @staticmethod
-    def normalize_action(action):
-        def inv_sig(x):
+    def normalize_action(raw_actions: list):
+        def inv_sigmoid(x):
             epsilon = 1e-10
             x = np.clip(x, epsilon, 1 - epsilon)
             return np.log(x / (1 - x))
 
-        norm_dim1 = np.arctan(action[0] / 90)
-        norm_dim2 = inv_sig(action[1] / 4.0)
-        return np.array([norm_dim1, norm_dim2])
+        action_1 = np.arctan(raw_actions[0] / 90)
+        action_2 = inv_sigmoid(raw_actions[1] / 4.0)
+        return [action_1, action_2]
 
     def get_action_constraints(self, previous_action):
         if previous_action is None:
@@ -99,15 +98,14 @@ class RocketLandingEnv:
         return [minimum, maximum]
 
     def reset(self):
-        self.state = np.array(self.initial_state)
+        self.state = self.initial_state
         return self.normalize_state(self.state)
 
     def step(self, action: tuple[int, int]):
-        next_state = self.compute_next_state(self.state, action)
-        self.state = next_state
-        reward, done = reward_function(next_state)
-        next_state = self.normalize_state(next_state)
-        return next_state, reward, done, None
+        self.state = self.compute_next_state(self.state, action)
+        reward, done = reward_function(self.state)
+        next_state_normalized = self.normalize_state(self.state)
+        return next_state_normalized, reward, done, None
 
     def compute_next_state(self, state, action: tuple[int, int]):
         curr_pos = [state[0], state[1]]
@@ -128,14 +126,13 @@ class RocketLandingEnv:
             new_pos = np.array(intersection.xy).flatten()
         remaining_fuel = state[4] - thrust
 
-        new_state = (new_pos[0],
+        new_state = [new_pos[0],
                      new_pos[1],
                      new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
                      distance_squared_to_line(np.array(new_pos), self.landing_spot),
-                     distance_squared_to_line(new_pos, self.surface)
-                     )
+                     distance_squared_to_line(new_pos, self.surface)]
         return new_state
 
 
@@ -149,20 +146,24 @@ def compute_reward(state) -> float:
     rotation_scaling = 1  # Scaling factor for rotation rewards
     dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9_000_000) * 1
     dist_to_surface_normalized = norm_reward(dist_surface, 0, 9_000_000)
+    is_close_to_land = dist_landing_spot_squared < 700 ** 2
     if abs(hs) <= 20:
         hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
         hs_normalized = norm_reward(hs, 0, 300) * speed_scaling * dist_to_surface_normalized
 
     if abs(vs) <= 40:
-        vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
+        vs_normalized = 1
+        # vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
-        vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
-
-    if dist_landing_spot_squared > 700 ** 2:
-        rotation_normalized = 1
-    else:
+        vs_normalized = norm_reward(vs, 0, 300)
+        # vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
+    print(vs_normalized, vs, thrust)
+    print("here")
+    if is_close_to_land:
         rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
+    else:
+        rotation_normalized = 1
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 

@@ -1,6 +1,5 @@
 import torch
 from matplotlib import pyplot as plt
-from shapely import MultiPoint
 from torch import nn
 from torch.optim import Adam
 from torch.distributions import MultivariateNormal
@@ -26,8 +25,8 @@ class PPO:
         self.gamma_reward_to_go = 0.95
         # self.gamma_reward_to_go = 0.80
         # self.gamma_reward_to_go = 1
-        self.n_updates_per_iteration = 3
-        self.clip = 0.2
+        self.n_updates_per_iteration = 5
+        self.clip = 0.1
         # self.lr = 0.01
         self.lr = 0.001
         # self.lr = 0.000001
@@ -37,7 +36,7 @@ class PPO:
         self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.1).to(device)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.2).to(device)
         # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
@@ -45,7 +44,7 @@ class PPO:
 
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 0.2
+        self.ent_coef = 0.01
         self.target_kl = 0.02
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
@@ -175,7 +174,7 @@ class PPO:
         # action[0] = 0
         # log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
         log_prob = dist.log_prob(action)
-        return action, log_prob
+        return action.cpu().numpy(), log_prob
 
     def rollout_batch(self):
         batch_obs = []  # batch observations
@@ -211,7 +210,6 @@ class PPO:
 
                 action_constraints = self.env.get_action_constraints(prev_action)
                 action, log_prob = self.get_action(state, action_constraints)
-                action = action.cpu().detach()
                 prev_action = action
                 val = self.critic(state)
 
