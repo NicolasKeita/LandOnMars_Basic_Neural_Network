@@ -40,5 +40,5 @@ class FeedForwardNN(nn.Module):
         activation_4 = F.relu(self.layer_4(activation_3))
         activation_5 = F.relu(self.layer_5(activation_4))
         activation_6 = F.relu(self.layer_6(activation_5))
-        raw_output = self.layer_7(activation_6)
+        raw_output: torch.Tensor = self.layer_7(activation_6)
         return raw_output

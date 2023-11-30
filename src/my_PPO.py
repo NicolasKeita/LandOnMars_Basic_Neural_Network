@@ -20,16 +20,16 @@ class PPO:
         self.obs_dim = len(self.env.state)
         self.action_dim = self.env.action_space_dimension
 
-        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 6  # timesteps per batch
         self.max_time_steps_per_episode = 700  # timesteps per episode
-        self.gamma_reward_to_go = 0.95
+        self.gamma_reward_to_go = 0.1
         # self.gamma_reward_to_go = 0.80
         # self.gamma_reward_to_go = 1
         self.n_updates_per_iteration = 5
-        self.clip = 0.1
+        self.clip = 0.2
         # self.clip = 500
-        # self.lr = 0.01
-        self.lr = 0.003
+        self.lr = 0.01
+        # self.lr = 0.003
         # self.lr = 0.000001
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -45,7 +45,7 @@ class PPO:
 
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 0.01
+        self.ent_coef = 0
         self.target_kl = 0.02
         self.lam = 0.98
         self.gamma = self.gamma_reward_to_go
@@ -59,6 +59,7 @@ class PPO:
         create_graph(self.env.surface, 'Landing on Mars', ax_trajectories)
 
     def learn(self, total_time_steps=200_000_000):
+        torch.autograd.set_detect_anomaly(True)
         t_so_far = 0
         i_so_far = 0
         mean_rewards_history = []
@@ -72,7 +73,7 @@ class PPO:
             # V: torch.Tensor = self.critic(batch_obs).squeeze()
             V: torch.Tensor = self.critic(batch_obs)
 
-            batch_rewards_to_go = torch.unsqueeze(A_k, dim=1) + V
+            batch_rewards_to_go = torch.unsqueeze(A_k, dim=1) + V.detach()
             # batch_rewards_to_go = A_k + V
 
             t_so_far += np.sum(batch_lens)
@@ -96,7 +97,7 @@ class PPO:
 
                 V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_actions)
 
-                log_ratios = curr_log_probs - batch_log_probs[0]  # TODO remove [0]
+                log_ratios = curr_log_probs - batch_log_probs
                 ratios = torch.exp(log_ratios)
                 approx_kl = ((ratios - 1) - log_ratios).mean()
 
@@ -111,6 +112,7 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
+                print(actor_loss)
 
                 # nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
@@ -163,28 +165,30 @@ class PPO:
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         mean = self.actor(state)
-        # print("before cut mean", mean)
-        # n_mean = torch.clamp(mean,
-        #                      torch.tensor(action_constraints[0], dtype=torch.float, device=device),
-        #                      torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        # torch.clamp_(mean,
+        #              torch.tensor(action_constraints[0], dtype=torch.float, device=device),
+        #              torch.tensor(action_constraints[1], dtype=torch.float, device=device))
         # mean[0] = 0
 
         dist = MultivariateNormal(mean, self.covariance_mat)
         # print(dist)
         # exit(0)
 
-        # action: np.ndarray = dist.sample().cpu().numpy()
         action = dist.sample()
+        # action_np = action.detach().cpu().numpy()
+        # print(action)
+
         # action = np.clip(action, action_constraints[0], action_constraints[1])
         # action[0] = 0
         # log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
         log_prob = dist.log_prob(action)
-        return action.cpu().tolist(), log_prob
+        return action.tolist(), log_prob.detach()
 
     def rollout_batch(self):
         batch_obs = []  # batch observations
         batch_actions = []  # batch actions
-        batch_log_probs = []  # log probs of each action
+        # batch_log_probs = []  # log probs of each action
+        batch_log_probs = torch.empty(0, device=device)
         batch_rewards = []  # batch rewards
         batch_lens = []  # episodic lengths in batch
         batch_vals = []
@@ -219,14 +223,13 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
-                # print(done)
                 trajectory_plot.append(self.env.denormalize_state(state))
 
                 ep_rewards.append(reward)
                 ep_vals.append(val)
                 batch_actions.append(action)
-                batch_log_probs.append(log_prob)
-                # print(log_prob)
+                # batch_log_probs.append(log_prob)
+                batch_log_probs = torch.cat((batch_log_probs, log_prob.unsqueeze(0)))
                 if done:
                     ep_dones.append(done)
                     break
@@ -234,8 +237,8 @@ class PPO:
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            ep_rewards_normalized = min_max_scaling(ep_rewards)
-            # print(ep_rewards_normalized)
+            # ep_rewards_normalized = min_max_scaling(ep_rewards)
+            ep_rewards_normalized = ep_rewards
 
             batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
@@ -246,9 +249,9 @@ class PPO:
         batch_obs = torch.tensor(batch_obs, dtype=torch.float).to(device)
         batch_actions = np.array(batch_actions)
         batch_actions = torch.tensor(batch_actions, dtype=torch.float).to(device)
+        # batch_log_probs = torch.stack(batch_log_probs)
         # print(batch_log_probs)
-        # exit(1)
-        # batch_log_probs = torch.tensor(batch_log_probs, dtype=torch.float).to(device)
+        # batch_log_probs.backward()
 
         display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
 
@@ -261,10 +264,10 @@ class PPO:
             last_advantage = 0
 
             for t in reversed(range(len(ep_rews))):
-                if t + 1 < len(ep_rews):
-                    delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
-                # if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
-                #     delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
+                # if t + 1 < len(ep_rews):
+                #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
+                if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
+                    delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
                 else:
                     delta = ep_rews[t] - ep_vals[t]
 
@@ -276,13 +279,16 @@ class PPO:
 
             # advantages = torch.tensor(advantages, dtype=torch.float).to(device)
             # advantages = torch.clamp(advantages, -0.2, 0.2)  # Adjust the clipping range as needed
-            batch_advantages.extend(advantages)
 
-        return torch.tensor(batch_advantages, dtype=torch.float).to(device)
+            batch_advantages.extend(advantages)
+        batch_advantages = torch.tensor(batch_advantages, dtype=torch.float).to(device)
+        batch_advantages = (batch_advantages - batch_advantages.mean()) / (batch_advantages.std() + 1e-8)
+
+        return batch_advantages
 
 
 def min_max_scaling(ep_rewards):
-    sum = 4
+    sum = 1
 
     # sum = 10000
     x_min, x_max = 0, sum

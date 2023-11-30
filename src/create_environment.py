@@ -89,26 +89,27 @@ class RocketLandingEnv:
         action_2 = inv_sigmoid(raw_actions[1] / 4.0)
         return [action_1, action_2]
 
+    # TODO check if I really need this function
     def get_action_constraints(self, normalized_previous_action: list):
         if normalized_previous_action is None:
             return [self.normalize_action([-15, 0]), self.normalize_action([15, 1])]
         action = self.denormalize_action(normalized_previous_action)
         legal_min_max = actions_min_max(action)
-        minimum = self.normalize_action((legal_min_max[0][0], legal_min_max[1][0]))
-        maximum = self.normalize_action((legal_min_max[0][1], legal_min_max[1][1]))
+        minimum = self.normalize_action([legal_min_max[0][0], legal_min_max[1][0]])
+        maximum = self.normalize_action([legal_min_max[0][1], legal_min_max[1][1]])
         return [minimum, maximum]
 
     def reset(self):
         self.state = self.initial_state
         return self.normalize_state(self.state)
 
-    def step(self, action: tuple[int, int]):
-        self.state = self.compute_next_state(self.state, action)
+    def step(self, action_to_do: list):
+        self.state = self.compute_next_state(self.state, action_to_do)
         reward, done = reward_function(self.state)
         next_state_normalized = self.normalize_state(self.state)
         return next_state_normalized, reward, done, None
 
-    def compute_next_state(self, state, action: tuple[int, int]):
+    def compute_next_state(self, state, action: list):
         curr_pos = [state[0], state[1]]
         rot, thrust = limit_actions(state[5], state[6], action)
         radians = rot * (math.pi / 180)
@@ -161,18 +162,17 @@ def compute_reward(state) -> float:
         # vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
     # print(vs_normalized, vs, thrust)
     # print("here")
-    # if (thrust == 4):
-    #     print("thrust !")
-    #     exit(11)
+
     if is_close_to_land:
         rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
     else:
         rotation_normalized = 1
-    # return vs_normalized
-    return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
+
+    return vs_normalized * 20
+    # return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
-def reward_function(state) -> (float, bool):
+def reward_function(state: list) -> tuple[float, bool]:
     x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
     is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
@@ -191,4 +191,5 @@ def reward_function(state) -> (float, bool):
         print("Crash, ", state)
         done = True
         reward -= 10
+    # return 0, done
     return reward, done
