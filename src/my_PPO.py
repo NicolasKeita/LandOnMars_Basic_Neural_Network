@@ -143,16 +143,16 @@ class PPO:
         V: torch.Tensor = self.critic(batch_obs)
         mean = self.actor(batch_obs)
         # print("before evaluate cut", mean)
-        # for i, batch_ob in enumerate(batch_obs):
-        #     ob = batch_ob.cpu().detach().numpy()
-        #     previous_rot = ob[5]
-        #     previous_thrust = ob[6]
-        #
-        #     previous_action = self.env.denormalize_action([previous_rot, previous_thrust])
-        #     action_constraints = self.env.get_action_constraints(previous_action)
-        #     n_mean = torch.clamp_(mean[i],
-        #                           torch.tensor(action_constraints[0], dtype=torch.float, device=device),
-        #                           torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        for i, batch_ob in enumerate(batch_obs):
+            ob = batch_ob.cpu().detach().numpy()
+            previous_rot = ob[5]
+            previous_thrust = ob[6]
+
+            previous_action = self.env.denormalize_action([previous_rot, previous_thrust])
+            action_constraints = self.env.get_action_constraints(previous_action)
+            torch.clamp_(mean[i],
+                         torch.tensor(action_constraints[0], dtype=torch.float, device=device),
+                         torch.tensor(action_constraints[1], dtype=torch.float, device=device))
         # mean[:, 0] = 0
         dist = MultivariateNormal(mean, self.covariance_mat)
         log_probs = dist.log_prob(batch_acts)
@@ -160,9 +160,9 @@ class PPO:
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         mean = self.actor(state)
-        # torch.clamp_(mean,
-        #              torch.tensor(action_constraints[0], dtype=torch.float, device=device),
-        #              torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        torch.clamp_(mean,
+                     torch.tensor(action_constraints[0], dtype=torch.float, device=device),
+                     torch.tensor(action_constraints[1], dtype=torch.float, device=device))
         # mean[0] = 0
 
         dist = MultivariateNormal(mean, self.covariance_mat)
@@ -209,7 +209,7 @@ class PPO:
             ep_t = 0
             for ep_t in range(self.max_time_steps_per_episode):  # TODO rename it horizon
                 t += 1
-                ep_dones.append(done)
+
                 batch_obs.append(state)
 
                 action_constraints = self.env.get_action_constraints(prev_action)
@@ -218,6 +218,7 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
+                ep_dones.append(done)
                 trajectory_plot.append(self.env.denormalize_state(state))
 
                 ep_rewards.append(reward)
@@ -226,14 +227,13 @@ class PPO:
                 # batch_log_probs.append(log_prob)
                 batch_log_probs = torch.cat((batch_log_probs, log_prob.unsqueeze(0)))
                 if done:
-                    ep_dones.append(done)
                     break
 
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            ep_rewards_normalized = min_max_scaling(ep_rewards)
-            # ep_rewards_normalized = ep_rewards
+            # ep_rewards_normalized = min_max_scaling(ep_rewards)
+            ep_rewards_normalized = ep_rewards
 
             batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
@@ -254,15 +254,16 @@ class PPO:
 
     def calculate_gae(self, rewards, values, dones) -> torch.Tensor:
         batch_advantages = []
+
         for ep_rews, ep_vals, ep_dones in zip(rewards, values, dones):
             advantages = []
             last_advantage = 0
 
             for t in reversed(range(len(ep_rews))):
-                # if t + 1 < len(ep_rews):
-                #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
-                if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
-                    delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
+                if t + 1 < len(ep_rews):
+                    delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
+                # if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
+                #     delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
                 else:
                     delta = ep_rews[t] - ep_vals[t]
 
@@ -287,7 +288,7 @@ def min_max_scaling(ep_rewards):
 
     # sum = 10000
     x_min, x_max = 0, sum
-    x_min_last, x_max_last = -100, sum + 100
+    x_min_last, x_max_last = -10, sum + 10
     return [(reward - x_min_last) / (x_max_last - x_min_last)
             if i == len(ep_rewards) - 1
             else (reward - x_min) / (x_max - x_min)

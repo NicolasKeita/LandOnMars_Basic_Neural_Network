@@ -1,8 +1,6 @@
 import math
 import numpy as np
 from shapely import LineString, Point, MultiPoint
-
-from src.hyperparameters import limit_actions, GRAVITY, actions_min_max
 from src.math_utils import distance_squared_to_line
 
 
@@ -36,6 +34,7 @@ class RocketLandingEnv:
         self.state = self.initial_state
         self.action_constraints = [15, 1]
         self.action_space_dimension = 2
+        self.gravity = 3.711
 
     @staticmethod
     def parse_planet_surface():
@@ -113,7 +112,7 @@ class RocketLandingEnv:
         rot, thrust = limit_actions(rotation, thrust, action)
         radians = rot * (math.pi / 180)
         x_acceleration = math.sin(radians) * thrust
-        y_acceleration = (math.cos(radians) * thrust) - GRAVITY
+        y_acceleration = (math.cos(radians) * thrust) - self.gravity
         new_horizontal_speed = hs - x_acceleration
         new_vertical_speed = vs + y_acceleration
         new_x = x + hs - 0.5 * x_acceleration
@@ -185,13 +184,35 @@ def reward_function(state: list) -> tuple[float, bool]:
     if is_successful_landing:
         print("SUCCESSFUL LANDING !")
         done = True
-        reward += 100
+        reward += 10
         exit(0)
     elif is_crashed_on_landing_spot:
+        print('Crash LANDING SPOT', state)
         done = True
     elif is_crashed_anywhere:
-        print("Crash, ", state)
+        print("Crash SURFACE / OUTSIDE, ", state)
         done = True
-        reward -= 100
+        reward -= 10
 
     return reward, done
+
+def action_2_min_max(old_rota: int) -> list:
+    return [max(old_rota - 15, -90), min(old_rota + 15, 90)]
+
+
+def action_1_min_max(old_power_thrust: int) -> list:
+    return [max(old_power_thrust - 1, 0), min(old_power_thrust + 1, 4)]
+
+
+def actions_min_max(action: list) -> tuple[list, list]:
+    return action_2_min_max(action[0]), action_1_min_max(action[1])
+
+
+def limit_actions(old_rota: int, old_power_thrust: int, action: list) -> list:
+    range_rotation = action_2_min_max(old_rota)
+    rot = action[0] if range_rotation[0] <= action[0] <= range_rotation[1] else min(
+        max(action[0], range_rotation[0]), range_rotation[1])
+    range_thrust = action_1_min_max(old_power_thrust)
+    thrust = action[1] if range_thrust[0] <= action[1] <= range_thrust[1] else min(
+        max(action[1], range_thrust[0]), range_thrust[1])
+    return [rot, thrust]
