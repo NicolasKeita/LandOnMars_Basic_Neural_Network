@@ -75,7 +75,6 @@ class RocketLandingEnv:
 
         action_1 = np.round(np.tanh(normalized_actions[0]) * 90.0)
         action_2 = np.round(sigmoid(normalized_actions[1]) * 4.0)
-        # print(action_2, sigmoid(normalized_actions[1]), normalized_actions[1])
         return [action_1, action_2]
 
     @staticmethod
@@ -110,23 +109,23 @@ class RocketLandingEnv:
         return next_state_normalized, reward, done, None
 
     def compute_next_state(self, state, action: list):
-        curr_pos = [state[0], state[1]]
-        rot, thrust = limit_actions(state[5], state[6], action)
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
+        rot, thrust = limit_actions(rotation, thrust, action)
         radians = rot * (math.pi / 180)
         x_acceleration = math.sin(radians) * thrust
         y_acceleration = (math.cos(radians) * thrust) - GRAVITY
-        new_horizontal_speed = state[2] - x_acceleration
-        new_vertical_speed = state[3] + y_acceleration
-        new_x = curr_pos[0] + state[2] - 0.5 * x_acceleration
-        new_y = curr_pos[1] + state[3] + 0.5 * y_acceleration
+        new_horizontal_speed = hs - x_acceleration
+        new_vertical_speed = vs + y_acceleration
+        new_x = x + hs - 0.5 * x_acceleration
+        new_y = y + vs + 0.5 * y_acceleration
         new_pos: Point | list = [np.clip(new_x, 0, 7000), np.clip(new_y, 0, 3000)]
 
         line1 = LineString(self.surface)
-        line2 = LineString([curr_pos, new_pos])
+        line2 = LineString([[x, y], new_pos])
         intersection: Point = line1.intersection(line2)
         if not intersection.is_empty and isinstance(intersection, Point):
             new_pos = np.array(intersection.xy).flatten()
-        remaining_fuel = state[4] - thrust
+        remaining_fuel = remaining_fuel - thrust
 
         new_state = [new_pos[0],
                      new_pos[1],
@@ -168,8 +167,8 @@ def compute_reward(state) -> float:
     else:
         rotation_normalized = 1
 
-    return vs_normalized * 20
-    # return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
+    # return vs_normalized * 20
+    return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
 def reward_function(state: list) -> tuple[float, bool]:
@@ -177,19 +176,22 @@ def reward_function(state: list) -> tuple[float, bool]:
 
     is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                              abs(vs) <= 40 and abs(hs) <= 20)
-    is_crashed = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
-                  dist_surface < 1 or remaining_fuel < -4)
+    is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
+                           dist_surface < 1 or remaining_fuel < -4)
+    is_crashed_on_landing_spot = dist_landing_spot < 1
 
     reward = compute_reward(state)
     done = False
     if is_successful_landing:
         print("SUCCESSFUL LANDING !")
         done = True
-        reward += 10
+        reward += 100
         exit(0)
-    elif is_crashed:
+    elif is_crashed_on_landing_spot:
+        done = True
+    elif is_crashed_anywhere:
         print("Crash, ", state)
         done = True
-        reward -= 10
-    # return 0, done
+        reward -= 100
+
     return reward, done

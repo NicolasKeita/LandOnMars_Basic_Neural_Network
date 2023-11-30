@@ -20,12 +20,12 @@ class PPO:
         self.obs_dim = len(self.env.state)
         self.action_dim = self.env.action_space_dimension
 
-        self.time_steps_per_batch = 1 + 80 * 6  # timesteps per batch
+        self.time_steps_per_batch = 1 + 80 * 0  # timesteps per batch
         self.max_time_steps_per_episode = 700  # timesteps per episode
-        self.gamma_reward_to_go = 0.1
+        self.gamma_reward_to_go = 0.95
         # self.gamma_reward_to_go = 0.80
         # self.gamma_reward_to_go = 1
-        self.n_updates_per_iteration = 5
+        self.n_updates_per_iteration = 3
         self.clip = 0.2
         # self.clip = 500
         self.lr = 0.01
@@ -70,11 +70,11 @@ class PPO:
              batch_rewards, batch_lens, batch_vals,
              batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
-            # V: torch.Tensor = self.critic(batch_obs).squeeze()
+            # print(A_k)
+
             V: torch.Tensor = self.critic(batch_obs)
 
             batch_rewards_to_go = torch.unsqueeze(A_k, dim=1) + V.detach()
-            # batch_rewards_to_go = A_k + V
 
             t_so_far += np.sum(batch_lens)
             print('BATCH DONE (more like steps)', t_so_far)
@@ -82,10 +82,6 @@ class PPO:
             i_so_far += 1
 
             # A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
-
-            # print("Here")
-            # print(V)
-
             for i in range(self.n_updates_per_iteration):
                 # frac = (t_so_far - 1.0) / total_time_steps
                 # new_lr = self.lr * (1.0 - frac)
@@ -112,7 +108,6 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
-                print(actor_loss)
 
                 # nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
@@ -237,8 +232,8 @@ class PPO:
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            # ep_rewards_normalized = min_max_scaling(ep_rewards)
-            ep_rewards_normalized = ep_rewards
+            ep_rewards_normalized = min_max_scaling(ep_rewards)
+            # ep_rewards_normalized = ep_rewards
 
             batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
@@ -288,11 +283,11 @@ class PPO:
 
 
 def min_max_scaling(ep_rewards):
-    sum = 1
+    sum = 4
 
     # sum = 10000
     x_min, x_max = 0, sum
-    x_min_last, x_max_last = -10, sum + 10
+    x_min_last, x_max_last = -100, sum + 100
     return [(reward - x_min_last) / (x_max_last - x_min_last)
             if i == len(ep_rewards) - 1
             else (reward - x_min) / (x_max - x_min)
