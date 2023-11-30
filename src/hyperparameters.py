@@ -1,6 +1,7 @@
 # mars
 import random
 
+# TODO remove all
 GRAVITY = 3.711
 
 # TODO create class GeneticAlgorithm and give this during init

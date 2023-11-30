@@ -27,8 +27,9 @@ class PPO:
         # self.gamma_reward_to_go = 1
         self.n_updates_per_iteration = 5
         self.clip = 0.1
+        # self.clip = 500
         # self.lr = 0.01
-        self.lr = 0.001
+        self.lr = 0.003
         # self.lr = 0.000001
         self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
@@ -36,8 +37,8 @@ class PPO:
         self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
-        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.2).to(device)
         # self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
+        self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
 
         self.roll_i = 0
@@ -69,8 +70,10 @@ class PPO:
              batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
             A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
             # V: torch.Tensor = self.critic(batch_obs).squeeze()
-            V = self.critic(batch_obs)
-            batch_rewards_to_go = A_k + V.view(-1)
+            V: torch.Tensor = self.critic(batch_obs)
+
+            batch_rewards_to_go = torch.unsqueeze(A_k, dim=1) + V
+            # batch_rewards_to_go = A_k + V
 
             t_so_far += np.sum(batch_lens)
             print('BATCH DONE (more like steps)', t_so_far)
@@ -79,6 +82,8 @@ class PPO:
 
             # A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
+            # print("Here")
+            # print(V)
 
             for i in range(self.n_updates_per_iteration):
                 # frac = (t_so_far - 1.0) / total_time_steps
@@ -106,20 +111,18 @@ class PPO:
 
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
-                # for param in self.actor.parameters():
-                #     print(param.grad)
-                # print('ACTOR DONE')
-                nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
+
+                # nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
                 self.actor_optim.step()
 
-                # critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
-                critic_loss = nn.SmoothL1Loss()(V, batch_rewards_to_go)
+                critic_loss: torch.Tensor = nn.MSELoss()(V, batch_rewards_to_go)
+
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
-                # for param in self.critic.parameters():
-                #     print(param.grad)
-                nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
+
+                # nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
                 self.critic_optim.step()
+
                 if approx_kl > self.target_kl:
                     break
 
@@ -139,9 +142,10 @@ class PPO:
         # torch.save(self.actor.state_dict(), './model.txt')
 
     # TODO check if I need to constraints this too
-    def evaluate(self, batch_obs, batch_acts) -> tuple[torch.TensorType, any, any]:
-        V = self.critic(batch_obs).squeeze()
+    def evaluate(self, batch_obs, batch_acts):
+        V: torch.Tensor = self.critic(batch_obs)
         mean = self.actor(batch_obs)
+        # print("before evaluate cut", mean)
         # for i, batch_ob in enumerate(batch_obs):
         #     ob = batch_ob.cpu().detach().numpy()
         #     previous_rot = ob[5]
@@ -159,12 +163,13 @@ class PPO:
 
     def get_action(self, state, action_constraints):  # TODO rename fct name to something better
         mean = self.actor(state)
-        n_mean = torch.clamp(mean,
-                             torch.tensor(action_constraints[0], dtype=torch.float, device=device),
-                             torch.tensor(action_constraints[1], dtype=torch.float, device=device))
-        # n_mean[0] = 0
+        # print("before cut mean", mean)
+        # n_mean = torch.clamp(mean,
+        #                      torch.tensor(action_constraints[0], dtype=torch.float, device=device),
+        #                      torch.tensor(action_constraints[1], dtype=torch.float, device=device))
+        # mean[0] = 0
 
-        dist = MultivariateNormal(n_mean, self.covariance_mat)
+        dist = MultivariateNormal(mean, self.covariance_mat)
         # print(dist)
         # exit(0)
 
@@ -174,7 +179,7 @@ class PPO:
         # action[0] = 0
         # log_prob = dist.log_prob(torch.tensor(action, dtype=torch.float).to(device))
         log_prob = dist.log_prob(action)
-        return action.cpu().numpy(), log_prob
+        return action.cpu().tolist(), log_prob
 
     def rollout_batch(self):
         batch_obs = []  # batch observations
@@ -214,20 +219,23 @@ class PPO:
                 val = self.critic(state)
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
+                # print(done)
                 trajectory_plot.append(self.env.denormalize_state(state))
 
                 ep_rewards.append(reward)
-                ep_vals.append(val.flatten())
+                ep_vals.append(val)
                 batch_actions.append(action)
                 batch_log_probs.append(log_prob)
                 # print(log_prob)
                 if done:
+                    ep_dones.append(done)
                     break
 
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
             ep_rewards_normalized = min_max_scaling(ep_rewards)
+            # print(ep_rewards_normalized)
 
             batch_rewards.append(ep_rewards_normalized)
             batch_vals.append(ep_vals)
@@ -252,12 +260,11 @@ class PPO:
             advantages = []
             last_advantage = 0
 
-            # ep_dones = torch.tensor(ep_dones, dtype=torch.float).to(device)
             for t in reversed(range(len(ep_rews))):
-                # if t + 1 < len(ep_rews):
-                #     delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
-                if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
-                    delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
+                if t + 1 < len(ep_rews):
+                    delta = ep_rews[t] + self.gamma * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
+                # if t + 1 < len(ep_rews) and not ep_dones[t + 1]:
+                #     delta = ep_rews[t] + self.gamma * ep_vals[t + 1] - ep_vals[t]
                 else:
                     delta = ep_rews[t] - ep_vals[t]
 

@@ -25,8 +25,8 @@ class RocketLandingEnv:
         self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
-            [-300, 300],  # vs
-            [-300, 300],  # hs
+            [-200, 200],  # vs
+            [-200, 200],  # hs
             [-10, 20000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
@@ -75,6 +75,7 @@ class RocketLandingEnv:
 
         action_1 = np.round(np.tanh(normalized_actions[0]) * 90.0)
         action_2 = np.round(sigmoid(normalized_actions[1]) * 4.0)
+        # print(action_2, sigmoid(normalized_actions[1]), normalized_actions[1])
         return [action_1, action_2]
 
     @staticmethod
@@ -88,10 +89,10 @@ class RocketLandingEnv:
         action_2 = inv_sigmoid(raw_actions[1] / 4.0)
         return [action_1, action_2]
 
-    def get_action_constraints(self, previous_action):
-        if previous_action is None:
+    def get_action_constraints(self, normalized_previous_action: list):
+        if normalized_previous_action is None:
             return [self.normalize_action([-15, 0]), self.normalize_action([15, 1])]
-        action = self.denormalize_action(previous_action)
+        action = self.denormalize_action(normalized_previous_action)
         legal_min_max = actions_min_max(action)
         minimum = self.normalize_action((legal_min_max[0][0], legal_min_max[1][0]))
         maximum = self.normalize_action((legal_min_max[0][1], legal_min_max[1][1]))
@@ -150,20 +151,24 @@ def compute_reward(state) -> float:
     if abs(hs) <= 20:
         hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
-        hs_normalized = norm_reward(hs, 0, 300) * speed_scaling * dist_to_surface_normalized
+        hs_normalized = norm_reward(hs, 0, 200) * speed_scaling * dist_to_surface_normalized
 
     if abs(vs) <= 40:
         vs_normalized = 1
         # vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
     else:
-        vs_normalized = norm_reward(vs, 0, 300)
+        vs_normalized = norm_reward(vs, 0, 200)
         # vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
-    print(vs_normalized, vs, thrust)
-    print("here")
+    # print(vs_normalized, vs, thrust)
+    # print("here")
+    # if (thrust == 4):
+    #     print("thrust !")
+    #     exit(11)
     if is_close_to_land:
         rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
     else:
         rotation_normalized = 1
+    # return vs_normalized
     return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
