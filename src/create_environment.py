@@ -14,7 +14,7 @@ class RocketLandingEnv:
             2500,  # y
             0,  # horizontal speed
             0,  # vertical speed
-            20000,  # fuel remaining
+            10000,  # fuel remaining
             0,  # rotation
             0,  # thrust power
             distance_squared_to_line([500, 2700], self.landing_spot),  # distance to landing spot
@@ -25,7 +25,7 @@ class RocketLandingEnv:
             [0, 3000],  # y
             [-200, 200],  # vs
             [-200, 200],  # hs
-            [-10, 20000],  # fuel remaining
+            [0, 10000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
             [0, 3000 ** 2],  # distance squared landing_spot
@@ -35,6 +35,7 @@ class RocketLandingEnv:
         self.action_constraints = [15, 1]
         self.action_space_dimension = 2
         self.gravity = 3.711
+        self.initial_fuel = 10_000
 
     @staticmethod
     def parse_planet_surface():
@@ -103,7 +104,7 @@ class RocketLandingEnv:
 
     def step(self, action_to_do: list):
         self.state = self.compute_next_state(self.state, action_to_do)
-        reward, done = reward_function(self.state)
+        reward, done = self.reward_function(self.state)
         next_state_normalized = self.normalize_state(self.state)
         return next_state_normalized, reward, done, None
 
@@ -124,7 +125,7 @@ class RocketLandingEnv:
         intersection: Point = line1.intersection(line2)
         if not intersection.is_empty and isinstance(intersection, Point):
             new_pos = np.array(intersection.xy).flatten()
-        remaining_fuel = remaining_fuel - thrust
+        remaining_fuel = max(remaining_fuel - thrust, 0)
 
         new_state = [new_pos[0],
                      new_pos[1],
@@ -136,65 +137,66 @@ class RocketLandingEnv:
         return new_state
 
 
+    def compute_reward(self, state) -> float:
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
+        speed_scaling = 1  # Scaling factor for speed rewards
+        rotation_scaling = 1  # Scaling factor for rotation rewards
+        dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9_000_000) * 1
+        dist_to_surface_normalized = norm_reward(dist_surface, 0, 9_000_000)
+        is_close_to_land = dist_landing_spot_squared < 700 ** 2
+        if abs(hs) <= 20:
+            hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
+        else:
+            hs_normalized = norm_reward(hs, 0, 200) * speed_scaling * dist_to_surface_normalized
+
+        if abs(vs) <= 40:
+            vs_normalized = 1
+            # vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
+        else:
+            vs_normalized = norm_reward(vs, 0, 200)
+            # vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
+        # print(vs_normalized, vs, thrust)
+        # print("here")
+
+        # if is_close_to_land:
+        #     rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
+        # else:
+        #     rotation_normalized = 1
+        rotation_normalized = norm_reward(rotation, 0, 90)
+        fuel_normalized = norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel)
+
+        # return vs_normalized
+        return dist_normalized + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
+
+    def reward_function(self, state: list) -> tuple[float, bool]:
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+
+        is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
+                                 abs(vs) <= 40 and abs(hs) <= 20)
+        is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
+                               dist_surface < 1 or remaining_fuel < -4)
+        is_crashed_on_landing_spot = dist_landing_spot < 1
+
+        reward = self.compute_reward(state)
+        done = False
+        if is_successful_landing:
+            print("SUCCESSFUL LANDING !")
+            done = True
+            reward += 10
+        elif is_crashed_on_landing_spot:
+            print('Crash LANDING SPOT. state: ', state)
+            done = True
+        elif is_crashed_anywhere:
+            print("Crash SURFACE / OUTSIDE, state: ", state)
+            done = True
+            reward -= 10
+
+        return reward, done
+
+
 def norm_reward(feature, interval_low, interval_high) -> float:
     return max(0.0, 1.0 - abs(feature) / interval_high)
 
-
-def compute_reward(state) -> float:
-    x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
-    speed_scaling = 1  # Scaling factor for speed rewards
-    rotation_scaling = 1  # Scaling factor for rotation rewards
-    dist_normalized = norm_reward(dist_landing_spot_squared, 0, 9_000_000) * 1
-    dist_to_surface_normalized = norm_reward(dist_surface, 0, 9_000_000)
-    is_close_to_land = dist_landing_spot_squared < 700 ** 2
-    if abs(hs) <= 20:
-        hs_normalized = 1 * speed_scaling * dist_to_surface_normalized
-    else:
-        hs_normalized = norm_reward(hs, 0, 200) * speed_scaling * dist_to_surface_normalized
-
-    if abs(vs) <= 40:
-        vs_normalized = 1
-        # vs_normalized = 1 * speed_scaling * dist_to_surface_normalized
-    else:
-        vs_normalized = norm_reward(vs, 0, 200)
-        # vs_normalized = norm_reward(vs, 0, 300) * speed_scaling * dist_to_surface_normalized
-    # print(vs_normalized, vs, thrust)
-    # print("here")
-
-    # if is_close_to_land:
-    #     rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
-    # else:
-    #     rotation_normalized = 1
-    rotation_normalized = norm_reward(rotation, 0, 90)
-
-    return vs_normalized
-    # return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
-
-
-def reward_function(state: list) -> tuple[float, bool]:
-    x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
-
-    is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
-                             abs(vs) <= 40 and abs(hs) <= 20)
-    is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
-                           dist_surface < 1 or remaining_fuel < -4)
-    is_crashed_on_landing_spot = dist_landing_spot < 1
-
-    reward = compute_reward(state)
-    done = False
-    if is_successful_landing:
-        print("SUCCESSFUL LANDING !")
-        done = True
-        reward += remaining_fuel
-    elif is_crashed_on_landing_spot:
-        print('Crash LANDING SPOT. state: ', state)
-        done = True
-    elif is_crashed_anywhere:
-        print("Crash SURFACE / OUTSIDE, state: ", state)
-        done = True
-        reward -= 10
-
-    return reward, done
 
 def action_2_min_max(old_rota: int) -> list:
     return [max(old_rota - 15, -90), min(old_rota + 15, 90)]
