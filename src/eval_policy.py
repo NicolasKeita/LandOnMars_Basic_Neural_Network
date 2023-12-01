@@ -5,7 +5,6 @@
 	which resides in ppo.py. Thus, we can test our trained policy without
 	relying on ppo.py.
 """
-from src.hyperparameters import limit_actions
 
 
 def _log_summary(ep_len, ep_ret, ep_num, ep_actions):

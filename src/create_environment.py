@@ -161,13 +161,14 @@ def compute_reward(state) -> float:
     # print(vs_normalized, vs, thrust)
     # print("here")
 
-    if is_close_to_land:
-        rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
-    else:
-        rotation_normalized = 1
+    # if is_close_to_land:
+    #     rotation_normalized = norm_reward(rotation, 0, 90) * rotation_scaling * dist_normalized
+    # else:
+    #     rotation_normalized = 1
+    rotation_normalized = norm_reward(rotation, 0, 90)
 
-    # return vs_normalized * 20
-    return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
+    return vs_normalized
+    # return dist_normalized + hs_normalized + vs_normalized + rotation_normalized
 
 
 def reward_function(state: list) -> tuple[float, bool]:
@@ -184,13 +185,12 @@ def reward_function(state: list) -> tuple[float, bool]:
     if is_successful_landing:
         print("SUCCESSFUL LANDING !")
         done = True
-        reward += 10
-        exit(0)
+        reward += remaining_fuel
     elif is_crashed_on_landing_spot:
-        print('Crash LANDING SPOT', state)
+        print('Crash LANDING SPOT. state: ', state)
         done = True
     elif is_crashed_anywhere:
-        print("Crash SURFACE / OUTSIDE, ", state)
+        print("Crash SURFACE / OUTSIDE, state: ", state)
         done = True
         reward -= 10
 
