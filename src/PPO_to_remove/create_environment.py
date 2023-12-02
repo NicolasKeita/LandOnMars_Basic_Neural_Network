@@ -37,6 +37,10 @@ class RocketLandingEnv:
         self.gravity = 3.711
         self.initial_fuel = 10_000
 
+    def extract_features(self, state):
+        # Create a new array without x, y, and thrust
+        return state[2:6] + state[7:]
+
     @staticmethod
     def parse_planet_surface():
         input_file = '''
@@ -165,8 +169,9 @@ class RocketLandingEnv:
         rotation_normalized = norm_reward(rotation, 0, 90)
         fuel_normalized = norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel)
 
+        # return rotation_normalized * 20
         # return vs_normalized
-        return dist_normalized + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
+        return dist_normalized * 100 + hs_normalized + vs_normalized + rotation_normalized * 100 + fuel_normalized
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
@@ -180,17 +185,16 @@ class RocketLandingEnv:
         reward = self.compute_reward(state)
         done = False
         if is_successful_landing:
-            print("SUCCESSFUL LANDING !")
+            print("SUCCESSFUL LANDING !", state)
             done = True
-            reward += 10
+            reward += 2000
         elif is_crashed_on_landing_spot:
             print('Crash LANDING SPOT. state: ', state)
             done = True
+            reward += 1000
         elif is_crashed_anywhere:
             print("Crash SURFACE / OUTSIDE, state: ", state)
             done = True
-            reward -= 10
-
         return reward, done
 
 

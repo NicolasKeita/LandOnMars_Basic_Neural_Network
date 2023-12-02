@@ -16,28 +16,30 @@ class PPO:
     def __init__(self, env: RocketLandingEnv):
         self.env = env
 
-        self.obs_dim = len(self.env.state)
+        self.obs_dim = 6
         self.action_dim = self.env.action_space_dimension
 
         self.time_steps_per_batch = 1 + 80 * 0  # TODO increase
         self.max_time_steps_per_episode = 700
-        self.n_updates_per_iteration = 3
+        self.n_updates_per_iteration = 5
         self.clip = 0.2
-        self.lr = 0.0005
+        # self.lr = 0.0005
+        self.lr = 0.07
 
-        # self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
-        # self.actor.load_state_dict(torch.load('actor.pt'))
-        # self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
-        # self.actor.eval()
-        # self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
-        # self.critic.load_state_dict(torch.load('critic.pt'))
-        # self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
-        # self.critic.eval()
-
-        self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
-        self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
-        self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
-        self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
+        if False:
+            self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
+            self.actor.load_state_dict(torch.load('actor.pt'))
+            self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
+            self.actor.eval()
+            self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
+            self.critic.load_state_dict(torch.load('critic.pt'))
+            self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
+            self.critic.eval()
+        else:
+            self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
+            self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
+            self.critic = FeedForwardNN(self.obs_dim, 1, device).to(device)
+            self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
 
         self.covariance_var = torch.full(size=(self.action_dim,), fill_value=0.5).to(device)
         self.covariance_mat = torch.diag(self.covariance_var).to(device)
@@ -45,10 +47,10 @@ class PPO:
         self.roll_i = 0
         self.max_grad_norm = 0.5
 
-        self.ent_coef = 0.2
+        self.entropy_coefficient = 0.2
         self.target_kl = 0.02
         self.lam = 0.98
-        self.gamma_reward_to_go = 0.98
+        self.gamma_reward_to_go = 0.95
 
         fig, (ax_terminal_state_rewards, ax_mean_rewards, ax_trajectories) = plt.subplots(3,
                                                                                           1, figsize=(10, 8))
@@ -69,7 +71,7 @@ class PPO:
             (batch_obs, batch_actions, batch_log_probs,
              batch_rewards, batch_lens, batch_vals,
              batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
-            A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones, False)
+            A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones, True)
 
             V: torch.Tensor = self.critic(batch_obs).squeeze(-1)
             batch_rewards_to_go = A_k + V.detach()
@@ -90,7 +92,7 @@ class PPO:
 
                 entropy_loss = entropy.mean()
 
-                actor_loss = actor_loss - self.ent_coef * entropy_loss
+                actor_loss = actor_loss - self.entropy_coefficient * entropy_loss
                 self.actor_optim.zero_grad()
                 actor_loss.backward(retain_graph=True)
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
@@ -172,13 +174,14 @@ class PPO:
             for ep_t in range(self.max_time_steps_per_episode):  # TODO rename it horizon
                 t += 1
 
-                batch_obs.append(state)
+                state_features = self.env.extract_features(state)
+                batch_obs.append(state_features)
 
                 action_constraints = self.env.get_action_constraints(prev_action)
-                action_tensor, log_prob = self.get_action(state, action_constraints)
+                action_tensor, log_prob = self.get_action(state_features, action_constraints)
                 action = action_tensor.tolist()
                 prev_action = action
-                val = self.critic(state)
+                val = self.critic(state_features).detach()
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
                 ep_dones.append(done)
@@ -188,15 +191,14 @@ class PPO:
                 ep_vals.append(val)
                 batch_actions.append(action_tensor)
                 batch_log_probs.append(log_prob)
-                # batch_log_probs = torch.cat((batch_log_probs, log_prob.unsqueeze(0)))
                 if done:
                     break
 
             trajectories.append(trajectory_plot)
 
             batch_lens.append(ep_t + 1)
-            ep_rewards_normalized = min_max_scaling(ep_rewards)
-            # ep_rewards_normalized = ep_rewards
+            # ep_rewards_normalized = min_max_scaling(ep_rewards)
+            ep_rewards_normalized = ep_rewards
 
             batch_rewards.append(ep_rewards_normalized)
             ep_vals = torch.stack(ep_vals).squeeze(-1)
@@ -206,7 +208,7 @@ class PPO:
 
         batch_obs = torch.FloatTensor(batch_obs).to(device)
         batch_actions = torch.stack(batch_actions)
-        batch_vals = torch.stack(batch_vals).detach()
+        batch_vals = torch.stack(batch_vals)
         batch_log_probs = torch.stack(batch_log_probs).detach()
 
         display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
@@ -223,6 +225,7 @@ class PPO:
                 td_error = r + v_next * self.gamma_reward_to_go - v
                 advantage = td_error + advantage * self.gamma_reward_to_go * self.lam
                 v_next = v
+
                 advantages.insert(0, advantage)
             print("rewards:", rewards)
             print("rewards mean:", np.mean(rewards))
@@ -235,9 +238,10 @@ class PPO:
 def min_max_scaling(ep_rewards):
     max_reward = 5
 
-    x_min, x_max = 0, max_reward
-    x_min_last, x_max_last = -10, max_reward + 10
-    return [(reward - x_min_last) / (x_max_last - x_min_last)
-            if i == len(ep_rewards) - 1
-            else (reward - x_min) / (x_max - x_min)
-            for i, reward in enumerate(ep_rewards)]
+    # x_min, x_max = 0, max_reward
+    return [reward / max_reward for reward in ep_rewards]
+    # x_min_last, x_max_last = -10, max_reward + 10
+    # return [(reward - x_min_last) / (x_max_last - x_min_last)
+    #         if i == len(ep_rewards) - 1
+    #         else (reward - x_min) / (x_max - x_min)
+    #         for i, reward in enumerate(ep_rewards)]
