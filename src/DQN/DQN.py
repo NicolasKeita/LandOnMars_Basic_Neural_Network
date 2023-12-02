@@ -21,7 +21,7 @@ from src.DQN.network import DQN
 
 BATCH_SIZE = 128
 GAMMA = 0.99
-EPS_START = 0.0
+EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
 TAU = 0.005
@@ -31,7 +31,7 @@ if is_ipython:
     from IPython import display
 
 plt.ion()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
 
 class DQN_1:
     def __init__(self, env: RocketLandingEnv):
@@ -47,7 +47,7 @@ class DQN_1:
     def learn(self):
 
         # Get number of actions from gym action space
-        n_actions = self.env.action_space_dimension
+        n_actions = self.env.action_space_discrete_n
         # Get the number of state observations
         state, _ = self.env.reset()
         n_observations = len(state)
@@ -70,12 +70,11 @@ class DQN_1:
             state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
             for t in count():
                 action = self.select_action(state)
-                action_tmp = action.squeeze(1).squeeze(0)
-                observation, reward, terminated, truncated, _ = self.env.step(action_tmp)
+                action_denormalized = self.env.action_space[action.item()]
+                observation, reward, done, _ = self.env.step(action_denormalized)
                 reward = torch.tensor([reward], device=device)
-                done = terminated or truncated
 
-                if terminated:
+                if done:
                     next_state = None
                 else:
                     next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
@@ -118,24 +117,11 @@ class DQN_1:
                 # t.max(1) will return the largest column value of each row.
                 # second column on max result is index of where max element was
                 # found, so we pick action with the larger expected reward.
-                a = self.policy_net(state)
                 return self.policy_net(state).max(1).indices.view(1, 1)
         else:
-            return torch.tensor([[self.env.sample_action()]], device=device, dtype=torch.long)
-
-
-            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-            self.qnetwork_local.eval()
-            with torch.no_grad():
-                action_values = self.qnetwork_local(state)
-            self.qnetwork_local.train()
-
-            # Epsilon-greedy action selection
-            if random.random() > eps:
-                return np.argmax(action_values.cpu().data.numpy())
-            else:
-                return random.choice(np.arange(self.action_size))
-
+            state = self.env.denormalize_state(state[0])
+            random_action = self.env.generate_random_action(round(state[5].item()), round(state[6].item()))
+            return torch.tensor([[random_action[0]]], device=device, dtype=torch.long)
 
     def plot_durations(self, show_result=False):
         plt.figure(1)
@@ -184,7 +170,9 @@ class DQN_1:
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+        tmp = self.policy_net(state_batch)
+
+        state_action_values = tmp.gather(1, action_batch)
 
         # Compute V(s_{t+1}) for all next states.
         # Expected values of actions for non_final_next_states are computed based

@@ -5,9 +5,9 @@ from torch.optim import Adam
 from torch.distributions import MultivariateNormal
 import numpy as np
 
-from src.graph_handler import display_graph, plot_mean_rewards, create_graph, plot_terminal_state_rewards
-from src.network import FeedForwardNN
-from src.create_environment import RocketLandingEnv
+from src.PPO_to_remove.graph_handler import display_graph, plot_mean_rewards, create_graph, plot_terminal_state_rewards
+from src.PPO_to_remove.network import FeedForwardNN
+from src.PPO_to_remove.create_environment import RocketLandingEnv
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

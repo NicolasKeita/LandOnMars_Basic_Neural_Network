@@ -1,4 +1,7 @@
 import math
+import random
+from itertools import product
+
 import numpy as np
 from shapely import LineString, Point, MultiPoint
 from src.PPO_to_remove.math_utils import distance_squared_to_line
@@ -34,8 +37,42 @@ class RocketLandingEnv:
         self.state = self.initial_state
         self.action_constraints = [15, 1]
         self.action_space_dimension = 2
+        self.action_space_discrete_n = 905
         self.gravity = 3.711
         self.initial_fuel = 10_000
+
+        rot = range(-90, 91)
+        thrust = range(5)
+        self.action_space = [list(action) for action in product(rot, thrust)]
+        # self.action_space = list(product(rot, thrust))
+        self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
+
+    def action_indexes_to_real_action(self, action_indexes: list):
+        real_actions = []
+        for i in action_indexes:
+            real_actions.append(self.action_space[i])
+        return real_actions
+
+    def real_actions_to_indexes(self, policy: list):
+        indexes = []
+        for action in policy:
+            act_1 = np.clip(round(action[0]), -90, 90)
+            act_2 = np.clip(round(action[1]), 0, 4)
+            indexes.append(self.action_space.index((act_1, act_2)))
+        return indexes
+
+    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, list]:
+        action_min_max = actions_min_max([old_rota, old_power_thrust])
+        a = action_min_max[0][0]
+        b = action_min_max[1][0]
+        c = action_min_max[1][1]
+        action_min_max = [[int(num) for num in sublist] for sublist in action_min_max]
+
+        random_action = [
+            random.randint(action_min_max[0][0], action_min_max[0][1]),
+            random.randint(action_min_max[1][0], action_min_max[1][1])
+        ]
+        return self.action_space.index(random_action), random_action
 
     def extract_features(self, state):
         # Create a new array without x, y, and thrust
