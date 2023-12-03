@@ -48,13 +48,8 @@ class DQN_1:
 
         self.reward_history = []
 
-    def learn(self):
-        # Get number of actions from gym action space
-        n_actions = self.env.action_space_discrete_n
-        # Get the number of state observations
-        state, _ = self.env.reset()
-        n_observations = len(state)
-
+        n_observations = 9
+        n_actions = 905
         self.policy_net = DQN(n_observations, n_actions).to(device)
         self.target_net = DQN(n_observations, n_actions).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -62,11 +57,27 @@ class DQN_1:
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(10000)
 
+        self.load_model('model.pth')
+
+    def learn(self):
+        # Get number of actions from gym action space
+        n_actions = self.env.action_space_discrete_n
+        # Get the number of state observations
+        state, _ = self.env.reset()
+        n_observations = len(state)
+
+        # self.policy_net = DQN(n_observations, n_actions).to(device)
+        # self.target_net = DQN(n_observations, n_actions).to(device)
+        # self.target_net.load_state_dict(self.policy_net.state_dict())
+
+        # self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+        # self.memory = ReplayMemory(10000)
+
         if torch.cuda.is_available():
             num_episodes = 180000
         else:
             num_episodes = 50
-        self.load_model('model.pth')
+        # self.load_model('model.pth')
         for i_episode in range(num_episodes):
             total_reward = 0
             # Initialize the environment and get it's state
@@ -254,6 +265,7 @@ class DQN_1:
         weights_json_path = os.path.splitext(path)[0] + '_weights.json'
         with open(weights_json_path, 'w') as json_file:
             json.dump(weights_json, json_file)
+        print("model saved.")
 
     def load_model(self, path='model.pth'):
         # Load the model state dictionary from a file
@@ -267,3 +279,37 @@ class DQN_1:
             print(f'Model loaded from {path}')
         else:
             print(f'Error: No checkpoint found at {path}')
+
+
+    def evaluate_policy(self):
+        EVAL_EPISODES = 3
+        total_rewards = []
+        all_chosen_actions = []  # List to store chosen actions for each episode
+        for _ in range(EVAL_EPISODES):
+            state, _ = self.env.reset()
+            state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+            episode_reward = 0
+            chosen_actions = []  # List to store chosen actions for the current episode
+            for i in count():
+                with torch.no_grad():
+                    action = self.policy_net(state).max(1).indices.view(1, 1)
+                chosen_actions.append(action.item())  # Store the chosen action
+                action_denormalized = self.env.action_space[action.item()]
+                observation, reward, done, _ = self.env.step(action_denormalized)
+                # print(self.env.denormalize_state(observation))
+                episode_reward += reward
+                if done:
+                    # print('EPISODE HORIZON', i)
+                    break
+                state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+            total_rewards.append(episode_reward)
+            all_chosen_actions.append(chosen_actions)
+
+        mean_reward = sum(total_rewards) / len(total_rewards)
+        print(f'Mean Reward over {EVAL_EPISODES} episodes: {mean_reward}')
+
+        # Print the chosen actions for each episode
+        for episode_num, actions in enumerate(all_chosen_actions):
+            print(f'Episode {episode_num + 1} Chosen Actions: {[self.env.action_space[action] for action in actions]}, action len:,', len(actions))
+
+        return mean_reward

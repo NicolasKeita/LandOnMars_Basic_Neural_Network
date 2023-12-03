@@ -10,3 +10,4 @@ if __name__ == '__main__':
 
     my_DQN = DQN_1(env)
     my_DQN.learn()
+    my_DQN.evaluate_policy()

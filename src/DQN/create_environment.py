@@ -232,14 +232,14 @@ class RocketLandingEnv:
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
             done = True
-            reward = 6 + norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel) * 5
+            reward = 7 + norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel) * 5
             return reward, done
         elif is_crashed_on_landing_spot:
             formatted_list = [f"{label}: {round(value):04d}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
             print('Crash on landing side', formatted_list)
             done = True
-            reward = norm_reward(abs(vs), 40, 200) * 3 + norm_reward(abs(hs), 20, 200) + norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2
+            reward = norm_reward(abs(vs), 40, 200) * 4 + norm_reward(abs(hs), 20, 200) + norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2
             # reward = norm_reward(abs(vs), 40, 200)
             # print(reward, norm_reward(abs(vs), 40, 200) * 3, norm_reward(abs(hs), 20, 200) * 1 / 2, norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
             return reward, done
@@ -249,6 +249,8 @@ class RocketLandingEnv:
             return reward, done
         if done:
             reward += self.compute_reward(state)
+        if abs(vs) > 80:
+            reward = -0.5
         return reward, done
 
 
