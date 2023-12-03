@@ -62,7 +62,7 @@ class DQN_1:
         self.memory = ReplayMemory(10000)
 
         if torch.cuda.is_available():
-            num_episodes = 1800
+            num_episodes = 180000
         else:
             num_episodes = 50
 
