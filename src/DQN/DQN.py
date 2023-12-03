@@ -31,7 +31,7 @@ if is_ipython:
     from IPython import display
 
 plt.ion()
-device = torch.device("cpu" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class DQN_1:
     def __init__(self, env: RocketLandingEnv):
@@ -43,6 +43,8 @@ class DQN_1:
         self.episode_durations = []
         self.memory = None
         self.optimizer = None
+
+        self.reward_history = []
 
     def learn(self):
 
@@ -60,11 +62,12 @@ class DQN_1:
         self.memory = ReplayMemory(10000)
 
         if torch.cuda.is_available():
-            num_episodes = 600
+            num_episodes = 1800
         else:
             num_episodes = 50
 
         for i_episode in range(num_episodes):
+            total_reward = 0
             # Initialize the environment and get it's state
             state, info = self.env.reset()
             state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
@@ -73,7 +76,6 @@ class DQN_1:
                 action_denormalized = self.env.action_space[action.item()]
                 observation, reward, done, _ = self.env.step(action_denormalized)
                 reward = torch.tensor([reward], device=device)
-
                 if done:
                     next_state = None
                 else:
@@ -98,12 +100,15 @@ class DQN_1:
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 if done:
-                    self.episode_durations.append(t + 1)
-                    self.plot_durations()
+                    self.reward_history.append(reward.item())
+                    self.plot_rewards()  # Call the new method to plot mean rewards
+
+                    # self.episode_durations.append(t + 1)
+                    # self.plot_durations()
                     break
 
         print('Complete')
-        self.plot_durations(show_result=True)
+        self.plot_rewards(show_result=True)
         plt.ioff()
         plt.show()
 
@@ -123,22 +128,24 @@ class DQN_1:
             random_action = self.env.generate_random_action(round(state[5].item()), round(state[6].item()))
             return torch.tensor([[random_action[0]]], device=device, dtype=torch.long)
 
-    def plot_durations(self, show_result=False):
+    def plot_rewards(self, show_result=False, window_size=100):
         plt.figure(1)
-        durations_t = torch.tensor(self.episode_durations, dtype=torch.float)
         if show_result:
             plt.title('Result')
         else:
             plt.clf()
             plt.title('Training...')
         plt.xlabel('Episode')
-        plt.ylabel('Duration')
-        plt.plot(durations_t.numpy())
-        # Take 100 episode averages and plot them too
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            plt.plot(means.numpy())
+        plt.ylabel('Reward History')  # Change ylabel to 'Reward History'
+
+        plt.plot(self.reward_history, label='Episode Reward')
+
+        # Calculate the mean over a specified window
+        if len(self.reward_history) >= window_size:
+            means = [sum(self.reward_history[i - window_size + 1:i + 1]) / window_size for i in
+                     range(window_size - 1, len(self.reward_history))]
+            plt.plot(range(window_size - 1, len(self.reward_history)), means, label=f'Mean over {window_size} episodes',
+                     color='red')
 
         plt.pause(0.001)  # pause a bit so that plots are updated
         if is_ipython:
@@ -147,6 +154,32 @@ class DQN_1:
                 display.clear_output(wait=True)
             else:
                 display.display(plt.gcf())
+
+
+    # def plot_durations(self, show_result=False):
+    #     plt.figure(1)
+    #     durations_t = torch.tensor(self.episode_durations, dtype=torch.float)
+    #     if show_result:
+    #         plt.title('Result')
+    #     else:
+    #         plt.clf()
+    #         plt.title('Training...')
+    #     plt.xlabel('Episode')
+    #     plt.ylabel('Duration')
+    #     plt.plot(durations_t.numpy())
+    #     # Take 100 episode averages and plot them too
+    #     if len(durations_t) >= 100:
+    #         means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+    #         means = torch.cat((torch.zeros(99), means))
+    #         plt.plot(means.numpy())
+    #
+    #     plt.pause(0.001)  # pause a bit so that plots are updated
+    #     if is_ipython:
+    #         if not show_result:
+    #             display.display(plt.gcf())
+    #             display.clear_output(wait=True)
+    #         else:
+    #             display.display(plt.gcf())
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:

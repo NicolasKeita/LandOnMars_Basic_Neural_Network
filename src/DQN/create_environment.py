@@ -211,7 +211,11 @@ class RocketLandingEnv:
 
         # return rotation_normalized * 20
         # return vs_normalized
-        return dist_normalized * 100 + hs_normalized + vs_normalized + rotation_normalized * 100 + fuel_normalized
+        # altitude_penalty = max(0, high_altitude - optimal_altitude) / 3000
+        vertical_speed_penalty = min(0, vs + 40) / -90
+
+        # return - vertical_speed_penalty
+        return dist_normalized + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
@@ -222,19 +226,25 @@ class RocketLandingEnv:
                                dist_surface < 1 or remaining_fuel < -4)
         is_crashed_on_landing_spot = dist_landing_spot < 1
 
-        reward = self.compute_reward(state)
+        # reward = self.compute_reward(state)
+        reward = 0
         done = False
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
             done = True
-            reward += 2000
+            reward += 10
         elif is_crashed_on_landing_spot:
-            print('Crash LANDING SPOT. state: ', state)
+            formatted_list = [f"{x:05d}" if isinstance(x, int) else f"{x:.5f}" for x in state]
+            print('Crash', formatted_list)
             done = True
-            reward += 1000
+            reward -= 5
         elif is_crashed_anywhere:
-            print("Crash SURFACE / OUTSIDE, state: ", state)
+            formatted_list = [f"{x:05d}" if isinstance(x, int) else f"{x:.5f}" for x in state]
+            print('Crash', formatted_list)
             done = True
+            reward -= 10
+        if done:
+            reward += self.compute_reward(state)
         return reward, done
 
 
