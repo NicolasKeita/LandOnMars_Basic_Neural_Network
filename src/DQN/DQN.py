@@ -5,7 +5,9 @@
 # EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
 # TAU is the update rate of the target network
 # LR is the learning rate of the ``AdamW`` optimizer
+import json
 import math
+import os
 import random
 from itertools import count
 
@@ -22,7 +24,7 @@ from src.DQN.network import DQN
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 0.9
-EPS_END = 0.05
+EPS_END = 0.3
 EPS_DECAY = 1000
 TAU = 0.005
 LR = 1e-4
@@ -47,7 +49,6 @@ class DQN_1:
         self.reward_history = []
 
     def learn(self):
-
         # Get number of actions from gym action space
         n_actions = self.env.action_space_discrete_n
         # Get the number of state observations
@@ -65,7 +66,7 @@ class DQN_1:
             num_episodes = 180000
         else:
             num_episodes = 50
-
+        self.load_model('model.pth')
         for i_episode in range(num_episodes):
             total_reward = 0
             # Initialize the environment and get it's state
@@ -106,6 +107,8 @@ class DQN_1:
                     # self.episode_durations.append(t + 1)
                     # self.plot_durations()
                     break
+            if i_episode % 1000 == 0:
+                self.save_model()
 
         print('Complete')
         self.plot_rewards(show_result=True)
@@ -228,3 +231,39 @@ class DQN_1:
         # In-place gradient clipping
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
+
+    def save_model(self, path='model.pth'):
+        # Save the model state dictionary to a file
+        model_state = {
+            'policy_net': self.policy_net.state_dict(),
+            'target_net': self.target_net.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'steps_done': self.steps_done,
+            'reward_history': self.reward_history
+        }
+        torch.save(model_state, path)
+        # Convert Tensors to Numpy arrays for serialization
+        policy_net_weights_np = {k: v.cpu().tolist() for k, v in self.policy_net.state_dict().items()}
+        target_net_weights_np = {k: v.cpu().tolist() for k, v in self.target_net.state_dict().items()}
+
+        # Save the weights in a JSON file
+        weights_json = {
+            'policy_net_weights': policy_net_weights_np,
+            'target_net_weights': target_net_weights_np
+        }
+        weights_json_path = os.path.splitext(path)[0] + '_weights.json'
+        with open(weights_json_path, 'w') as json_file:
+            json.dump(weights_json, json_file)
+
+    def load_model(self, path='model.pth'):
+        # Load the model state dictionary from a file
+        if os.path.isfile(path):
+            checkpoint = torch.load(path)
+            self.policy_net.load_state_dict(checkpoint['policy_net'])
+            self.target_net.load_state_dict(checkpoint['target_net'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            self.steps_done = checkpoint['steps_done']
+            self.reward_history = checkpoint['reward_history']
+            print(f'Model loaded from {path}')
+        else:
+            print(f'Error: No checkpoint found at {path}')

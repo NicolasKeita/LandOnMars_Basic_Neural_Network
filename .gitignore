@@ -8,6 +8,8 @@ graph_test/
 actor.pt
 critic.pt
 tmp.py
+model.pth
+model_weights.json
 
 # C extensions
 *.so

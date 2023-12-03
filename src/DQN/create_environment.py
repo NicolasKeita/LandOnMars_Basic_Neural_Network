@@ -215,7 +215,7 @@ class RocketLandingEnv:
         vertical_speed_penalty = min(0, vs + 40) / -90
 
         # return - vertical_speed_penalty
-        return dist_normalized + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
+        return dist_normalized * 2 + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
@@ -232,24 +232,34 @@ class RocketLandingEnv:
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
             done = True
-            reward += 10
+            reward = 6 + norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel) * 5
+            return reward, done
         elif is_crashed_on_landing_spot:
-            formatted_list = [f"{x:05d}" if isinstance(x, int) else f"{x:.5f}" for x in state]
-            print('Crash', formatted_list)
+            formatted_list = [f"{label}: {round(value):04d}" for label, value in
+                              zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
+            print('Crash on landing side', formatted_list)
             done = True
-            reward -= 5
+            reward = norm_reward(abs(vs), 40, 200) * 3 + norm_reward(abs(hs), 20, 200) + norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2
+            # reward = norm_reward(abs(vs), 40, 200)
+            # print(reward, norm_reward(abs(vs), 40, 200) * 3, norm_reward(abs(hs), 20, 200) * 1 / 2, norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
+            return reward, done
         elif is_crashed_anywhere:
-            formatted_list = [f"{x:05d}" if isinstance(x, int) else f"{x:.5f}" for x in state]
-            print('Crash', formatted_list)
             done = True
-            reward -= 10
+            reward = -5 + norm_reward(dist_landing_spot, 0, 3000 ** 2) * 5
+            return reward, done
         if done:
             reward += self.compute_reward(state)
         return reward, done
 
 
 def norm_reward(feature, interval_low, interval_high) -> float:
-    return max(0.0, 1.0 - abs(feature) / interval_high)
+    feature = np.clip(feature, interval_low, interval_high)
+    return 1.0 - ((feature - interval_low) / (interval_high - interval_low))
+
+
+def norm_reward_to_the_fourth(feature, interval_low, interval_high) -> float:
+    feature = np.clip(feature, interval_low, interval_high)
+    return 1.0 - (((feature - interval_low) / (interval_high - interval_low)) ** (1 / 4))
 
 
 def action_2_min_max(old_rota: int) -> list:
