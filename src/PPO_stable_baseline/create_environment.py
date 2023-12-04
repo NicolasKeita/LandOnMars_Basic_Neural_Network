@@ -1,10 +1,15 @@
 import math
+import random
+from itertools import product
+
+import gymnasium
 import numpy as np
+from gymnasium import spaces
 from shapely import LineString, Point, MultiPoint
 from src.PPO_to_remove.math_utils import distance_squared_to_line
 
 
-class RocketLandingEnv:
+class RocketLandingEnv(gymnasium.Env):
     def __init__(self):
         surface_points = self.parse_planet_surface()
         self.surface = LineString(surface_points.geoms)
@@ -28,18 +33,62 @@ class RocketLandingEnv:
             [0, 10000],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [0, 4000 ** 2],  # distance squared landing_spot
-            [0, 4000 ** 2]  # distance squared surface
+            [0, 3000 ** 2],  # distance squared landing_spot
+            [0, 3000 ** 2]  # distance squared surface
         ]
         self.state = self.initial_state
         self.action_constraints = [15, 1]
         self.action_space_dimension = 2
+        self.action_space_discrete_n = 905
         self.gravity = 3.711
         self.initial_fuel = 10_000
+
+        self.observation_space = spaces.Dict(
+            {
+                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
+                "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
+            }
+        )
+
+        rot = range(-90, 91)
+        thrust = range(5)
+        self.action_space = [list(action) for action in product(rot, thrust)]
+        # self.action_space = list(product(rot, thrust))
+        self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
+
+    def action_indexes_to_real_action(self, action_indexes: list):
+        real_actions = []
+        for i in action_indexes:
+            real_actions.append(self.action_space[i])
+        return real_actions
+
+    def real_actions_to_indexes(self, policy: list):
+        indexes = []
+        for action in policy:
+            act_1 = np.clip(round(action[0]), -90, 90)
+            act_2 = np.clip(round(action[1]), 0, 4)
+            indexes.append(self.action_space.index((act_1, act_2)))
+        return indexes
+
+    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, list]:
+        action_min_max = actions_min_max([old_rota, old_power_thrust])
+        a = action_min_max[0][0]
+        b = action_min_max[1][0]
+        c = action_min_max[1][1]
+        action_min_max = [[int(num) for num in sublist] for sublist in action_min_max]
+
+        random_action = [
+            random.randint(action_min_max[0][0], action_min_max[0][1]),
+            random.randint(action_min_max[1][0], action_min_max[1][1])
+        ]
+        return self.action_space.index(random_action), random_action
 
     def extract_features(self, state):
         # Create a new array without x, y, and thrust
         return state[2:6] + state[7:]
+
+    def sample_action(self):
+        return [0, 0] # TODO
 
     @staticmethod
     def parse_planet_surface():
@@ -104,7 +153,7 @@ class RocketLandingEnv:
 
     def reset(self):
         self.state = self.initial_state
-        return self.normalize_state(self.state)
+        return self.normalize_state(self.state), None
 
     def step(self, action_to_do: list):
         self.state = self.compute_next_state(self.state, action_to_do)
@@ -140,6 +189,9 @@ class RocketLandingEnv:
                      distance_squared_to_line(new_pos, self.surface)]
         return new_state
 
+    def close(self):
+        pass
+
 
     def compute_reward(self, state) -> float:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -171,7 +223,11 @@ class RocketLandingEnv:
 
         # return rotation_normalized * 20
         # return vs_normalized
-        return dist_normalized * 100 + hs_normalized + vs_normalized + rotation_normalized * 100 + fuel_normalized
+        # altitude_penalty = max(0, high_altitude - optimal_altitude) / 3000
+        vertical_speed_penalty = min(0, vs + 40) / -90
+
+        # return - vertical_speed_penalty
+        return dist_normalized * 2 + hs_normalized + vs_normalized + rotation_normalized + fuel_normalized
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
@@ -200,7 +256,7 @@ class RocketLandingEnv:
             return reward, done
         elif is_crashed_anywhere:
             done = True
-            reward = -5 + norm_reward(dist_landing_spot, 0, 4000 ** 2) * 5
+            reward = -5 + norm_reward(dist_landing_spot, 0, 3000 ** 2) * 5
             return reward, done
         if done:
             reward += self.compute_reward(state)

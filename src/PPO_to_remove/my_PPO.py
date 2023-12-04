@@ -19,12 +19,11 @@ class PPO:
         self.obs_dim = 6
         self.action_dim = self.env.action_space_dimension
 
-        self.time_steps_per_batch = 1 + 80 * 0  # TODO increase
+        self.time_steps_per_batch = 1 + 80 * 5  # TODO increase
         self.max_time_steps_per_episode = 700
         self.n_updates_per_iteration = 5
         self.clip = 0.2
-        # self.lr = 0.0005
-        self.lr = 0.07
+        self.lr = 1e-4
 
         if False:
             self.actor = FeedForwardNN(self.obs_dim, self.action_dim, device).to(device)
@@ -47,7 +46,7 @@ class PPO:
         self.roll_i = 0
         self.max_grad_norm = 0.5
 
-        self.entropy_coefficient = 0.2
+        self.entropy_coefficient = 1e-4
         self.target_kl = 0.02
         self.lam = 0.98
         self.gamma_reward_to_go = 0.95
@@ -71,7 +70,7 @@ class PPO:
             (batch_obs, batch_actions, batch_log_probs,
              batch_rewards, batch_lens, batch_vals,
              batch_dones, batch_rewards_not_normalized) = self.rollout_batch()
-            A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones, True)
+            A_k = self.calculate_gae(batch_rewards, batch_vals, batch_dones)
 
             V: torch.Tensor = self.critic(batch_obs).squeeze(-1)
             batch_rewards_to_go = A_k + V.detach()
@@ -105,11 +104,11 @@ class PPO:
                 self.critic_optim.step()
 
 
-                print(f"Iteration {i_so_far}")
-                print(f"Actor Loss: {actor_loss.item()}")
-                print(f"Critic Loss: {critic_loss.item()}")
-                print(f"Entropy Loss: {entropy_loss.item()}")
-                print(f"Approx KL Divergence: {approx_kl.item()}")
+                # print(f"Iteration {i_so_far}")
+                # print(f"Actor Loss: {actor_loss.item()}")
+                # print(f"Critic Loss: {critic_loss.item()}")
+                # print(f"Entropy Loss: {entropy_loss.item()}")
+                # print(f"Approx KL Divergence: {approx_kl.item()}")
 
                 if approx_kl > self.target_kl:
                     break
@@ -208,31 +207,60 @@ class PPO:
 
         batch_obs = torch.FloatTensor(batch_obs).to(device)
         batch_actions = torch.stack(batch_actions)
-        batch_vals = torch.stack(batch_vals)
+        # batch_vals = torch.stack(batch_vals)
         batch_log_probs = torch.stack(batch_log_probs).detach()
 
         display_graph(trajectories, self.roll_i, ax=self.ax_trajectories)
 
         return batch_obs, batch_actions, batch_log_probs, batch_rewards, batch_lens, batch_vals, batch_dones, batch_rewards_not_normalized
 
-    def calculate_gae(self, rewards, values: torch.Tensor, dones, normalize = False) -> torch.Tensor:
-        advantages = []
-        advantage = 0
-        v_next = 0
 
-        for i in range(len(rewards)):
-            for r, v in zip(reversed(rewards[i]), reversed(values[i])):
-                td_error = r + v_next * self.gamma_reward_to_go - v
-                advantage = td_error + advantage * self.gamma_reward_to_go * self.lam
-                v_next = v
+    def calculate_gae(self, rewards, values, dones):
+        batch_advantages = []  # List to store computed advantages for each timestep
 
-                advantages.insert(0, advantage)
-            print("rewards:", rewards)
-            print("rewards mean:", np.mean(rewards))
-            advantages = torch.stack(advantages)
-        if normalize:
-            advantages = (advantages - advantages.mean()) / advantages.std()
-        return advantages
+        # Iterate over each episode's rewards, values, and done flags
+        for ep_rews, ep_vals, ep_dones in zip(rewards, values, dones):
+            advantages = []  # List to store advantages for the current episode
+            last_advantage = 0  # Initialize the last computed advantage
+
+            # Calculate episode advantage in reverse order (from last timestep to first)
+            for t in reversed(range(len(ep_rews))):
+                if t + 1 < len(ep_rews):
+                    # Calculate the temporal difference (TD) error for the current timestep
+                    delta = ep_rews[t] + self.gamma_reward_to_go * ep_vals[t+1] * (1 - ep_dones[t+1]) - ep_vals[t]
+                else:
+                    # Special case at the boundary (last timestep)
+                    delta = ep_rews[t] - ep_vals[t]
+
+                # Calculate Generalized Advantage Estimation (GAE) for the current timestep
+                advantage = delta + self.gamma_reward_to_go * self.lam * (1 - ep_dones[t]) * last_advantage
+                last_advantage = advantage  # Update the last advantage for the next timestep
+                advantages.insert(0, advantage)  # Insert advantage at the beginning of the list
+
+            # Extend the batch_advantages list with advantages computed for the current episode
+            batch_advantages.extend(advantages)
+
+        # Convert the batch_advantages list to a PyTorch tensor of type float
+        return torch.tensor(batch_advantages, dtype=torch.float, device=device)
+
+    # def calculate_gae(self, rewards, values: torch.Tensor, dones, normalize = False) -> torch.Tensor:
+    #     advantages = []
+    #     advantage = 0
+    #     v_next = 0
+    #
+    #     for i in range(len(rewards)):
+    #         for r, v in zip(reversed(rewards[i]), reversed(values[i])):
+    #             td_error = r + v_next * self.gamma_reward_to_go - v
+    #             advantage = td_error + advantage * self.gamma_reward_to_go * self.lam
+    #             v_next = v
+    #
+    #             advantages.insert(0, advantage)
+    #         # print("rewards:", rewards)
+    #         # print("rewards mean:", np.mean(rewards))
+    #         advantages = torch.stack(advantages)
+    #     if normalize:
+    #         advantages = (advantages - advantages.mean()) / advantages.std()
+    #     return advantages
 
 
 def min_max_scaling(ep_rewards):

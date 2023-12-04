@@ -54,9 +54,11 @@ class DQN_1:
         self.target_net = DQN(n_observations, n_actions).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
+
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(10000)
 
+        # self.save_model()
         self.load_model('model.pth')
 
     def learn(self):

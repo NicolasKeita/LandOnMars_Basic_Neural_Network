@@ -180,6 +180,9 @@ class RocketLandingEnv:
                      distance_squared_to_line(new_pos, self.surface)]
         return new_state
 
+    def close(self):
+        pass
+
 
     def compute_reward(self, state) -> float:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -226,7 +229,6 @@ class RocketLandingEnv:
                                dist_surface < 1 or remaining_fuel < -4)
         is_crashed_on_landing_spot = dist_landing_spot < 1
 
-        # reward = self.compute_reward(state)
         reward = 0
         done = False
         if is_successful_landing:
