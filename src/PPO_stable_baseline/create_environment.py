@@ -43,17 +43,15 @@ class RocketLandingEnv(gymnasium.Env):
         self.gravity = 3.711
         self.initial_fuel = 10_000
 
-        self.observation_space = spaces.Dict(
-            {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-            }
-        )
+        self.observation_space = spaces.Box(
+            low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float64),
+            high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float64),
+            dtype=np.float64)
 
         rot = range(-90, 91)
         thrust = range(5)
-        self.action_space = [list(action) for action in product(rot, thrust)]
-        # self.action_space = list(product(rot, thrust))
+        # self.action_space = [list(action) for action in product(rot, thrust)]
+        self.action_space = spaces.MultiDiscrete([181, 5])
         self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
 
     def action_indexes_to_real_action(self, action_indexes: list):
@@ -88,7 +86,10 @@ class RocketLandingEnv(gymnasium.Env):
         return state[2:6] + state[7:]
 
     def sample_action(self):
-        return [0, 0] # TODO
+        return [0, 0]  # TODO
+
+    def seed(self):
+        return None
 
     @staticmethod
     def parse_planet_surface():
@@ -151,15 +152,21 @@ class RocketLandingEnv(gymnasium.Env):
         maximum = self.normalize_action([legal_min_max[0][1], legal_min_max[1][1]])
         return [minimum, maximum]
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         self.state = self.initial_state
         return self.normalize_state(self.state), None
 
-    def step(self, action_to_do: list):
+    def step(self, action_to_do_input):
+
+        action_to_do = np.copy(action_to_do_input)
+        action_to_do = action_to_do.reshape(-1, 2)
+        action_to_do[:, 0] -= 90
+        action_to_do = np.squeeze(action_to_do)
+
         self.state = self.compute_next_state(self.state, action_to_do)
         reward, done = self.reward_function(self.state)
         next_state_normalized = self.normalize_state(self.state)
-        return next_state_normalized, reward, done, None
+        return next_state_normalized, reward, done, False, {}
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -189,9 +196,11 @@ class RocketLandingEnv(gymnasium.Env):
                      distance_squared_to_line(new_pos, self.surface)]
         return new_state
 
-    def close(self):
+    def render(self):
         pass
 
+    def close(self):
+        pass
 
     def compute_reward(self, state) -> float:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -250,7 +259,9 @@ class RocketLandingEnv(gymnasium.Env):
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
             print('Crash on landing side', formatted_list)
             done = True
-            reward = norm_reward(abs(vs), 40, 200) * 4 + norm_reward(abs(hs), 20, 200) + norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2
+            reward = (norm_reward(abs(vs), 40, 200) * 4 +
+                      norm_reward(abs(hs), 20, 200) +
+                      norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
             # reward = norm_reward(abs(vs), 40, 200)
             # print(reward, norm_reward(abs(vs), 40, 200) * 3, norm_reward(abs(hs), 20, 200) * 1 / 2, norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
             return reward, done
