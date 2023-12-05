@@ -3,8 +3,8 @@ from stable_baselines3 import PPO
 
 env = RocketLandingEnv()
 
-model = PPO("MlpPolicy", env, policy_kwargs=dict(net_arch=[200]),  verbose=2)
-model.learn(total_timesteps=5_000)
+model = PPO("MlpPolicy", env, policy_kwargs=dict(net_arch=[256, 256]),  verbose=1, use_sde=False)
+model.learn(total_timesteps=5000_000)
 model.save("model_ppo_stable_baseline")
 #https://stable-baselines3.readthedocs.io/en/master/guide/export.html#manual-export
 

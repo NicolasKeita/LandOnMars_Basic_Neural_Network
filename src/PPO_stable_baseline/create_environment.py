@@ -52,15 +52,16 @@ class RocketLandingEnv(gymnasium.Env):
         thrust = range(5)
         # self.action_space = [list(action) for action in product(rot, thrust)]
         # self.action_space = spaces.MultiDiscrete([181, 5])
-        action_1_bounds = [-90, 90]
-        action_2_bounds = [0, 4]
+        # action_1_bounds = [-90, 90]
+        # action_2_bounds = [0, 4]
+        action_1_bounds = [-1, 1]
+        action_2_bounds = [0, 1]
 
         # Define the action space using Box for continuous actions
         self.action_space = spaces.Box(
             low=np.array([action_1_bounds[0], action_2_bounds[0]]),
             high=np.array([action_1_bounds[1], action_2_bounds[1]]),
-            shape=(self.action_space_dimension,),
-            dtype=np.float32 # ?
+            shape=(self.action_space_dimension,)
         )
         self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
 
@@ -167,8 +168,15 @@ class RocketLandingEnv(gymnasium.Env):
         return self.normalize_state(self.state), None
 
     def step(self, action_to_do_input):
-        print(action_to_do_input)
         action_to_do = np.copy(action_to_do_input)
+        # action_to_do[0] = action_to_do_input[]
+        # print(action_to_do_input, np.round(action_to_do_input))
+        # action_to_do_input = np.round(action_to_do_input)
+        # action_to_do = np.copy(action_to_do_input)
+        action_to_do[0] = action_to_do[0] * 90
+        action_to_do[1] = action_to_do[1] * 4
+        action_to_do = np.round(action_to_do)
+        # print(action_to_do)
         action_to_do = action_to_do.reshape(-1, 2)
         action_to_do[:, 0] -= 90
         action_to_do = np.squeeze(action_to_do)
