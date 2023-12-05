@@ -6,3 +6,12 @@
 4000 150
 5500 150
 6999 800
+
+
+            2500,  # x
+            2700,  # y
+            0,  # horizontal speed
+            0,  # vertical speed
+            550,  # fuel remaining
+            0,  # rotation
+            0,  # thrust power

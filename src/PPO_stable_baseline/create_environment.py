@@ -16,21 +16,22 @@ class RocketLandingEnv(gymnasium.Env):
         self.landing_spot = self.find_landing_spot(surface_points)
         self.initial_state = [
             2500,  # x
-            2500,  # y
+            2700,  # y
             0,  # horizontal speed
             0,  # vertical speed
-            10000,  # fuel remaining
+            550,  # fuel remaining
             0,  # rotation
             0,  # thrust power
-            distance_squared_to_line([500, 2700], self.landing_spot),  # distance to landing spot
-            distance_squared_to_line([500, 2700], self.surface)  # distance to surface
+            distance_squared_to_line([2500, 2700], self.landing_spot),  # distance to landing spot
+            distance_squared_to_line([2500, 2700], self.surface)  # distance to surface
         ]
+        self.initial_fuel = 550
         self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
             [-200, 200],  # vs
             [-200, 200],  # hs
-            [0, 10000],  # fuel remaining
+            [0, self.initial_fuel],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
             [0, 3000 ** 2],  # distance squared landing_spot
@@ -41,7 +42,6 @@ class RocketLandingEnv(gymnasium.Env):
         self.action_space_dimension = 2
         self.action_space_discrete_n = 905
         self.gravity = 3.711
-        self.initial_fuel = 10_000
 
         self.observation_space = spaces.Box(
             low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
@@ -105,13 +105,14 @@ class RocketLandingEnv(gymnasium.Env):
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-            6
+            7
             0 100
             1000 500
-            1500 100
-            3000 100
-            5000 1500
-            6999 1000
+            1500 1500
+            3000 1000
+            4000 150
+            5500 150
+            6999 800
         '''
         points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
         return MultiPoint(points_coordinates)
