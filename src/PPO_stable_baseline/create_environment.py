@@ -44,9 +44,9 @@ class RocketLandingEnv(gymnasium.Env):
         self.initial_fuel = 10_000
 
         self.observation_space = spaces.Box(
-            low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float64),
-            high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float64),
-            dtype=np.float64)
+            low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
+            high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
+            dtype=np.float32)
 
         rot = range(-90, 91)
         thrust = range(5)
@@ -271,8 +271,8 @@ class RocketLandingEnv(gymnasium.Env):
             return reward, done
         if done:
             reward += self.compute_reward(state)
-        if abs(vs) > 80:
-            reward = -0.5
+        if abs(vs) > 65:
+            reward = -0.3
         return reward, done
 
 

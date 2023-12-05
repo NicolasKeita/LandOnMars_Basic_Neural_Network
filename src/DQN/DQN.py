@@ -259,15 +259,16 @@ class DQN_1:
         policy_net_weights_np = {k: v.cpu().tolist() for k, v in self.policy_net.state_dict().items()}
         target_net_weights_np = {k: v.cpu().tolist() for k, v in self.target_net.state_dict().items()}
 
-        # Save the weights in a JSON file
+        # Save the weights of the policy network in a JSON file
         weights_json = {
-            'policy_net_weights': policy_net_weights_np,
-            'target_net_weights': target_net_weights_np
+            'policy_net_weights': policy_net_weights_np
         }
-        weights_json_path = os.path.splitext(path)[0] + '_weights.json'
+
+        weights_json_path = os.path.splitext(path)[0] + '_policy_net_weights.json'
         with open(weights_json_path, 'w') as json_file:
             json.dump(weights_json, json_file)
-        print("model saved.")
+
+        print("Policy network weights saved.")
 
     def load_model(self, path='model.pth'):
         # Load the model state dictionary from a file

@@ -4,7 +4,8 @@ from stable_baselines3 import PPO
 env = RocketLandingEnv()
 
 model = PPO("MlpPolicy", env, verbose=2)
-model.learn(total_timesteps=100_000_000)
+model.learn(total_timesteps=5_000)
+model.save("model_ppo_stable_baseline")
 
 vec_env = model.get_env()
 obs = vec_env.reset()
