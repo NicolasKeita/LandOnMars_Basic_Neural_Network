@@ -51,7 +51,17 @@ class RocketLandingEnv(gymnasium.Env):
         rot = range(-90, 91)
         thrust = range(5)
         # self.action_space = [list(action) for action in product(rot, thrust)]
-        self.action_space = spaces.MultiDiscrete([181, 5])
+        # self.action_space = spaces.MultiDiscrete([181, 5])
+        action_1_bounds = [-90, 90]
+        action_2_bounds = [0, 4]
+
+        # Define the action space using Box for continuous actions
+        self.action_space = spaces.Box(
+            low=np.array([action_1_bounds[0], action_2_bounds[0]]),
+            high=np.array([action_1_bounds[1], action_2_bounds[1]]),
+            shape=(self.action_space_dimension,),
+            dtype=np.float32 # ?
+        )
         self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
 
     def action_indexes_to_real_action(self, action_indexes: list):
@@ -85,8 +95,8 @@ class RocketLandingEnv(gymnasium.Env):
         # Create a new array without x, y, and thrust
         return state[2:6] + state[7:]
 
-    def sample_action(self):
-        return [0, 0]  # TODO
+    # def sample_action(self):
+    #     return [0, 0]  # TODO
 
     def seed(self):
         return None
@@ -157,7 +167,7 @@ class RocketLandingEnv(gymnasium.Env):
         return self.normalize_state(self.state), None
 
     def step(self, action_to_do_input):
-
+        print(action_to_do_input)
         action_to_do = np.copy(action_to_do_input)
         action_to_do = action_to_do.reshape(-1, 2)
         action_to_do[:, 0] -= 90

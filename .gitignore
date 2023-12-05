@@ -10,6 +10,8 @@ critic.pt
 tmp.py
 model.pth
 model_weights.json
+model_ppo_stable_baseline/
+model_ppo_stable_baseline.zip
 
 # C extensions
 *.so
