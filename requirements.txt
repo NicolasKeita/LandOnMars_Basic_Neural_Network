@@ -4,3 +4,6 @@ matplotlib~=3.8.2
 pyqt5~=5.15.10
 shapely~=2.0.2
 ipython~=8.18.1
+stable-baselines3[extra]
+cloudpickle~=3.0.0
+gymnasium~=0.29.1

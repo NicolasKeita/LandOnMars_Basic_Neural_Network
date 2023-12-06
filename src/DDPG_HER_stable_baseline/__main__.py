@@ -2,16 +2,37 @@ import json
 
 import numpy as np
 
-from src.PPO_stable_baseline.create_environment import RocketLandingEnv
-from stable_baselines3 import PPO
+from src.DDPG_HER_stable_baseline.create_environment import RocketLandingEnv
+from stable_baselines3 import HerReplayBuffer, DDPG
+from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
+import gymnasium
+
+# Available strategies (cf paper): future, final, episode
+goal_selection_strategy = "future"  # equivalent to GoalSelectionStrategy.FUTURE
 
 env = RocketLandingEnv()
+# env = gymnasium.wrappers.FlattenObservation(env)
+# print(env)
 
-model = PPO("MlpPolicy", env, policy_kwargs=dict(net_arch=[350]),  verbose=1)
+model = DDPG(
+    "MultiInputPolicy",
+    env,
+    replay_buffer_class=HerReplayBuffer,
+    # Parameters for HER
+    replay_buffer_kwargs=dict(
+        n_sampled_goal=4,
+        goal_selection_strategy=goal_selection_strategy,
+    ),
+    verbose=1,
+)
+
+model.learn(1000)
+
+# env = RocketLandingEnv()
+
+# model = PPO("MlpPolicy", env, policy_kwargs=dict(net_arch=[350]),  verbose=1)
 # model = PPO("MlpPolicy", env)
-model.learn(total_timesteps=1400_000)
-# model.save("model_ppo_stable_baseline")
-#https://stable-baselines3.readthedocs.io/en/master/guide/export.html#manual-export
+# model.learn(total_timesteps=1400_000)
 
 params = model.get_parameters()
 policy_net_weights = params.get('policy', None)
@@ -26,6 +47,7 @@ with open(json_path, 'w') as json_file:
 
     json.dump(policy_net_weights, json_file)
 
+exit(0)
 #TODO check feature extractor by stable baseline
 vec_env = model.get_env()
 obs = vec_env.reset()

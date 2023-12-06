@@ -14,6 +14,8 @@ class RocketLandingEnv(gymnasium.Env):
         surface_points = self.parse_planet_surface()
         self.surface = LineString(surface_points.geoms)
         self.landing_spot = self.find_landing_spot(surface_points)
+        # print(self.landing_spot.xy[0][0])
+        # exit(0)
         initial_pos = [2500, 2500]
         self.initial_state = [
             initial_pos[0],  # x
@@ -44,10 +46,48 @@ class RocketLandingEnv(gymnasium.Env):
         self.action_space_discrete_n = 905
         self.gravity = 3.711
 
-        self.observation_space = spaces.Box(
-            low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
-            high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
-            dtype=np.float32)
+        # self.observation_space = spaces.Box(
+        #     low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
+        #     high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
+        #     dtype=np.float32)
+        low = [
+            self.landing_spot.xy[1][0],
+            self.landing_spot.xy[1][1],
+            -20,
+            -40,
+            0,
+            0,
+            0,
+            0,
+            0
+        ]
+        high = [
+            self.landing_spot.xy[0][0],
+            self.landing_spot.xy[0][1],
+            20,
+            40,
+            self.initial_fuel,
+            0,
+            4,
+            0,
+            0
+        ]
+        self.observation_space = spaces.Dict(
+            {
+                "observation": spaces.Box(
+                    low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
+                    high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
+                    dtype=np.float32),
+                "desired_goal": spaces.Box(
+                    low=np.array(low, dtype=np.float32),
+                    high=np.array(high, dtype=np.float32),
+                    dtype=np.float32),
+                "achieved_goal": spaces.Box(
+                    low=np.array(low, dtype=np.float32),
+                    high=np.array(high, dtype=np.float32),
+                    dtype=np.float32),
+            }
+        )
 
         rot = range(-90, 91)
         thrust = range(5)
@@ -167,6 +207,7 @@ class RocketLandingEnv(gymnasium.Env):
     def reset(self, seed=None, options=None):
         self.state = self.initial_state
         return self.normalize_state(self.state), None
+        # return self.observation_space, None
 
     def step(self, action_to_do_input):
         action_to_do = np.copy(action_to_do_input)
@@ -215,6 +256,26 @@ class RocketLandingEnv(gymnasium.Env):
     def close(self):
         pass
 
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        """Compute the step reward. This externalizes the reward function and makes
+        it dependent on a desired goal and the one that was achieved. If you wish to include
+        additional rewards that are independent of the goal, you can include the necessary values
+        to derive it in 'info' and compute it accordingly.
+
+        Args:
+            achieved_goal (object): the goal that was achieved during execution
+            desired_goal (object): the desired goal that we asked the agent to attempt to achieve
+            info (dict): an info dictionary with additional information
+
+        Returns:
+            float: The reward that corresponds to the provided achieved goal w.r.t. to the desired
+            goal. Note that the following should always hold true:
+
+                ob, reward, terminated, truncated, info = env.step()
+                assert reward == env.compute_reward(ob['achieved_goal'], ob['desired_goal'], info)
+        """
+        raise Exception('5')
+
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
@@ -240,7 +301,7 @@ class RocketLandingEnv(gymnasium.Env):
                       norm_reward(abs(hs), 20, 150) +
                       # (1 if abs(rotation) == 0.0 else 0)
                       norm_reward_to_the_fourth(abs(rotation), 0, 90)
-            )
+                      )
             # reward = norm_reward(abs(vs), 40, 200)
             # print(reward, norm_reward(abs(vs), 40, 200) * 3, norm_reward(abs(hs), 20, 200) * 1 / 2, norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
             return reward, done
@@ -255,7 +316,7 @@ class RocketLandingEnv(gymnasium.Env):
         # elif abs(vs) > 80:
         #     reward = -0.6
         # if abs(vs) > 80 and dist_landing_spot < 1000 ** 2:
-            # reward = -0.1
+        # reward = -0.1
         # elif abs(vs) > 60 and dist_landing_spot < 500 ** 2:
         #     reward = -0.5
         # if abs(hs) > 34:
