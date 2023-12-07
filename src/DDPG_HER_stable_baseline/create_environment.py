@@ -1,10 +1,13 @@
 import math
 import random
+from collections import OrderedDict
 from itertools import product
+from typing import List
 
 import gymnasium
 import numpy as np
 from gymnasium import spaces
+from gymnasium.spaces import Box
 from shapely import LineString, Point, MultiPoint
 from src.PPO_to_remove.math_utils import distance_squared_to_line
 
@@ -72,20 +75,29 @@ class RocketLandingEnv(gymnasium.Env):
             0,
             0
         ]
+        self.desired_goal = spaces.Box(
+                    low=np.array(low, dtype=np.float32),
+                    high=np.array(high, dtype=np.float32),
+                    shape=(9,),
+                    dtype=np.float32)
+
         self.observation_space = spaces.Dict(
             {
                 "observation": spaces.Box(
                     low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
                     high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
-                    dtype=np.float32),
-                "desired_goal": spaces.Box(
-                    low=np.array(low, dtype=np.float32),
-                    high=np.array(high, dtype=np.float32),
+                    shape=(9,),
                     dtype=np.float32),
                 "achieved_goal": spaces.Box(
                     low=np.array(low, dtype=np.float32),
                     high=np.array(high, dtype=np.float32),
+                    shape=(9,),
                     dtype=np.float32),
+                "desired_goal": spaces.Box(
+                    low=np.array(low, dtype=np.float32),
+                    high=np.array(high, dtype=np.float32),
+                    shape=(9,),
+                    dtype=np.float32)
             }
         )
 
@@ -204,10 +216,21 @@ class RocketLandingEnv(gymnasium.Env):
         maximum = self.normalize_action([legal_min_max[0][1], legal_min_max[1][1]])
         return [minimum, maximum]
 
+    def _get_obs(self) -> OrderedDict[str, list[int | float] | Box]:
+        return OrderedDict(
+            [
+                ("observation", self.state.copy()),
+                ("achieved_goal", self.state.copy()),
+                ("desired_goal", np.ones(9,)),
+            ]
+        )
+
     def reset(self, seed=None, options=None):
+        # return None
         self.state = self.initial_state
-        return self.normalize_state(self.state), None
-        # return self.observation_space, None
+        # return self.normalize_state(self.state), {}
+        return self._get_obs(), {}
+        # return self.observation_space, {}
 
     def step(self, action_to_do_input):
         action_to_do = np.copy(action_to_do_input)
@@ -220,7 +243,8 @@ class RocketLandingEnv(gymnasium.Env):
         self.state = self.compute_next_state(self.state, action_to_do)
         reward, done = self.reward_function(self.state)
         next_state_normalized = self.normalize_state(self.state)
-        return next_state_normalized, reward, done, False, {}
+        # return next_state_normalized, reward, done, False, {}
+        return self._get_obs(), reward, done, False, {}
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -274,7 +298,7 @@ class RocketLandingEnv(gymnasium.Env):
                 ob, reward, terminated, truncated, info = env.step()
                 assert reward == env.compute_reward(ob['achieved_goal'], ob['desired_goal'], info)
         """
-        raise Exception('5')
+        raise Exception('My_exception, working on it ...')
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
