@@ -12,7 +12,7 @@ model.pth
 model_weights.json
 model_ppo_stable_baseline/
 model_ppo_stable_baseline.zip
-src/PPO_stable_baseline/policy_net_weights.json
+policy_net_weights.json
 
 # C extensions
 *.so

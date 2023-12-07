@@ -241,7 +241,11 @@ class RocketLandingEnv(gymnasium.Env):
         action_to_do = np.squeeze(action_to_do)
 
         self.state = self.compute_next_state(self.state, action_to_do)
-        reward, done = self.reward_function(self.state)
+        obs = self._get_obs()
+        reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
+        done = reward != 0
+        # reward, done = self.reward_function(self.state)
+
         next_state_normalized = self.normalize_state(self.state)
         # return next_state_normalized, reward, done, False, {}
         return self._get_obs(), reward, done, False, {}
@@ -281,26 +285,22 @@ class RocketLandingEnv(gymnasium.Env):
         pass
 
     def compute_reward(self, achieved_goal, desired_goal, info):
-        """Compute the step reward. This externalizes the reward function and makes
-        it dependent on a desired goal and the one that was achieved. If you wish to include
-        additional rewards that are independent of the goal, you can include the necessary values
-        to derive it in 'info' and compute it accordingly.
-
-        Args:
-            achieved_goal (object): the goal that was achieved during execution
-            desired_goal (object): the desired goal that we asked the agent to attempt to achieve
-            info (dict): an info dictionary with additional information
-
-        Returns:
-            float: The reward that corresponds to the provided achieved goal w.r.t. to the desired
-            goal. Note that the following should always hold true:
-
-                ob, reward, terminated, truncated, info = env.step()
-                assert reward == env.compute_reward(ob['achieved_goal'], ob['desired_goal'], info)
-        """
-        raise Exception('My_exception, working on it ...')
+        if len(achieved_goal) == 9:
+            reward, done = self.reward_function(achieved_goal)
+            return np.array(reward)
+        reward = []
+        reward.append(
+            [self.reward_function(achieved_goal_elem)[0] for achieved_goal_elem in achieved_goal]
+        )
+        # reward, done = self.reward_function(achieved_goal)
+        # print('step done', achieved_goal)
+        # print("desired goals", desired_goal)
+        t = np.array(reward)
+        # print(t)
+        return np.array(reward)
 
     def reward_function(self, state: list) -> tuple[float, bool]:
+
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
 
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
@@ -325,32 +325,13 @@ class RocketLandingEnv(gymnasium.Env):
                       norm_reward(abs(hs), 20, 150) +
                       # (1 if abs(rotation) == 0.0 else 0)
                       norm_reward_to_the_fourth(abs(rotation), 0, 90)
-                      )
-            # reward = norm_reward(abs(vs), 40, 200)
-            # print(reward, norm_reward(abs(vs), 40, 200) * 3, norm_reward(abs(hs), 20, 200) * 1 / 2, norm_reward_to_the_fourth(abs(rotation), 0, 90) * 2)
+            )
             return reward, done
         elif is_crashed_anywhere:
+            print("crash anywhere", x, y)
             done = True
             reward = -1 + norm_reward(dist_landing_spot, 0, 3000 ** 2)
             return reward, done
-        # if done:
-        #     reward += self.compute_reward(state)
-        # if vs > 0:
-        #     reward = -10
-        # elif abs(vs) > 80:
-        #     reward = -0.6
-        # if abs(vs) > 80 and dist_landing_spot < 1000 ** 2:
-        # reward = -0.1
-        # elif abs(vs) > 60 and dist_landing_spot < 500 ** 2:
-        #     reward = -0.5
-        # if abs(hs) > 34:
-        #     reward = -0.1
-        # if abs(rotation) > 15 and dist_landing_spot < 1000 ** 2:
-        #     reward = -0.1
-        # if abs(rotation) > 15 and dist_landing_spot < 500 ** 2:
-        #     reward = -1
-        # elif abs(rotation) == 90:
-        #     reward = -0.1
         return reward, done
 
 

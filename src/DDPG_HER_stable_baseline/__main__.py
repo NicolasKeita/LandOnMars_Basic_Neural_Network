@@ -5,10 +5,10 @@ import numpy as np
 from src.DDPG_HER_stable_baseline.create_environment import RocketLandingEnv
 from stable_baselines3 import HerReplayBuffer, DDPG
 from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
-import gymnasium
+# import gymnasium
 
 # Available strategies (cf paper): future, final, episode
-goal_selection_strategy = "future"  # equivalent to GoalSelectionStrategy.FUTURE
+goal_selection_strategy = "final"  # equivalent to GoalSelectionStrategy.FUTURE
 
 env = RocketLandingEnv()
 # env = gymnasium.wrappers.FlattenObservation(env)
@@ -18,6 +18,7 @@ model = DDPG(
     "MultiInputPolicy",
     env,
     replay_buffer_class=HerReplayBuffer,
+    policy_kwargs=dict(net_arch=[78]),
     # Parameters for HER
     replay_buffer_kwargs=dict(
         n_sampled_goal=4,
@@ -26,7 +27,7 @@ model = DDPG(
     verbose=1,
 )
 
-model.learn(1000)
+
 
 # env = RocketLandingEnv()
 
@@ -34,19 +35,23 @@ model.learn(1000)
 # model = PPO("MlpPolicy", env)
 # model.learn(total_timesteps=1400_000)
 
-params = model.get_parameters()
-policy_net_weights = params.get('policy', None)
-json_path = "policy_net_weights.json"
-with open(json_path, 'w') as json_file:
-    for key, value in policy_net_weights.items():
-        policy_net_weights[key] = value.tolist()
-    keys_to_remove = ['value_net.weight', 'value_net.bias', 'mlp_extractor.value_net.0.weight',
-                      'mlp_extractor.value_net.0.bias', 'log_std', "mlp_extractor.value_net.2.weight", "mlp_extractor.value_net.2.bias"]
-    for key in keys_to_remove:
-        policy_net_weights.pop(key, None)
+def save_model(model):
+    params = model.get_parameters()
+    policy_net_weights = params.get('policy', None)
+    json_path = "policy_net_weights.json"
+    with open(json_path, 'w') as json_file:
+        for key, value in policy_net_weights.items():
+            policy_net_weights[key] = value.tolist()
+        keys_to_remove = ['value_net.weight', 'value_net.bias', 'mlp_extractor.value_net.0.weight',
+                          'mlp_extractor.value_net.0.bias', 'log_std', "mlp_extractor.value_net.2.weight", "mlp_extractor.value_net.2.bias"]
+        for key in keys_to_remove:
+            policy_net_weights.pop(key, None)
 
-    json.dump(policy_net_weights, json_file)
+        json.dump(policy_net_weights, json_file)
 
+save_model(model)
+model.learn(1000)
+print("Learning finished!")
 exit(0)
 #TODO check feature extractor by stable baseline
 vec_env = model.get_env()
