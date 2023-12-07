@@ -2,7 +2,7 @@ import math
 import random
 from collections import OrderedDict
 from itertools import product
-from typing import List
+from typing import List, Union
 
 import gymnasium
 import numpy as np
@@ -20,7 +20,7 @@ class RocketLandingEnv(gymnasium.Env):
         # print(self.landing_spot.xy[0][0])
         # exit(0)
         initial_pos = [2500, 2500]
-        self.initial_state = [
+        self.initial_state = np.array([
             initial_pos[0],  # x
             initial_pos[1],  # y
             0,  # horizontal speed
@@ -30,7 +30,7 @@ class RocketLandingEnv(gymnasium.Env):
             0,  # thrust power
             distance_squared_to_line(initial_pos, self.landing_spot),  # distance to landing spot
             distance_squared_to_line(initial_pos, self.surface)  # distance to surface
-        ]
+        ])
         self.initial_fuel = 550
         self.state_intervals = [
             [0, 7000],  # x
@@ -149,9 +149,6 @@ class RocketLandingEnv(gymnasium.Env):
         # Create a new array without x, y, and thrust
         return state[2:6] + state[7:]
 
-    # def sample_action(self):
-    #     return [0, 0]  # TODO
-
     def seed(self):
         return None
 
@@ -237,18 +234,35 @@ class RocketLandingEnv(gymnasium.Env):
         action_to_do[0] = action_to_do[0] * 90
         action_to_do[1] = action_to_do[1] * 4
         action_to_do = np.round(action_to_do)
-        action_to_do = action_to_do.reshape(-1, 2)
-        action_to_do = np.squeeze(action_to_do)
+        action_to_do = action_to_do.reshape(-1, 2) # remove
+        action_to_do = np.squeeze(action_to_do) # remove
 
         self.state = self.compute_next_state(self.state, action_to_do)
         obs = self._get_obs()
         reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
-        done = reward != 0
+        # reward = reward
+        terminated = reward == 0.0
+        info = {"is_success": terminated}
+        truncated = self.is_done(obs['observation'])
+        # done = reward == 0
         # reward, done = self.reward_function(self.state)
 
         next_state_normalized = self.normalize_state(self.state)
         # return next_state_normalized, reward, done, False, {}
-        return self._get_obs(), reward, done, False, {}
+        return self._get_obs(), reward, terminated, truncated, info
+
+    def is_done(self, state):
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+        is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
+                                 abs(vs) <= 40 and abs(hs) <= 20)
+        is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
+                               dist_surface < 1 or remaining_fuel < -4)
+        is_crashed_on_landing_spot = dist_landing_spot < 1
+        if is_successful_landing or is_crashed_anywhere or is_crashed_on_landing_spot:
+            return True
+        else:
+            return False
+
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -276,7 +290,7 @@ class RocketLandingEnv(gymnasium.Env):
                      thrust,
                      distance_squared_to_line(np.array(new_pos), self.landing_spot),
                      distance_squared_to_line(new_pos, self.surface)]
-        return new_state
+        return np.array(new_state)
 
     def render(self):
         pass
@@ -284,25 +298,39 @@ class RocketLandingEnv(gymnasium.Env):
     def close(self):
         pass
 
+    def convert_to_bit_vector(self, state: Union[int, np.ndarray], batch_size: int) -> np.ndarray:
+        """
+        Convert to bit vector if needed.
+
+        :param state: The state to be converted, which can be either an integer or a numpy array.
+        :param batch_size: The batch size.
+        :return: The state converted into a bit vector.
+        """
+        # Convert back to bit vector
+        if isinstance(state, int):
+            bit_vector = np.array(state).reshape(batch_size, -1)
+            # Convert to binary representation
+            bit_vector = ((bit_vector[:, :] & (1 << np.arange(len(self.state)))) > 0).astype(int)
+        else:
+            bit_vector = np.array(state).reshape(batch_size, -1)
+        return bit_vector
+
     def compute_reward(self, achieved_goal, desired_goal, info):
-        if len(achieved_goal) == 9:
-            reward, done = self.reward_function(achieved_goal)
-            return np.array(reward)
-        reward = []
-        reward.append(
-            [self.reward_function(achieved_goal_elem)[0] for achieved_goal_elem in achieved_goal]
-        )
-        # reward, done = self.reward_function(achieved_goal)
-        # print('step done', achieved_goal)
-        # print("desired goals", desired_goal)
-        t = np.array(reward)
-        # print(t)
-        return np.array(reward)
+        if isinstance(achieved_goal, int):
+            batch_size = 1
+        else:
+            batch_size = achieved_goal.shape[0]
+        a = achieved_goal
+        b = desired_goal
+
+        desired_goal = self.convert_to_bit_vector(desired_goal, batch_size)
+        achieved_goal = self.convert_to_bit_vector(achieved_goal, batch_size)
+        distance = np.linalg.norm(achieved_goal - desired_goal, axis=-1)
+        t = -(distance > 0).astype(np.float32)
+        return -(distance > 0).astype(np.float32)
 
     def reward_function(self, state: list) -> tuple[float, bool]:
-
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
-
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                                  abs(vs) <= 40 and abs(hs) <= 20)
         is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
@@ -312,26 +340,30 @@ class RocketLandingEnv(gymnasium.Env):
         reward = 0
         done = False
         if is_successful_landing:
-            print("SUCCESSFUL LANDING !", state)
+            # print("SUCCESSFUL LANDING !", state)
+            print('SUCCESS')
+            exit(80)
             done = True
             reward = 3 + norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel) * 5
             return reward, done
         elif is_crashed_on_landing_spot:
             formatted_list = [f"{label}: {round(value):04d}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
-            print('Crash on landing side', formatted_list)
+            # print('Crash on landing side', formatted_list)
             done = True
             reward = (norm_reward(abs(vs), 40, 150) +
                       norm_reward(abs(hs), 20, 150) +
                       # (1 if abs(rotation) == 0.0 else 0)
                       norm_reward_to_the_fourth(abs(rotation), 0, 90)
             )
-            return reward, done
+            return 0, done
+            # return reward, done
         elif is_crashed_anywhere:
-            print("crash anywhere", x, y)
+            # print("crash anywhere", [x, y])
             done = True
             reward = -1 + norm_reward(dist_landing_spot, 0, 3000 ** 2)
-            return reward, done
+            # return reward, done
+            return -1, done
         return reward, done
 
 

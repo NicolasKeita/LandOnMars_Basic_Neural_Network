@@ -42,8 +42,12 @@ def save_model(model):
     with open(json_path, 'w') as json_file:
         for key, value in policy_net_weights.items():
             policy_net_weights[key] = value.tolist()
-        keys_to_remove = ['value_net.weight', 'value_net.bias', 'mlp_extractor.value_net.0.weight',
-                          'mlp_extractor.value_net.0.bias', 'log_std', "mlp_extractor.value_net.2.weight", "mlp_extractor.value_net.2.bias"]
+        keys_to_remove = ['value_net.weight', 'value_net.bias',
+                          'mlp_extractor.value_net.0.weight',
+                          'mlp_extractor.value_net.0.bias', 'log_std',
+                          "mlp_extractor.value_net.2.weight",
+                          "mlp_extractor.value_net.2.bias",
+                          "critic_target.qf0.2.bias"]
         for key in keys_to_remove:
             policy_net_weights.pop(key, None)
 

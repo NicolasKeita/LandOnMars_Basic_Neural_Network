@@ -13,6 +13,10 @@ model_weights.json
 model_ppo_stable_baseline/
 model_ppo_stable_baseline.zip
 policy_net_weights.json
+tmp/
+her_bit_env.zip
+test_py.py
+
 
 # C extensions
 *.so
