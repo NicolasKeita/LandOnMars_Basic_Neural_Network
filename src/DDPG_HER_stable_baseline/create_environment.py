@@ -54,8 +54,8 @@ class RocketLandingEnv(gymnasium.Env):
         #     high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
         #     dtype=np.float32)
         low = [
+            self.landing_spot.xy[0][0],
             self.landing_spot.xy[1][0],
-            self.landing_spot.xy[1][1],
             -20,
             -40,
             0,
@@ -65,21 +65,23 @@ class RocketLandingEnv(gymnasium.Env):
             0
         ]
         high = [
-            self.landing_spot.xy[0][0],
             self.landing_spot.xy[0][1],
+            self.landing_spot.xy[1][1],
             20,
-            40,
+            0,
             self.initial_fuel,
             0,
             4,
             0,
             0
         ]
+
         self.desired_goal = spaces.Box(
                     low=np.array(low, dtype=np.float32),
                     high=np.array(high, dtype=np.float32),
                     shape=(9,),
                     dtype=np.float32)
+        self.desired_goal_curr = self.desired_goal.sample()
 
         self.observation_space = spaces.Dict(
             {
@@ -218,13 +220,14 @@ class RocketLandingEnv(gymnasium.Env):
             [
                 ("observation", self.state.copy()),
                 ("achieved_goal", self.state.copy()),
-                ("desired_goal", np.ones(9,)),
+                ("desired_goal", self.desired_goal_curr),
             ]
         )
 
     def reset(self, seed=None, options=None):
         # return None
         self.state = self.initial_state
+        self.desired_goal_curr = self.desired_goal.sample()
         # return self.normalize_state(self.state), {}
         return self._get_obs(), {}
         # return self.observation_space, {}
@@ -239,11 +242,14 @@ class RocketLandingEnv(gymnasium.Env):
 
         self.state = self.compute_next_state(self.state, action_to_do)
         obs = self._get_obs()
+        # print("obs", obs)
         reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
         # reward = reward
         terminated = reward == 0.0
         info = {"is_success": terminated}
         truncated = self.is_done(obs['observation'])
+        # if truncated:
+            # print('CRASH WHERE ? ', obs)
         # done = reward == 0
         # reward, done = self.reward_function(self.state)
 
@@ -319,14 +325,11 @@ class RocketLandingEnv(gymnasium.Env):
         if isinstance(achieved_goal, int):
             batch_size = 1
         else:
-            batch_size = achieved_goal.shape[0]
-        a = achieved_goal
-        b = desired_goal
+            batch_size = achieved_goal.shape[0] if len(achieved_goal.shape) > 1 else 1
 
         desired_goal = self.convert_to_bit_vector(desired_goal, batch_size)
         achieved_goal = self.convert_to_bit_vector(achieved_goal, batch_size)
         distance = np.linalg.norm(achieved_goal - desired_goal, axis=-1)
-        t = -(distance > 0).astype(np.float32)
         return -(distance > 0).astype(np.float32)
 
     def reward_function(self, state: list) -> tuple[float, bool]:

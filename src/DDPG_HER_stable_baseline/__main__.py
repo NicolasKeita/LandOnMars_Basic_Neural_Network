@@ -9,6 +9,7 @@ from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
 
 # Available strategies (cf paper): future, final, episode
 goal_selection_strategy = "final"  # equivalent to GoalSelectionStrategy.FUTURE
+np.set_printoptions(suppress = True)
 
 env = RocketLandingEnv()
 # env = gymnasium.wrappers.FlattenObservation(env)
@@ -47,14 +48,15 @@ def save_model(model):
                           'mlp_extractor.value_net.0.bias', 'log_std',
                           "mlp_extractor.value_net.2.weight",
                           "mlp_extractor.value_net.2.bias",
-                          "critic_target.qf0.2.bias"]
+                          "critic_target.qf0.2.bias",
+                          "critic_target.qf0.2.weight"]
         for key in keys_to_remove:
             policy_net_weights.pop(key, None)
 
         json.dump(policy_net_weights, json_file)
 
 save_model(model)
-model.learn(1000)
+model.learn(100000)
 print("Learning finished!")
 exit(0)
 #TODO check feature extractor by stable baseline
