@@ -27,7 +27,7 @@ model = TD3(
     # Parameters for HER
     replay_buffer_kwargs=dict(
         n_sampled_goal=4,
-        goal_selection_strategy=GoalSelectionStrategy.FINAL,
+        goal_selection_strategy=GoalSelectionStrategy.FUTURE,
     ),
     verbose=2,
 )
@@ -62,9 +62,10 @@ def save_model(model):
 
         json.dump(policy_net_weights, json_file)
 
-# save_model(model)
+save_model(model)
 model.learn(100000)
 print("Learning finished!")
+save_model(model)
 exit(0)
 #TODO check feature extractor by stable baseline
 vec_env = model.get_env()

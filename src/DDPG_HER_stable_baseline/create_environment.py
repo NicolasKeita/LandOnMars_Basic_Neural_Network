@@ -20,18 +20,18 @@ class RocketLandingEnv(gymnasium.Env):
         # print(self.landing_spot.xy[0][0])
         # exit(0)
         initial_pos = [2500, 2500]
+        self.initial_fuel = 550
         self.initial_state = np.array([
             initial_pos[0],  # x
             initial_pos[1],  # y
             0,  # horizontal speed
             0,  # vertical speed
-            550,  # fuel remaining
+            self.initial_fuel,  # fuel remaining
             0,  # rotation
             0,  # thrust power
             distance_squared_to_line(initial_pos, self.landing_spot),  # distance to landing spot
             distance_squared_to_line(initial_pos, self.surface)  # distance to surface
         ])
-        self.initial_fuel = 550
         self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y
@@ -286,7 +286,7 @@ class RocketLandingEnv(gymnasium.Env):
         # reward, done = self.reward_function(self.state)
 
         # next_state_normalized = self.normalize_state(self.state)
-        self.state = self.normalize_state(self.state)
+        # self.state = self.normalize_state(self.state)
         # return next_state_normalized, reward, done, False, {}
         return self._get_obs(), reward, terminated, truncated, info
 
