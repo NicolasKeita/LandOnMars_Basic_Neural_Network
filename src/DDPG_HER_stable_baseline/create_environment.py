@@ -365,7 +365,7 @@ class RocketLandingEnv(gymnasium.Env):
         distance = np.linalg.norm(achieved_goal - desired_goal, axis=-1)
         # t = -(distance > 0.1).astype(np.float32)
         # print(t)
-        return -(distance > 0.1).astype(np.float32)
+        return -(distance > 0).astype(np.float32)
 
     def reward_function(self, state: list) -> tuple[float, bool]:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state

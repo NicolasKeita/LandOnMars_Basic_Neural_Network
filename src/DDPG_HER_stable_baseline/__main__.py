@@ -10,29 +10,30 @@ from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
 
 # Available strategies (cf paper): future, final, episode
 goal_selection_strategy = "final"  # equivalent to GoalSelectionStrategy.FUTURE
-np.set_printoptions(suppress = True)
+np.set_printoptions(suppress=True)
 
 env = RocketLandingEnv()
 action_noise = NormalActionNoise(mean=np.zeros(2), sigma=0.1 * np.ones(2))
 # env = gymnasium.wrappers.FlattenObservation(env)
 # print(env)
 
-model = TD3(
-    "MultiInputPolicy",
-    env,
-    # action_noise=action_noise,
-    # learning_rate=3e-7,
-    replay_buffer_class=HerReplayBuffer,
-    # policy_kwargs=dict(net_arch=[78]),
-    # Parameters for HER
-    replay_buffer_kwargs=dict(
-        n_sampled_goal=4,
-        goal_selection_strategy=GoalSelectionStrategy.FUTURE,
-    ),
-    verbose=2,
-)
-
-
+if True:
+    model = TD3.load("./her_bit_env", env=env)
+else:
+    model = TD3(
+        "MultiInputPolicy",
+        env,
+        # action_noise=action_noise,
+        # learning_rate=3e-7,
+        replay_buffer_class=HerReplayBuffer,
+        # policy_kwargs=dict(net_arch=[78]),
+        # Parameters for HER
+        replay_buffer_kwargs=dict(
+            n_sampled_goal=4,
+            goal_selection_strategy=GoalSelectionStrategy.FINAL,
+        ),
+        verbose=2,
+    )
 
 # env = RocketLandingEnv()
 
@@ -54,17 +55,25 @@ def save_model(model):
                           "mlp_extractor.value_net.2.bias",
                           "critic_target.qf0.2.bias",
                           "critic_target.qf0.2.weight",
+                          "critic_target.qf1.2.bias",
                           "critic_target.qf1.4.bias",
-                          "critic_target.qf1.4.weight"
+                          "critic_target.qf1.4.weight",
+                          "critic_target.qf1.4.bias",
+                          "critic_target.qf1.2.weight",
+                          "critic_target.qf1.0.bias",
+                          "critic_target.qf1.0.weight",
+                          "critic_target.qf0.4.bias",
+                          "critic_target.qf0.4.weight",
+                          "critic_target.qf0.0.bias"
         ]
         for key in keys_to_remove:
             policy_net_weights.pop(key, None)
 
         json.dump(policy_net_weights, json_file)
 
-save_model(model)
-model.learn(100000)
+model.learn(100_000)
 print("Learning finished!")
+model.save("./her_bit_env")
 save_model(model)
 exit(0)
 #TODO check feature extractor by stable baseline
