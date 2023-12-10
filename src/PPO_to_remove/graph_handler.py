@@ -32,7 +32,7 @@ def plot_terminal_state_rewards(rewards, ax):
     plt.pause(0.001)
 
 
-def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color: int, ax):
+def display_graph(trajectories, id_lines_color: int, ax):
     cmap = cm.get_cmap('Set1')
     color = cmap(id_lines_color % 9)
 
@@ -41,9 +41,9 @@ def display_graph(trajectories: list[list[tuple[float, float]]], id_lines_color:
         if line.get_label() != 'Mars Surface':
             line.remove()
 
-    for trajectory in trajectories:
-        x_values = [point[0] for point in trajectory]
-        y_values = [point[1] for point in trajectory]
-        ax.plot(x_values, y_values, marker='o',
-                markersize=2, color=color, label=f'Rocket {id_lines_color}')
-        plt.pause(0.001)
+    x_values = [trajectory[0] for trajectory in trajectories]
+    y_values = [trajectory[1] for trajectory in trajectories]
+
+    ax.plot(x_values, y_values, marker='o',
+            markersize=2, color=color, label=f'Rocket {id_lines_color}')
+    plt.pause(0.001)

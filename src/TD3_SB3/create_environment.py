@@ -1,23 +1,29 @@
 import math
 import random
-from collections import OrderedDict
+from itertools import product
 from typing import List, Union
 
 import gymnasium
 import numpy as np
 from gymnasium import spaces
 from gymnasium.spaces import Box
+from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Qt5Agg')
 from shapely import LineString, Point, MultiPoint
+
+from src.TD3_SB3.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
 from src.PPO_to_remove.math_utils import distance_squared_to_line
 
 
 class RocketLandingEnv(gymnasium.Env):
     def __init__(self):
+        self.reward_plot = []
+        self._i_step = 0
+        self.trajectory_plot = []
         surface_points = self.parse_planet_surface()
         self.surface = LineString(surface_points.geoms)
         self.landing_spot = self.find_landing_spot(surface_points)
-        # print(self.landing_spot.xy[0][0])
-        # exit(0)
         initial_pos = [2500, 2500]
         self.initial_fuel = 550
         self.initial_state = np.array([
@@ -44,138 +50,25 @@ class RocketLandingEnv(gymnasium.Env):
         ]
         self.state = self.initial_state
         self.action_constraints = [15, 1]
-        self.action_space_dimension = 2
-        self.action_space_discrete_n = 905
         self.gravity = 3.711
 
-        # self.observation_space = spaces.Box(
-        #     low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
-        #     high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
-        #     dtype=np.float32)
-        low = [
-            self.landing_spot.xy[0][0],
-            self.landing_spot.xy[1][0],
-            -20,
-            -40,
-            0,
-            0,
-            0,
-            0,
-            0
-        ]
-        high = [
-            self.landing_spot.xy[0][1],
-            self.landing_spot.xy[1][1],
-            20,
-            0,
-            self.initial_fuel,
-            0,
-            4,
-            0,
-            0
-        ]
+        self.observation_space = spaces.Box(low=np.array([0.0] * 9), high=np.array([1.0] * 9))
 
-        self.desired_goal = spaces.Box(
-            low=np.array(low, dtype=np.float32),
-            high=np.array(high, dtype=np.float32),
-            shape=(9,),
-            dtype=np.float32)
-        self.desired_goal_curr = self.desired_goal.sample()
-
-        # self.observation_space = spaces.Dict(
-        #     {
-        #         "observation": spaces.Box(
-        #             low=np.array([interval[0] for interval in self.state_intervals], dtype=np.float32),
-        #             high=np.array([interval[1] for interval in self.state_intervals], dtype=np.float32),
-        #             shape=(9,),
-        #             dtype=np.float32),
-        #         "achieved_goal": spaces.Box(
-        #             low=np.array(low, dtype=np.float32),
-        #             high=np.array(high, dtype=np.float32),
-        #             shape=(9,),
-        #             dtype=np.float32),
-        #         "desired_goal": spaces.Box(
-        #             low=np.array(low, dtype=np.float32),
-        #             high=np.array(high, dtype=np.float32),
-        #             shape=(9,),
-        #             dtype=np.float32)
-        #     }
-        # )
-        # self.observation_space = spaces.Dict(
-        #     {
-        #         "observation": spaces.Box(
-        #             low=np.array([0.0] * 9),
-        #             high=np.array([1.0] * 9)
-        #         )
-        #     }
-        # )
-        self.observation_space = spaces.Dict(
-            {
-                "observation": spaces.Box(
-                    low=np.array([0.0] * 9),
-                    high=np.array([1.0] * 9)
-                ),
-                "achieved_goal": spaces.Box(
-                    low=np.array([0.0] * 9),
-                    high=np.array([1.0] * 9)
-                ),
-                "desired_goal": spaces.Box(
-                    low=np.array([0.0] * 9),
-                    high=np.array([1.0] * 9)
-                )
-            }
-        )
-
-        rot = range(-90, 91)
-        thrust = range(5)
-        # self.action_space = [list(action) for action in product(rot, thrust)]
-        # self.action_space = spaces.MultiDiscrete([181, 5])
-        # action_1_bounds = [-90, 90]
-        # action_2_bounds = [0, 4]
         action_1_bounds = [-1, 1]
-        action_2_bounds = [0, 1]
+        action_2_bounds = [-1, 1]
+        action_space_dimension = 2
 
-        # Define the action space using Box for continuous actions
         self.action_space = spaces.Box(
             low=np.array([action_1_bounds[0], action_2_bounds[0]]),
             high=np.array([action_1_bounds[1], action_2_bounds[1]]),
-            shape=(self.action_space_dimension,)
+            shape=(action_space_dimension,)
         )
-        self.action_space_sample = lambda: random.randint(0, self.action_space_discrete_n - 1)
-
-    def action_indexes_to_real_action(self, action_indexes: list):
-        real_actions = []
-        for i in action_indexes:
-            real_actions.append(self.action_space[i])
-        return real_actions
-
-    def real_actions_to_indexes(self, policy: list):
-        indexes = []
-        for action in policy:
-            act_1 = np.clip(round(action[0]), -90, 90)
-            act_2 = np.clip(round(action[1]), 0, 4)
-            indexes.append(self.action_space.index((act_1, act_2)))
-        return indexes
-
-    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> tuple[int, list]:
-        action_min_max = actions_min_max([old_rota, old_power_thrust])
-        a = action_min_max[0][0]
-        b = action_min_max[1][0]
-        c = action_min_max[1][1]
-        action_min_max = [[int(num) for num in sublist] for sublist in action_min_max]
-
-        random_action = [
-            random.randint(action_min_max[0][0], action_min_max[0][1]),
-            random.randint(action_min_max[1][0], action_min_max[1][1])
-        ]
-        return self.action_space.index(random_action), random_action
-
-    def extract_features(self, state):
-        # Create a new array without x, y, and thrust
-        return state[2:6] + state[7:]
-
-    def seed(self):
-        return None
+        fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
+        self.fig = fig
+        # self.ax_rewards = ax_mean_rewards
+        self.ax_trajectories = ax_trajectories
+        self.ax_terminal_state_rewards = ax_terminal_state_rewards
+        create_graph(self.surface, 'Landing on Mars', ax_trajectories)
 
     @staticmethod
     def parse_planet_surface():
@@ -208,61 +101,21 @@ class RocketLandingEnv(gymnasium.Env):
         return np.array([val * (interval[1] - interval[0]) + interval[0]
                          for val, interval in zip(normalized_state, self.state_intervals)])
 
-    @staticmethod
-    def denormalize_action(normalized_actions: list):
-        def sigmoid(x):
-            return 1 / (1 + np.exp(-np.clip(x, -100, 100)))
-
-        action_1 = np.round(np.tanh(normalized_actions[0]) * 90.0)
-        action_2 = np.round(sigmoid(normalized_actions[1]) * 4.0)
-        return [action_1, action_2]
-
-    @staticmethod
-    def normalize_action(raw_actions: list):
-        def inv_sigmoid(x):
-            epsilon = 1e-10
-            x = np.clip(x, epsilon, 1 - epsilon)
-            return np.log(x / (1 - x))
-
-        action_1 = np.arctan(raw_actions[0] / 90)
-        action_2 = inv_sigmoid(raw_actions[1] / 4.0)
-        return [action_1, action_2]
-
-    # TODO check if I really need this function
-    def get_action_constraints(self, normalized_previous_action: list):
-        if normalized_previous_action is None:
-            return [self.normalize_action([-15, 0]), self.normalize_action([15, 1])]
-        action = self.denormalize_action(normalized_previous_action)
-        legal_min_max = actions_min_max(action)
-        minimum = self.normalize_action([legal_min_max[0][0], legal_min_max[1][0]])
-        maximum = self.normalize_action([legal_min_max[0][1], legal_min_max[1][1]])
-        return [minimum, maximum]
-
-    def _get_obs(self) -> OrderedDict[str, list[int | float] | Box]:
-        return OrderedDict(
-            [
-                ("observation", self.state.copy()),
-                ("achieved_goal", self.state.copy()),
-                ("desired_goal", self.desired_goal_curr),
-            ]
-        )
+    def _get_obs(self):
+        return self.state
 
     def reset(self, seed=None, options=None):
-        self.state = self.initial_state
-        self.desired_goal_curr = self.normalize_state(self.desired_goal.sample())
-        self.state = self.normalize_state(self.state)
-        # return self.normalize_state(self.state), {}
+        self.state = self.normalize_state(self.initial_state)
         return self._get_obs(), {}
 
     def step(self, action_to_do_input):
         action_to_do = np.copy(action_to_do_input)
         action_to_do[0] = action_to_do[0] * 90
-        action_to_do[1] = action_to_do[1] * 4
+        # action_to_do[1] = action_to_do[1] * 4
+        action_to_do[1] = (action_to_do[1] + 1) / 2 * 4
+
         action_to_do = np.round(action_to_do)
 
-        # action_to_do = action_to_do_input
-        action_to_do = action_to_do.reshape(-1, 2)  # remove
-        action_to_do = np.squeeze(action_to_do)  # remove
         # print("Step done with action :", action_to_do_input, action_to_do)
 
         tmp = self.denormalize_state(self.state)
@@ -270,24 +123,19 @@ class RocketLandingEnv(gymnasium.Env):
         self.state = self.compute_next_state(tmp, action_to_do)
         self.state = self.normalize_state(self.state)
         obs = self._get_obs()
-        # obs['observation'] = self.denormalize_state(obs['observation'])
-        # obs['achieved_goal'] = self.denormalize_state(obs['achieved_goal'])
-        # obs['desired_goal'] = self.denormalize_state(obs['desired_goal'])
-        reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
+        # reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
+        reward, terminated = self.reward_function(obs)
+        self.trajectory_plot.append(self.denormalize_state(obs))
+        if terminated:
+            self.reward_plot.append(reward)
+            plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
+            display_graph(self.trajectory_plot, 0, self.ax_trajectories)
+            self.trajectory_plot = []
+        # if self._i_step % 1000 == 0:
+        #     self.save_model()
+        # self._i_step += 1
 
-        # reward = reward
-        terminated = reward == 0.0
-        info = {"is_success": terminated}
-        truncated = self.is_done(obs['observation'])
-        if truncated:
-            print('CRASH WHERE ? ', list(self.denormalize_state(obs['observation'])))
-        # done = reward == 0
-        # reward, done = self.reward_function(self.state)
-
-        # next_state_normalized = self.normalize_state(self.state)
-        # self.state = self.normalize_state(self.state)
-        # return next_state_normalized, reward, done, False, {}
-        return self._get_obs(), reward, terminated, truncated, info
+        return self._get_obs(), reward, terminated, False, {}
 
     def is_done(self, state):
         state = self.denormalize_state(state)
@@ -367,6 +215,7 @@ class RocketLandingEnv(gymnasium.Env):
         return -(distance > 0).astype(np.float32)
 
     def reward_function(self, state: list) -> tuple[float, bool]:
+        state = self.denormalize_state(state)
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                                  abs(vs) <= 40 and abs(hs) <= 20)
@@ -386,17 +235,17 @@ class RocketLandingEnv(gymnasium.Env):
         elif is_crashed_on_landing_spot:
             formatted_list = [f"{label}: {round(value):04d}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
-            # print('Crash on landing side', formatted_list)
             done = True
             reward = (norm_reward(abs(vs), 40, 150) +
                       norm_reward(abs(hs), 20, 150) +
                       # (1 if abs(rotation) == 0.0 else 0)
                       norm_reward_to_the_fourth(abs(rotation), 0, 90)
                       )
-            return 0, done
+            print('Crash on landing side', formatted_list, reward, norm_reward(abs(vs), 40, 150), norm_reward(abs(hs), 20, 150), norm_reward_to_the_fourth(abs(rotation), 0, 90))
+            return reward, done
             # return reward, done
         elif is_crashed_anywhere:
-            # print("crash anywhere", [x, y])
+            print("crash anywhere", [x, y])
             done = True
             reward = -1 + norm_reward(dist_landing_spot, 0, 3000 ** 2)
             # return reward, done

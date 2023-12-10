@@ -183,6 +183,7 @@ class PPO:
                 val = self.critic(state_features).detach()
 
                 state, reward, done, _ = self.env.step(self.env.denormalize_action(action))
+
                 ep_dones.append(done)
                 trajectory_plot.append(self.env.denormalize_state(state))
 
