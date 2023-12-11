@@ -1,25 +1,19 @@
 import math
-import random
-from itertools import product
-from typing import List, Union
-
 import gymnasium
 import numpy as np
 from gymnasium import spaces
-from gymnasium.spaces import Box
 from matplotlib import pyplot as plt
-import matplotlib
-matplotlib.use('Qt5Agg')
 from shapely import LineString, Point, MultiPoint
 
 from src.TD3_SB3.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
-from src.PPO_to_remove.math_utils import distance_squared_to_line
+from src.TD3_SB3.math_utils import distance_to_line, distance, distance_2
 
 
 class RocketLandingEnv(gymnasium.Env):
     def __init__(self):
+        self.rewards_episode = []
+        self.prev_shaping = None
         self.reward_plot = []
-        self._i_step = 0
         self.trajectory_plot = []
         surface_points = self.parse_planet_surface()
         self.surface = LineString(surface_points.geoms)
@@ -34,8 +28,8 @@ class RocketLandingEnv(gymnasium.Env):
             self.initial_fuel,  # fuel remaining
             0,  # rotation
             0,  # thrust power
-            distance_squared_to_line(initial_pos, self.landing_spot),  # distance to landing spot
-            distance_squared_to_line(initial_pos, self.surface)  # distance to surface
+            distance_to_line(initial_pos, self.landing_spot),  # distance to landing spot
+            distance_to_line(initial_pos, self.surface)  # distance to surface
         ])
         self.state_intervals = [
             [0, 7000],  # x
@@ -45,8 +39,8 @@ class RocketLandingEnv(gymnasium.Env):
             [0, self.initial_fuel],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [0, 3000 ** 2],  # distance squared landing_spot
-            [0, 3000 ** 2]  # distance squared surface
+            [0, 3000],  # distance squared landing_spot
+            [0, 3000]  # distance squared surface
         ]
         self.state = self.initial_state
         self.action_constraints = [15, 1]
@@ -65,6 +59,7 @@ class RocketLandingEnv(gymnasium.Env):
         )
         fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
         self.fig = fig
+        # plt.close(fig)
         # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
@@ -111,7 +106,6 @@ class RocketLandingEnv(gymnasium.Env):
     def step(self, action_to_do_input):
         action_to_do = np.copy(action_to_do_input)
         action_to_do[0] = action_to_do[0] * 90
-        # action_to_do[1] = action_to_do[1] * 4
         action_to_do[1] = (action_to_do[1] + 1) / 2 * 4
 
         action_to_do = np.round(action_to_do)
@@ -119,36 +113,20 @@ class RocketLandingEnv(gymnasium.Env):
         # print("Step done with action :", action_to_do_input, action_to_do)
 
         tmp = self.denormalize_state(self.state)
-        # self.state = self.compute_next_state(self.state, action_to_do)
         self.state = self.compute_next_state(tmp, action_to_do)
         self.state = self.normalize_state(self.state)
         obs = self._get_obs()
-        # reward = self.compute_reward(obs['achieved_goal'], obs['desired_goal'], {})
-        reward, terminated = self.reward_function(obs)
+        reward, terminated = self.reward_function_2(obs)
         self.trajectory_plot.append(self.denormalize_state(obs))
+        self.rewards_episode.append(reward)
         if terminated:
-            self.reward_plot.append(reward)
+            self.reward_plot.append(np.sum(self.rewards_episode))
             plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
             display_graph(self.trajectory_plot, 0, self.ax_trajectories)
             self.trajectory_plot = []
-        # if self._i_step % 1000 == 0:
-        #     self.save_model()
-        # self._i_step += 1
+            self.rewards_episode = []
 
         return self._get_obs(), reward, terminated, False, {}
-
-    def is_done(self, state):
-        state = self.denormalize_state(state)
-        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
-        is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
-                                 abs(vs) <= 40 and abs(hs) <= 20)
-        is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
-                               dist_surface < 1 or remaining_fuel < -4)
-        is_crashed_on_landing_spot = dist_landing_spot < 1
-        if is_successful_landing or is_crashed_anywhere or is_crashed_on_landing_spot:
-            return True
-        else:
-            return False
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
@@ -174,8 +152,8 @@ class RocketLandingEnv(gymnasium.Env):
                      new_horizontal_speed,
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
-                     distance_squared_to_line(np.array(new_pos), self.landing_spot),
-                     distance_squared_to_line(new_pos, self.surface)]
+                     distance_to_line(np.array(new_pos), self.landing_spot),
+                     distance_to_line(new_pos, self.surface)]
         return np.array(new_state)
 
     def render(self):
@@ -184,83 +162,57 @@ class RocketLandingEnv(gymnasium.Env):
     def close(self):
         pass
 
-    def convert_to_bit_vector(self, state: Union[int, np.ndarray], batch_size: int) -> np.ndarray:
-        """
-        Convert to bit vector if needed.
+    def reward_function_2(self, state):
+        middle_point = self.landing_spot.interpolate(0.5)
+        x_interval = [0, 7000]
+        y_interval = [0, 3000]
+        scaled_x = (middle_point.x - x_interval[0]) / (x_interval[1] - x_interval[0])
+        scaled_y = (middle_point.y - y_interval[0]) / (y_interval[1] - y_interval[0])
+        scaled_middle_point_coordinates = (scaled_x, scaled_y)
 
-        :param state: The state to be converted, which can be either an integer or a numpy array.
-        :param batch_size: The batch size.
-        :return: The state converted into a bit vector.
-        """
-        # Convert back to bit vector
-        if isinstance(state, int):
-            bit_vector = np.array(state).reshape(batch_size, -1)
-            # Convert to binary representation
-            bit_vector = ((bit_vector[:, :] & (1 << np.arange(len(self.state)))) > 0).astype(int)
-        else:
-            bit_vector = np.array(state).reshape(batch_size, -1)
-        return bit_vector
+        # dist_landing_spot_2 = distance([x, y], scaled_middle_point_coordinates)
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+        reward = 0
+        shaping = (
+                -100 * distance_2([x, y], scaled_middle_point_coordinates)
+                - 100 * np.sqrt((hs-0.5 - 0) ** 2 + (vs-0.5 - 0) ** 2)
+                - 100 * abs(rotation - 0.5)
+        )
+        # t = distance_2([x, y], scaled_middle_point_coordinates)
+        if self.prev_shaping is not None:
+            reward = shaping - self.prev_shaping
+        self.prev_shaping = shaping
 
-    def compute_reward(self, achieved_goal, desired_goal, info):
-        if isinstance(achieved_goal, int):
-            batch_size = 1
-        else:
-            batch_size = achieved_goal.shape[0] if len(achieved_goal.shape) > 1 else 1
+        reward -= (
+            thrust * 0.30
+        )
 
-        desired_goal = self.convert_to_bit_vector(desired_goal, batch_size)
-        achieved_goal = self.convert_to_bit_vector(achieved_goal, batch_size)
-        distance = np.linalg.norm(achieved_goal - desired_goal, axis=-1)
-        # t = -(distance > 0.1).astype(np.float32)
-        # print(t)
-        return -(distance > 0).astype(np.float32)
-
-    def reward_function(self, state: list) -> tuple[float, bool]:
         state = self.denormalize_state(state)
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+        # print(t, [x,y], dist_landing_spot)
+        terminated = False
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                                  abs(vs) <= 40 and abs(hs) <= 20)
         is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
                                dist_surface < 1 or remaining_fuel < -4)
         is_crashed_on_landing_spot = dist_landing_spot < 1
-
-        reward = 0
-        done = False
         if is_successful_landing:
-            # print("SUCCESSFUL LANDING !", state)
-            print('SUCCESS')
-            exit(80)
-            done = True
-            reward = 3 + norm_reward(self.initial_fuel - remaining_fuel, 0, self.initial_fuel) * 5
-            return reward, done
+            print("SUCCESSFUL LANDING !", state)
+            terminated = True
+            reward = +100
+            # exit(0)
         elif is_crashed_on_landing_spot:
             formatted_list = [f"{label}: {round(value):04d}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
-            done = True
-            reward = (norm_reward(abs(vs), 40, 150) +
-                      norm_reward(abs(hs), 20, 150) +
-                      # (1 if abs(rotation) == 0.0 else 0)
-                      norm_reward_to_the_fourth(abs(rotation), 0, 90)
-                      )
-            print('Crash on landing side', formatted_list, reward, norm_reward(abs(vs), 40, 150), norm_reward(abs(hs), 20, 150), norm_reward_to_the_fourth(abs(rotation), 0, 90))
-            return reward, done
-            # return reward, done
+            print('Crash on landing side', formatted_list)
+            terminated = True
+            reward = -100
         elif is_crashed_anywhere:
             print("crash anywhere", [x, y])
-            done = True
-            reward = -1 + norm_reward(dist_landing_spot, 0, 3000 ** 2)
-            # return reward, done
-            return -1, done
-        return reward, done
+            terminated = True
+            reward = -100
 
-
-def norm_reward(feature, interval_low, interval_high) -> float:
-    feature = np.clip(feature, interval_low, interval_high)
-    return 1.0 - ((feature - interval_low) / (interval_high - interval_low))
-
-
-def norm_reward_to_the_fourth(feature, interval_low, interval_high) -> float:
-    feature = np.clip(feature, interval_low, interval_high)
-    return 1.0 - (((feature - interval_low) / (interval_high - interval_low)) ** (1 / 4))
+        return reward, terminated
 
 
 def action_2_min_max(old_rota: int) -> list:

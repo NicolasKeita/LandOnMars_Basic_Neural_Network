@@ -16,28 +16,6 @@ def create_graph(line, title: str, ax):
     ax.grid(True)
 
 
-def plot_mean_rewards(rewards, ax):
-    ax.plot(rewards, color='red')
-    ax.set_xlabel('Iteration')
-    ax.set_ylabel('Average Reward')
-    ax.set_title('Training Progress - average rewards throughout entire horizon')
-    plt.pause(0.001)
-
-
-# def plot_terminal_state_rewards(rewards, ax, window_size=100):
-#     ax.clear()
-#     ax.plot(rewards, color='red', label='Episode Reward')
-#
-#     # Calculate the mean over a specified window
-#     if len(rewards) >= window_size:
-#         means = [sum(rewards[i - window_size + 1:i + 1]) / window_size for i in range(window_size - 1, len(rewards))]
-#         ax.plot(range(window_size - 1, len(rewards)), means, label=f'Mean over {window_size} episodes', color='blue')
-#
-#     ax.set_xlabel('Iteration')
-#     ax.set_ylabel('Average Reward')
-#     ax.set_title('Training Progress - Terminal State Reward')
-#     ax.legend()
-#     plt.pause(0.001)
 
 def plot_terminal_state_rewards(rewards, ax, window_size=100):
     ax.clear()
