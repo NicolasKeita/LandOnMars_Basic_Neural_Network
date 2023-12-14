@@ -11,7 +11,6 @@ max_horizon = 800
 class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
-        self.env.reset()
         self.population: list[list[list[int]]] = self.init_population()
 
     def crossover(self, population_survivors: list[list[list[int]]]):
@@ -32,6 +31,12 @@ class GeneticAlgorithm:
         offspring.extend(population_survivors)
         return offspring
 
+    def mutation(self, population: list[list[list]]):
+        return population
+
+    def heuristic(self, population: list[list[list]]):
+        return population
+
     def roulette_wheel_selection(self, population, fitness_values):
         total_fitness = sum(fitness_values)
         selection_probabilities = [fitness / total_fitness for fitness in fitness_values]
@@ -45,6 +50,8 @@ class GeneticAlgorithm:
             self.population = np.array(self.population)
             parents = self.population[np.argsort(rewards)[-2:]]
             self.population = self.crossover(parents)
+            self.population = self.mutation(self.population)
+            self.population = self.heuristic(self.population)
             print("Time spent:", (time.time() - start_time) * 1000, "milliseconds")
         rewards = [self.rollout(individual) for individual in self.population]
         best_individual = self.population[np.argmax(rewards)]

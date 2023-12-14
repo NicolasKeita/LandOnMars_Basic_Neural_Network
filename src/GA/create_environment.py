@@ -7,20 +7,22 @@ from gymnasium import spaces
 from matplotlib import pyplot as plt
 from shapely import LineString, Point, MultiPoint
 
-from src.TD3_SB3.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
+from src.GA.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
 from src.TD3_SB3.math_utils import distance_to_line, distance, distance_2
 
 
 class RocketLandingEnv(gymnasium.Env):
     def __init__(self):
+        initial_pos = [2500, 2500]
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
         self.trajectory_plot = []
-        surface_points = self.parse_planet_surface()
-        self.surface = LineString(surface_points.geoms)
+        surface_points, np_surface_points = self.parse_planet_surface()
         self.landing_spot = self.find_landing_spot(surface_points)
-        initial_pos = [2500, 2500]
+
+        path_to_the_landing_spot = self.search_path(initial_pos, np_surface_points, self.landing_spot, [])
+        self.surface = LineString(surface_points.geoms)
         self.initial_fuel = 550
         self.initial_state = np.array([
             initial_pos[0],  # x
@@ -65,7 +67,7 @@ class RocketLandingEnv(gymnasium.Env):
         # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
-        create_graph(self.surface, 'Landing on Mars', ax_trajectories)
+        create_graph(self.surface, 'Landing on Mars', ax_trajectories, path_to_the_landing_spot)
 
     @staticmethod
     def parse_planet_surface():
@@ -79,7 +81,7 @@ class RocketLandingEnv(gymnasium.Env):
             6999 1000
         '''
         points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
-        return MultiPoint(points_coordinates)
+        return MultiPoint(points_coordinates), points_coordinates
 
     @staticmethod
     def find_landing_spot(planet_surface: MultiPoint) -> LineString:
@@ -226,6 +228,78 @@ class RocketLandingEnv(gymnasium.Env):
             random.randint(action_min_max[1][0], action_min_max[1][1])
         ]
         return random_action
+
+    def search_path(self, initial_pos, np_surface_points, landing_spot, my_path):
+        # landing_spot = np.array(landing_spot.xy)
+        segments = [(np_surface_points[i], np_surface_points[i + 1]) for i in range(len(np_surface_points) - 1)]
+
+        def split_segment(segment, num_intermediate_points):
+            start_point = np.array(segment[0])
+            end_point = np.array(segment[1])
+
+            intermediate_points = np.linspace(start_point, end_point, num_intermediate_points + 1)
+            return intermediate_points
+
+        def do_segments_intersect(segment1, segment2):
+            x1, y1 = segment1[0]
+            x2, y2 = segment1[1]
+            x3, y3 = segment2[0]
+            x4, y4 = segment2[1]
+
+            # Check if segments have the same origin
+            if (x1, y1) == (x3, y3) or (x1, y1) == (x4, y4) or (x2, y2) == (x3, y3) or (x2, y2) == (x4, y4):
+                return False
+
+            # Check if the segments intersect using a basic algorithm
+            def orientation(p, q, r):
+                val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+                if val == 0:
+                    return 0
+                return 1 if val > 0 else 2
+
+            def on_segment(p, q, r):
+                return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and
+                        q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
+
+            o1 = orientation((x1, y1), (x2, y2), (x3, y3))
+            o2 = orientation((x1, y1), (x2, y2), (x4, y4))
+            o3 = orientation((x3, y3), (x4, y4), (x1, y1))
+            o4 = orientation((x3, y3), (x4, y4), (x2, y2))
+
+            if (o1 != o2 and o3 != o4) or (o1 == 0 and on_segment((x1, y1), (x3, y3), (x2, y2))) or (
+                    o2 == 0 and on_segment((x1, y1), (x4, y4), (x2, y2))) or (
+                    o3 == 0 and on_segment((x3, y3), (x1, y1), (x4, y4))) or (
+                    o4 == 0 and on_segment((x3, y3), (x2, y2), (x4, y4))):
+                if not on_segment((x1, y1), (x2, y2), (x3, y3)) and not on_segment((x1, y1), (x2, y2), (x4, y4)):
+                    return True
+
+            return False
+
+        # Example usage:
+        goal = [2500, 100]
+        path = []
+        for segment in segments:
+            segment1 = [initial_pos, goal]
+            segment2 = segment
+            if do_segments_intersect(segment1, segment2):
+                if segment2[0][1] > segment2[1][1]:
+                    path.append(segment2[0])
+                elif segment2[0][1] < segment2[1][1]:
+                    path.append(segment2[1])
+                else:
+                    path.append(random.choice([segment2[0], segment2[1]]))
+                break
+        if len(path) == 0:
+            t = np.linspace(initial_pos, goal, 5)
+            if len(my_path) == 0:
+                return t
+            else:
+                my_path = my_path[:-1, :]
+                return np.concatenate((my_path, t))
+        else:
+            path[0][1] = path[0][1]
+            t = np.linspace(initial_pos, path[0], 5)
+            return self.search_path(path[0], np_surface_points, landing_spot, t)
 
 
 def action_2_min_max(old_rota: int) -> list:
