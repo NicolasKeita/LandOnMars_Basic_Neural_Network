@@ -1,11 +1,13 @@
 import random
 import time
+import timeit
+
 import numpy as np
 
 from src.GA.create_environment import RocketLandingEnv
 
 population_size = 20
-max_horizon = 800
+horizon = 15
 
 
 class GeneticAlgorithm:
@@ -21,7 +23,7 @@ class GeneticAlgorithm:
             parent1 = population_survivors[0]
             parent2 = population_survivors[1]
             policy = []
-            for i in range(max_horizon):
+            for i in range(horizon):
                 offspring_rotation = random.randint(min(parent1[i][0], parent2[i][0]),
                                                     max(parent1[i][0], parent2[i][0]))
                 offspring_thrust = random.randint(min(parent1[i][1], parent2[i][1]),
@@ -45,32 +47,46 @@ class GeneticAlgorithm:
 
     def learn(self, time_available):
         start_time = time.time()
-        while (time.time() - start_time) * 1000 < time_available:
-            rewards = np.array([self.rollout(individual) for individual in self.population])
-            self.population = np.array(self.population)
-            parents = self.population[np.argsort(rewards)[-2:]]
-            self.population = self.crossover(parents)
-            self.population = self.mutation(self.population)
-            self.population = self.heuristic(self.population)
-            print("Time spent:", (time.time() - start_time) * 1000, "milliseconds")
-        rewards = [self.rollout(individual) for individual in self.population]
-        best_individual = self.population[np.argmax(rewards)]
+        curr_initial_state = self.env.initial_state
+        done = False
 
-        # total_reward_best = calculate_fitness(best_individual) # TODO remove
-        # print("Time spent:", (time.time() - start_time) * 1000, "milliseconds", time_available)
-        return best_individual
+        while not done:
+            self.env.initial_state = curr_initial_state
+            self.population = self.init_population()
+            while (time.time() - start_time) * 1000 < time_available:
+                rewards = np.array([self.rollout(individual) for individual in self.population])
+                self.population = np.array(self.population)
+                parents = self.population[np.argsort(rewards)[-2:]]
+
+                self.population = self.crossover(parents)
+                crossover_time = timeit.timeit(lambda: self.crossover(parents), number=1) * 1000
+
+                # Print the execution time
+                print(f"Crossover time: {crossover_time} seconds")
+                self.population = self.heuristic(self.population)
+                print("Time spent:", (time.time() - start_time) * 1000, "milliseconds")
+            rewards = [self.rollout(individual) for individual in self.population]
+            best_individual = self.population[np.argmax(rewards)]
+            self.env.reset()
+            next_state, _, done, _, _ = self.env.step(best_individual[0])
+            curr_initial_state = self.env.denormalize_state(next_state)
+        return None
 
     def rollout(self, policy: list[list[int]]) -> float:
         state, _ = self.env.reset()
         total_reward = 0
-        i = 0
-        while True:
+        # i = 0
+        # while True:
+        for i in range(horizon):
             action = policy[i]
             next_state, reward, done, _, _ = self.env.step(action)
-            total_reward += reward
+            # self.env.trajectory_plot.append(self.env.denormalize_state(next_state))
+            # self.env.rewards_episode.append(reward)
+            total_reward += reward  # TODO discounted rewards
             if done:
                 break
             i += 1
+        self.env.render()
         return total_reward
 
     def init_population(self) -> list[list[list[int]]]:
@@ -78,7 +94,7 @@ class GeneticAlgorithm:
         random_action = [0, 0]
         for _ in range(population_size):
             individual = []
-            for _ in range(800):
+            for _ in range(horizon):
                 random_action = self.env.generate_random_action(random_action[0], random_action[1])
                 individual.append(random_action)
             population.append(individual)

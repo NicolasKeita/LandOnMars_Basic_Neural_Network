@@ -21,7 +21,7 @@ class RocketLandingEnv(gymnasium.Env):
         surface_points, np_surface_points = self.parse_planet_surface()
         self.landing_spot = self.find_landing_spot(surface_points)
 
-        path_to_the_landing_spot = self.search_path(initial_pos, np_surface_points, self.landing_spot, [])
+        self.path_to_the_landing_spot = self.search_path(initial_pos, np_surface_points, self.landing_spot, [])
         self.surface = LineString(surface_points.geoms)
         self.initial_fuel = 550
         self.initial_state = np.array([
@@ -33,7 +33,8 @@ class RocketLandingEnv(gymnasium.Env):
             0,  # rotation
             0,  # thrust power
             distance_to_line(initial_pos, self.landing_spot),  # distance to landing spot
-            distance_to_line(initial_pos, self.surface)  # distance to surface
+            distance_to_line(initial_pos, self.surface),  # distance to surface
+            0
         ])
         self.state_intervals = [
             [0, 7000],  # x
@@ -44,7 +45,8 @@ class RocketLandingEnv(gymnasium.Env):
             [-90, 90],  # rot
             [0, 4],  # thrust
             [0, 3000],  # distance squared landing_spot
-            [0, 3000]  # distance squared surface
+            [0, 3000],  # distance squared surface
+            [0, 3000]
         ]
         self.state = self.initial_state
         self.action_constraints = [15, 1]
@@ -67,7 +69,7 @@ class RocketLandingEnv(gymnasium.Env):
         # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
-        create_graph(self.surface, 'Landing on Mars', ax_trajectories, path_to_the_landing_spot)
+        create_graph(self.surface, 'Landing on Mars', ax_trajectories, self.path_to_the_landing_spot)
 
     @staticmethod
     def parse_planet_surface():
@@ -134,7 +136,7 @@ class RocketLandingEnv(gymnasium.Env):
         return self._get_obs(), reward, terminated, False, {}
 
     def compute_next_state(self, state, action: list):
-        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface = state
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface, dist_path = state
         rot, thrust = limit_actions(rotation, thrust, action)
         radians = rot * (math.pi / 180)
         x_acceleration = math.sin(radians) * thrust
@@ -158,11 +160,17 @@ class RocketLandingEnv(gymnasium.Env):
                      new_vertical_speed, remaining_fuel, rot,
                      thrust,
                      distance_to_line(np.array(new_pos), self.landing_spot),
-                     distance_to_line(new_pos, self.surface)]
+                     distance_to_line(new_pos, self.surface),
+                     self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)
+        ]
         return np.array(new_state)
 
     def render(self):
-        pass
+        self.reward_plot.append(np.sum(self.rewards_episode))
+        plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
+        display_graph(self.trajectory_plot, 0, self.ax_trajectories)
+        self.trajectory_plot = []
+        self.rewards_episode = []
 
     def close(self):
         pass
@@ -176,10 +184,11 @@ class RocketLandingEnv(gymnasium.Env):
         scaled_middle_point_coordinates = (scaled_x, scaled_y)
 
         # dist_landing_spot_2 = distance([x, y], scaled_middle_point_coordinates)
-        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
         reward = 0
         shaping = (
-                -100 * distance_2([x, y], scaled_middle_point_coordinates)
+                # -100 * distance_2([x, y], scaled_middle_point_coordinates)
+                - 100 * dist_path
                 - 100 * np.sqrt((hs-0.5 - 0) ** 2 + (vs-0.5 - 0) ** 2)
                 - 100 * abs(rotation - 0.5)
         )
@@ -193,7 +202,7 @@ class RocketLandingEnv(gymnasium.Env):
         )
 
         state = self.denormalize_state(state)
-        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface = state
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
         # print(t, [x,y], dist_landing_spot)
         terminated = False
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
@@ -219,6 +228,17 @@ class RocketLandingEnv(gymnasium.Env):
 
         return reward, terminated
 
+    def is_terminated(self, state):
+        state = self.denormalize_state(state)
+        x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
+        is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
+                                 abs(vs) <= 40 and abs(hs) <= 20)
+        is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
+                               dist_surface < 1 or remaining_fuel < -4)
+        is_crashed_on_landing_spot = dist_landing_spot < 1
+        return is_successful_landing or is_crashed_anywhere or is_crashed_on_landing_spot
+
+
     def generate_random_action(self, old_rota: int, old_power_thrust: int) -> list[int]:
         action_min_max = actions_min_max([old_rota, old_power_thrust])
         action_min_max = [[int(num) for num in sublist] for sublist in action_min_max]
@@ -232,13 +252,6 @@ class RocketLandingEnv(gymnasium.Env):
     def search_path(self, initial_pos, np_surface_points, landing_spot, my_path):
         # landing_spot = np.array(landing_spot.xy)
         segments = [(np_surface_points[i], np_surface_points[i + 1]) for i in range(len(np_surface_points) - 1)]
-
-        def split_segment(segment, num_intermediate_points):
-            start_point = np.array(segment[0])
-            end_point = np.array(segment[1])
-
-            intermediate_points = np.linspace(start_point, end_point, num_intermediate_points + 1)
-            return intermediate_points
 
         def do_segments_intersect(segment1, segment2):
             x1, y1 = segment1[0]
@@ -300,6 +313,14 @@ class RocketLandingEnv(gymnasium.Env):
             path[0][1] = path[0][1]
             t = np.linspace(initial_pos, path[0], 5)
             return self.search_path(path[0], np_surface_points, landing_spot, t)
+
+    def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
+        highest = None
+        for point in path_to_the_landing_spot:
+            if new_pos[1] >= point[1]:
+                highest = point
+                break
+        return distance_2(highest, new_pos)
 
 
 def action_2_min_max(old_rota: int) -> list:

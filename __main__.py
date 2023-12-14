@@ -16,7 +16,7 @@ if __name__ == '__main__':
     env = RocketLandingEnv()
 
     my_GA = GeneticAlgorithm(env)
-    my_GA.learn(80 * 1000000)
+    my_GA.learn(10_000)
 
     # my_DQN = DQN_1(env)
     # my_DQN.learn()
