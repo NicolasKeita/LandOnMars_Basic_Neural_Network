@@ -133,7 +133,7 @@ class RocketLandingEnv(gymnasium.Env):
             self.trajectory_plot = []
             self.rewards_episode = []
 
-        return self._get_obs(), reward, terminated, False, {}
+        return self._get_obs(), reward, terminated, False, {'side': self.straighten_info(self.denormalize_state(obs))}
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface, dist_path = state
@@ -189,17 +189,17 @@ class RocketLandingEnv(gymnasium.Env):
         shaping = (
                 # -100 * distance_2([x, y], scaled_middle_point_coordinates)
                 - 100 * dist_path
-                - 100 * np.sqrt((hs-0.5 - 0) ** 2 + (vs-0.5 - 0) ** 2)
-                - 100 * abs(rotation - 0.5)
+                # - 50 * np.sqrt((hs - 0.5 - 0) ** 2 + (vs - 0.5 - 0) ** 2)
+                # - 50 * abs(rotation - 0.5)
         )
         # t = distance_2([x, y], scaled_middle_point_coordinates)
         if self.prev_shaping is not None:
             reward = shaping - self.prev_shaping
         self.prev_shaping = shaping
 
-        reward -= (
-            thrust * 0.30
-        )
+        # reward -= (
+            # thrust * 0.30
+        # )
 
         state = self.denormalize_state(state)
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
@@ -321,6 +321,21 @@ class RocketLandingEnv(gymnasium.Env):
                 highest = point
                 break
         return distance_2(highest, new_pos)
+
+    def straighten_info(self, state):
+        x = state[0]
+        y = state[1]
+        highest = None
+        for point in self.path_to_the_landing_spot:
+            if y >= point[1]:
+                highest = point
+                break
+        if x < highest[0]:
+            return -1
+        elif x > highest[0]:
+            return 1
+        else:
+            return 0
 
 
 def action_2_min_max(old_rota: int) -> list:
