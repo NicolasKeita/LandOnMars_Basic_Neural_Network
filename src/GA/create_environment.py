@@ -8,12 +8,17 @@ from matplotlib import pyplot as plt
 from shapely import LineString, Point, MultiPoint
 
 from src.GA.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
-from src.TD3_SB3.math_utils import distance_to_line, distance, distance_2
+from src.GA.math_utils import distance_to_line, distance_2
 
 
 class RocketLandingEnv(gymnasium.Env):
     def __init__(self):
-        initial_pos = [2500, 2500]
+        initial_pos = [500, 2700]
+        initial_vs = 0
+        initial_hs = 100
+        initial_rotation = -90
+        initial_thrust = 0
+        self.initial_fuel = 800
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
@@ -23,15 +28,14 @@ class RocketLandingEnv(gymnasium.Env):
 
         self.path_to_the_landing_spot = self.search_path(initial_pos, np_surface_points, self.landing_spot, [])
         self.surface = LineString(surface_points.geoms)
-        self.initial_fuel = 550
         self.initial_state = np.array([
             initial_pos[0],  # x
             initial_pos[1],  # y
-            0,  # horizontal speed
-            0,  # vertical speed
+            initial_hs,  # horizontal speed
+            initial_vs,  # vertical speed
             self.initial_fuel,  # fuel remaining
-            0,  # rotation
-            0,  # thrust power
+            initial_rotation,  # rotation
+            initial_thrust,  # thrust power
             distance_to_line(initial_pos, self.landing_spot),  # distance to landing spot
             distance_to_line(initial_pos, self.surface),  # distance to surface
             0
@@ -44,9 +48,9 @@ class RocketLandingEnv(gymnasium.Env):
             [0, self.initial_fuel],  # fuel remaining
             [-90, 90],  # rot
             [0, 4],  # thrust
-            [0, 3000],  # distance squared landing_spot
-            [0, 3000],  # distance squared surface
-            [0, 3000]
+            [0, 3000 ** 2],  # distance squared landing_spot
+            [0, 3000 ** 2],  # distance squared surface
+            [0, 3000 ** 2]
         ]
         self.state = self.initial_state
         self.action_constraints = [15, 1]
@@ -54,15 +58,6 @@ class RocketLandingEnv(gymnasium.Env):
 
         self.observation_space = spaces.Box(low=np.array([0.0] * 9), high=np.array([1.0] * 9))
 
-        action_1_bounds = [-1, 1]
-        action_2_bounds = [-1, 1]
-        action_space_dimension = 2
-
-        self.action_space = spaces.Box(
-            low=np.array([action_1_bounds[0], action_2_bounds[0]]),
-            high=np.array([action_1_bounds[1], action_2_bounds[1]]),
-            shape=(action_space_dimension,)
-        )
         fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
         self.fig = fig
         # plt.close(fig)
@@ -74,13 +69,27 @@ class RocketLandingEnv(gymnasium.Env):
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-            6
-            0 100
-            1000 500
-            1500 100
-            3000 100
-            5000 1500
-            6999 1000
+            20
+            0 1000
+            300 1500
+            350 1400
+            500 2000
+            800 1800
+            1000 2500
+            1200 2100
+            1500 2400
+            2000 1000
+            2200 500
+            2500 100
+            2900 800
+            3000 500
+            3200 1000
+            3500 2000
+            3800 800
+            4000 200
+            5000 200
+            5500 1500
+            6999 2800
         '''
         points_coordinates = np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
         return MultiPoint(points_coordinates), points_coordinates
@@ -102,42 +111,24 @@ class RocketLandingEnv(gymnasium.Env):
         return np.array([val * (interval[1] - interval[0]) + interval[0]
                          for val, interval in zip(normalized_state, self.state_intervals)])
 
-    def _get_obs(self):
-        return self.state
-
     def reset(self, seed=None, options=None):
         self.prev_shaping = None
         self.state = self.normalize_state(self.initial_state)
-        return self._get_obs(), {}
+        return self.state, {}
 
-    def step(self, action_to_do_input):
-        action_to_do = np.copy(action_to_do_input)
-        action_to_do[0] = action_to_do[0] * 90
-        action_to_do[1] = (action_to_do[1] + 1) / 2 * 4
-
-        action_to_do = np.round(action_to_do)
-
-        # print("Step done with action :", action_to_do_input, action_to_do)
-
-        tmp = self.denormalize_state(self.state)
-        self.state = self.compute_next_state(tmp, action_to_do)
-        self.state = self.normalize_state(self.state)
-        obs = self._get_obs()
-        reward, terminated = self.reward_function_2(obs)
-        self.trajectory_plot.append(self.denormalize_state(obs))
+    def step(self, action_to_do):
+        denormalized_state = self.denormalize_state(self.state)
+        denormalized_state = self.compute_next_state(denormalized_state, action_to_do)
+        self.state = self.normalize_state(denormalized_state)
+        reward, terminated, truncated = self.reward_function_2(self.state)
+        self.trajectory_plot.append(denormalized_state)
         self.rewards_episode.append(reward)
-        if terminated:
-            self.reward_plot.append(np.sum(self.rewards_episode))
-            plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
-            display_graph(self.trajectory_plot, 0, self.ax_trajectories)
-            self.trajectory_plot = []
-            self.rewards_episode = []
-
-        return self._get_obs(), reward, terminated, False, {'side': self.straighten_info(self.denormalize_state(obs))}
+        return self.state, reward, terminated, truncated, {'side': self.straighten_info(denormalized_state)}
 
     def compute_next_state(self, state, action: list):
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot_squared, dist_surface, dist_path = state
         rot, thrust = limit_actions(rotation, thrust, action)
+        # print("action given : ", action, [rot, thrust])
         radians = rot * (math.pi / 180)
         x_acceleration = math.sin(radians) * thrust
         y_acceleration = (math.cos(radians) * thrust) - self.gravity
@@ -185,6 +176,7 @@ class RocketLandingEnv(gymnasium.Env):
 
         # dist_landing_spot_2 = distance([x, y], scaled_middle_point_coordinates)
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
+
         reward = 0
         shaping = (
                 # -100 * distance_2([x, y], scaled_middle_point_coordinates)
@@ -197,14 +189,15 @@ class RocketLandingEnv(gymnasium.Env):
             reward = shaping - self.prev_shaping
         self.prev_shaping = shaping
 
-        # reward -= (
-            # thrust * 0.30
-        # )
+        reward -= (
+            thrust * 0.30
+        )
 
         state = self.denormalize_state(state)
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
         # print(t, [x,y], dist_landing_spot)
         terminated = False
+        truncated = False
         is_successful_landing = (dist_landing_spot < 1 and rotation == 0 and
                                  abs(vs) <= 40 and abs(hs) <= 20)
         is_crashed_anywhere = (y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or
@@ -213,20 +206,26 @@ class RocketLandingEnv(gymnasium.Env):
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
             terminated = True
-            reward = +100
+            reward = +10000 + remaining_fuel * 100
             # exit(0)
         elif is_crashed_on_landing_spot:
-            formatted_list = [f"{label}: {round(value):04d}" for label, value in
+            formatted_list = [f"{label}: {value:04f}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
             print('Crash on landing side', formatted_list)
             terminated = True
-            reward = -100
+            # reward = -100
+            reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
+            if rotation == 0:
+                reward += 50
+            # reward = 1000 + norm_reward(abs(vs), 40, 150) * 100
+
         elif is_crashed_anywhere:
             print("crash anywhere", [x, y])
-            terminated = True
+            # terminated = True
+            truncated = True
             reward = -100
 
-        return reward, terminated
+        return reward, terminated, truncated
 
     def is_terminated(self, state):
         state = self.denormalize_state(state)
@@ -250,7 +249,8 @@ class RocketLandingEnv(gymnasium.Env):
         return random_action
 
     def search_path(self, initial_pos, np_surface_points, landing_spot, my_path):
-        # landing_spot = np.array(landing_spot.xy)
+        if isinstance(landing_spot, LineString):
+            landing_spot = np.array(landing_spot.xy)
         segments = [(np_surface_points[i], np_surface_points[i + 1]) for i in range(len(np_surface_points) - 1)]
 
         def do_segments_intersect(segment1, segment2):
@@ -288,8 +288,7 @@ class RocketLandingEnv(gymnasium.Env):
 
             return False
 
-        # Example usage:
-        goal = [2500, 100]
+        goal = np.mean(landing_spot, axis=1)
         path = []
         for segment in segments:
             segment1 = [initial_pos, goal]
@@ -317,9 +316,12 @@ class RocketLandingEnv(gymnasium.Env):
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
         highest = None
         for point in path_to_the_landing_spot:
-            if new_pos[1] >= point[1]:
+            # print(np.array_equal(point, path_to_the_landing_spot[0]), point, path_to_the_landing_spot[0])
+            if not np.array_equal(point, path_to_the_landing_spot[0]) and new_pos[1] >= point[1]:
                 highest = point
                 break
+        if highest is None:
+            highest = path_to_the_landing_spot[-1]
         return distance_2(highest, new_pos)
 
     def straighten_info(self, state):
@@ -327,9 +329,11 @@ class RocketLandingEnv(gymnasium.Env):
         y = state[1]
         highest = None
         for point in self.path_to_the_landing_spot:
-            if y >= point[1]:
+            if np.array_equal(point, self.path_to_the_landing_spot[0]) and y >= point[1]:
                 highest = point
                 break
+        if highest is None:
+            highest = self.path_to_the_landing_spot[-1]
         if x < highest[0]:
             return -1
         elif x > highest[0]:
@@ -359,3 +363,6 @@ def limit_actions(old_rota: int, old_power_thrust: int, action: list) -> list:
         max(action[1], range_thrust[0]), range_thrust[1])
     return [rot, thrust]
 
+def norm_reward(feature, interval_low, interval_high) -> float:
+    feature = np.clip(feature, interval_low, interval_high)
+    return 1.0 - ((feature - interval_low) / (interval_high - interval_low))

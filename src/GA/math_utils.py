@@ -1,16 +1,21 @@
 import math
-from shapely import Point, LineString, MultiPoint
+from shapely import Point, LineString
 
 
-def distance_squared(a: Point, b: Point) -> float:
-    # return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+def distance(a: Point, b: Point) -> float:
     return (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+    # return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
 
-def distance_squared_to_line(point, line_segments: LineString) -> float:
+def distance_2(a, b) -> float:
+    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+    # return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+
+def distance_to_line(point, line_segments: LineString) -> float:
     point = Point(point)
     projected_point = line_segments.interpolate(line_segments.project(point))
-    return distance_squared(projected_point, point)
+    return distance(projected_point, point)
 
 # def distance_squared_to_line(point, line_segments):
 #     x, y = point
