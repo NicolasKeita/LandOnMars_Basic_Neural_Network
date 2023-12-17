@@ -4,13 +4,13 @@ from matplotlib import pyplot as plt, cm
 matplotlib.use('Qt5Agg')
 
 
-def create_graph(line, title: str, ax, path_to_the_landing_spot):
+def create_graph(line: np.ndarray, title: str, ax, path_to_the_landing_spot):
     ax.set_xlim(0, 7000)
     ax.set_ylim(0, 3000)
     ax.set_xlabel('X Coordinate')
     ax.set_ylabel('Y Coordinate')
     ax.set_title(title)
-    x, y = line.xy
+    x, y = line[:, 0], line[:, 1]
     ax.plot(x, y, marker='o', label='Mars Surface')
     # Plot the path to the landing spot
     path_x, path_y = path_to_the_landing_spot[:, 0], path_to_the_landing_spot[:, 1]

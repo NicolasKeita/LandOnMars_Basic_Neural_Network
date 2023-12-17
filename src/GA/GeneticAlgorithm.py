@@ -1,8 +1,5 @@
-import random
 import time
-
 import numpy as np
-from shapely import LineString
 
 from src.GA.create_environment import RocketLandingEnv
 
@@ -57,10 +54,7 @@ class GeneticAlgorithm:
 
         x = curr_initial_state[0]
         y = curr_initial_state[1]
-        landing_spot = self.env.landing_spot
-        if isinstance(self.env.landing_spot, LineString):
-            landing_spot = np.array(self.env.landing_spot.xy)
-        goal = np.mean(landing_spot, axis=1)
+        goal = np.mean(self.env.landing_spot, axis=1)
         angle = np.arctan2(goal[1] - y, goal[0] - x)
         angle_degrees = np.degrees(angle)
         for action in heuristics_guides[0]:
