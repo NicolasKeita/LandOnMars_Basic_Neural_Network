@@ -162,7 +162,7 @@ class RocketLandingEnv(gymnasium.Env):
         # (dist_path * (len(self.path_to_the_landing_spot) - self.i_intermediate_path)))
         reward = shaping - self.prev_shaping if self.prev_shaping is not None else 0
         self.prev_shaping = shaping
-        reward -= thrust * 0.30 - norm_reward(abs(vs), 40, 130) * 20
+        reward -= thrust * 0.30
         # if abs(hs) < 10 and abs(vs) < 10:
         #     reward -= 1000
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
@@ -178,8 +178,8 @@ class RocketLandingEnv(gymnasium.Env):
             print('Crash on landing side', formatted_list)
             terminated = True
             reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
-            if rotation == 0:
-                reward += 50
+            # if rotation == 0:
+            #     reward += 50
         elif is_crashed_anywhere:
             # print("crash anywhere", [x, y])
             truncated, reward = True, -100

@@ -6,10 +6,11 @@ from shapely import LineString
 
 from src.GA.create_environment import RocketLandingEnv
 
-population_size = 8
-offspring_size = population_size - 3
-horizon = 30
+
+offspring_size = 4
+horizon = 50
 n_elites = 4
+population_size = offspring_size + n_elites + 1
 
 
 class GeneticAlgorithm:
@@ -40,6 +41,7 @@ class GeneticAlgorithm:
     def heuristic(self, population: np.ndarray, side_values, dist_landing_spot, curr_initial_state):
         p1 = side_values[0]
         p2 = side_values[1]
+        heuristics_guides = np.zeros((2, horizon, 2), dtype=int)
 
         if p1 == p2:
             if p1 == 1:
@@ -53,7 +55,6 @@ class GeneticAlgorithm:
                         action[0] += 5
                         action[0] = np.clip(action[0], -90, 90)
 
-        individual = population[np.random.randint(population.shape[0])]
         x = curr_initial_state[0]
         y = curr_initial_state[1]
         landing_spot = self.env.landing_spot
@@ -62,7 +63,7 @@ class GeneticAlgorithm:
         goal = np.mean(landing_spot, axis=1)
         angle = np.arctan2(goal[1] - y, goal[0] - x)
         angle_degrees = np.degrees(angle)
-        for action in individual:
+        for action in heuristics_guides[0]:
             action[1] = 4
             action[0] = np.clip(round(angle_degrees), -90, 90)
 
@@ -84,7 +85,7 @@ class GeneticAlgorithm:
             #     action[1] = 4
             #     action[0] = round(angle_degrees)
         population = np.concatenate([np.array([[[0, 4]] * horizon]), population])
-        return population
+        return population, heuristics_guides
 
     def learn(self, time_available):
         curr_initial_state = self.env.initial_state
@@ -100,6 +101,7 @@ class GeneticAlgorithm:
             self.population = self.init_population(curr_initial_state[5], curr_initial_state[6])
             start_time = time.time()
             while (time.time() - start_time) * 1000 < time_available:
+                start_time_2 = time.time()
                 rewards = [self.rollout(individual) for individual in self.population]
                 rewards, side, _ = zip(*rewards)
                 sorted_indices = np.argsort(rewards)
@@ -107,9 +109,9 @@ class GeneticAlgorithm:
                 side = np.array(side)
                 selected_side_values = side[sorted_indices[-n_elites:]]
                 self.population = self.crossover(parents)
-                self.population = self.heuristic(self.population, selected_side_values, curr_initial_state[7], curr_initial_state)
-                self.population = np.concatenate((self.population, parents))
-                # print("Time spent:", (time.time() - start_time) * 1000, "milliseconds")
+                self.population, heuristic_guides = self.heuristic(self.population, selected_side_values, curr_initial_state[7], curr_initial_state)
+                self.population = np.concatenate((self.population, parents, heuristic_guides))
+                print("Time spent:", (time.time() - start_time_2) * 1000, "milliseconds")
             # print("Massive END rollout")
             rewards = [self.rollout(individual) for individual in self.population]
             rewards, _, _ = zip(*rewards)
