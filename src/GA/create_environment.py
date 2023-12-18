@@ -10,19 +10,22 @@ from src.GA.math_utils import distance_to_line, distance_2, calculate_intersecti
 class RocketLandingEnv:
     def __init__(self):
         self.i_intermediate_path = None
-        initial_pos = [2500, 2700]
+        initial_pos = [6500, 2800]
         initial_vs = 0
-        initial_hs = 0
-        initial_rotation = 0
+        initial_hs = -90
+        initial_rotation = 90
         initial_thrust = 0
-        self.initial_fuel = 550
+        self.initial_fuel = 750
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
         self.trajectory_plot = []
         self.surface = self.parse_planet_surface()
+        self.surface_segments = [(self.surface[i], self.surface[i + 1]) for i in range(len(self.surface) - 1)]
         self.landing_spot = self.find_landing_spot(self.surface)
+        self.middle_landing_spot = np.mean(self.landing_spot, axis=0)
         self.path_to_the_landing_spot = self.search_path(initial_pos, self.surface, self.landing_spot, [])
+
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 300]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
@@ -67,14 +70,14 @@ class RocketLandingEnv:
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-7
-0 100
-1000 500
-1500 1500
-3000 1000
-4000 150
-5500 150
-6999 800
+        7
+        0 100
+        1000 500
+        1500 1500
+        3000 1000
+        4000 150
+        5500 150
+        6999 800
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
         # return MultiPoint(points_coordinates), points_coordinates
@@ -98,8 +101,8 @@ class RocketLandingEnv:
     def step(self, action_to_do: np.ndarray):
         self.state = self._compute_next_state(self.state, action_to_do)
         reward, terminated, truncated = self._compute_reward(self.state)
-        # self.trajectory_plot.append(self.state)
-        # self.rewards_episode.append(reward)
+        self.trajectory_plot.append(self.state)
+        self.rewards_episode.append(reward)
         return self.state, reward, terminated, truncated, {'side': self.straighten_info(self.state)}
 
     def _compute_next_state(self, state, action: np.ndarray):
@@ -139,7 +142,9 @@ class RocketLandingEnv:
         shaping = -100 * (1 - norm_reward(dist_path, 0, 1000 ** 2))
         reward = shaping - self.prev_shaping if self.prev_shaping is not None else 0
         self.prev_shaping = shaping
+        # print("Reward before thrust:", reward)
         reward -= thrust * 0.30
+        # print("reward = ", reward)
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
         is_crashed_on_landing_spot = dist_landing_spot < 1
         is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 5
@@ -154,19 +159,18 @@ class RocketLandingEnv:
             terminated = True
             reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
         elif is_crashed_anywhere:
+            # print("Crash anywhere", x, y)
             truncated, reward = True, -100
         return reward, terminated, truncated
 
     def generate_random_action(self, old_rota: int, old_power_thrust: int) -> np.ndarray:
-        rotation_limits = self.generate_action_limits(old_rota, 15, -90, 90)
-        thrust_limits = self.generate_action_limits(old_power_thrust, 1, 0, 4)
-        random_rotation = np.random.randint(rotation_limits[0], rotation_limits[1] + 1, dtype=int)
-        random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1, dtype=int)
-        return np.array([random_rotation, random_thrust])
+        rotation_limits = self._generate_action_limits(old_rota, 15, -90, 90)
+        thrust_limits = self._generate_action_limits(old_power_thrust, 1, 0, 4)
+        random_rotation = np.random.randint(rotation_limits[0], rotation_limits[1] + 1)
+        random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1)
+        return np.array([random_rotation, random_thrust], dtype=int)
 
     def search_path(self, initial_pos, surface, landing_spot, my_path):
-        segments = [(surface[i], surface[i + 1]) for i in range(len(surface) - 1)]
-
         def do_segments_intersect(segment1, segment2):
             x1, y1 = segment1[0]
             x2, y2 = segment1[1]
@@ -202,10 +206,10 @@ class RocketLandingEnv:
 
             return False
 
-        goal = np.mean(landing_spot, axis=1)
         path = []
-        for segment in segments:
-            segment1 = [initial_pos, goal]
+        # check if there are any obstacles in the path
+        for segment in self.surface_segments:
+            segment1 = [initial_pos, self.middle_landing_spot]
             segment2 = segment
             if do_segments_intersect(segment1, segment2):
                 if segment2[0][1] > segment2[1][1]:
@@ -216,7 +220,7 @@ class RocketLandingEnv:
                     path.append(random.choice([segment2[0], segment2[1]]))
                 break
         if len(path) == 0:
-            t = np.linspace(initial_pos, goal, 5)
+            t = np.linspace(initial_pos, self.middle_landing_spot, 5)
             if len(my_path) == 0:
                 return t
             else:
@@ -260,12 +264,12 @@ class RocketLandingEnv:
             return 0
 
     @staticmethod
-    def generate_action_limits(center: int, delta: int, min_value: int, max_value: int) -> tuple[int, int]:
+    def _generate_action_limits(center: int, delta: int, min_value: int, max_value: int) -> tuple[int, int]:
         return max(center - delta, min_value), min(center + delta, max_value)
 
     def limit_actions(self, old_rota: int, old_power_thrust: int, action: np.ndarray) -> tuple[int, int]:
-        rotation_limits = self.generate_action_limits(old_rota, 15, -90, 90)
-        thrust_limits = self.generate_action_limits(old_power_thrust, 1, 0, 4)
+        rotation_limits = self._generate_action_limits(old_rota, 15, -90, 90)
+        thrust_limits = self._generate_action_limits(old_power_thrust, 1, 0, 4)
 
         rotation = np.clip(action[0], *rotation_limits)
         thrust = np.clip(action[1], *thrust_limits)
