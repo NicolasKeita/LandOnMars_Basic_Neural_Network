@@ -4,7 +4,7 @@ import numpy as np
 from src.GA.create_environment import RocketLandingEnv
 
 
-offspring_size = 4
+offspring_size = 3
 horizon = 50
 n_elites = 4
 population_size = offspring_size + n_elites + 1
@@ -63,21 +63,8 @@ class GeneticAlgorithm:
 
         if dist_landing_spot < 300 ** 2:
             individual = population[np.random.randint(population.shape[0])]
-            # for individual in population:
             for action in individual:
                 action[0] = 0
-            # individual = population[np.random.randint(population.shape[0])]
-            # x = curr_initial_state[0]
-            # y = curr_initial_state[1]
-            # landing_spot = self.env.landing_spot
-            # if isinstance(self.env.landing_spot, LineString):
-            #     landing_spot = np.array(self.env.landing_spot.xy)
-            # goal = np.mean(landing_spot, axis=1)
-            # angle = np.arctan2(goal[1] - y, goal[0] - x)
-            # angle_degrees = np.degrees(angle)
-            # for action in individual:
-            #     action[1] = 4
-            #     action[0] = round(angle_degrees)
         population = np.concatenate([np.array([[[0, 4]] * horizon]), population])
         return population, heuristics_guides
 
@@ -88,28 +75,38 @@ class GeneticAlgorithm:
         global i2
         i2 = 0
         policy_global = []
+        parents = None
 
         while not (terminated or truncated):
             i2 += 1
             self.env.initial_state = curr_initial_state
-            self.population = self.init_population(curr_initial_state[5], curr_initial_state[6])
+            self.population = self.init_population(curr_initial_state[5], curr_initial_state[6], parents)
             start_time = time.time()
-            while (time.time() - start_time) * 1000 < time_available:
+            while True:
                 start_time_2 = time.time()
+                # _, unique_indices = np.unique(self.population, axis=0, return_index=True)
+                # if len(unique_indices) != self.population.shape[0]:
+                #     raise ValueError("Duplicate individuals found in the population.")
+
                 rewards = [self.rollout(individual) for individual in self.population]
-                rewards, side, _ = zip(*rewards)
+                rewards, side = zip(*rewards)
                 sorted_indices = np.argsort(rewards)
                 parents = self.population[sorted_indices[-n_elites:]]
+                if (time.time() - start_time) * 1000 >= time_available:
+                    break
                 side = np.array(side)
                 selected_side_values = side[sorted_indices[-n_elites:]]
                 self.population = self.crossover(parents)
+                self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
+                                                                      curr_initial_state[6])
                 self.population, heuristic_guides = self.heuristic(self.population, selected_side_values, curr_initial_state[7], curr_initial_state)
+                self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
+                                                                      curr_initial_state[6])
                 self.population = np.concatenate((self.population, parents, heuristic_guides))
-                print("Time spent:", (time.time() - start_time_2) * 1000, "milliseconds")
-            # print("Massive END rollout")
-            rewards = [self.rollout(individual) for individual in self.population]
-            rewards, _, _ = zip(*rewards)
-            best_individual = self.population[np.argmax(rewards)]
+                self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
+                                                                      curr_initial_state[6])
+                print("One generation duration:", (time.time() - start_time_2) * 1000, "milliseconds")
+            best_individual = parents[-1]
             self.env.reset()
             next_state, _, terminated, truncated, _ = self.env.step(best_individual[0])
             print("Action chosen : ", best_individual[0], "Here i2", i2)
@@ -119,7 +116,7 @@ class GeneticAlgorithm:
         print(policy_global)
         return None
 
-    def rollout(self, policy: np.ndarray) -> tuple[int, int, float]:
+    def rollout(self, policy: np.ndarray) -> tuple[int, int]:
         self.env.reset()
         total_reward = 0
         infos = None
@@ -138,26 +135,29 @@ class GeneticAlgorithm:
                 total_reward += reward * (discount_factor ** i)
             i += 1
         self.env.render()
-        return total_reward, infos['side'], next_state[7]
+        return total_reward, infos['side']
 
-    # def init_population(self, previous_rotation, previous_thrust) -> list[list[list[int]]]:
-    #     population = []
-    #     for _ in range(population_size):
-    #         individual = []
-    #         random_action = [previous_rotation, previous_thrust]
-    #         for _ in range(horizon):
-    #             random_action = self.env.generate_random_action(random_action[0], random_action[1])
-    #             individual.append(random_action)
-    #         population.append(individual)
-    #     return population
+    def init_population(self, previous_rotation, previous_thrust, parents=None) -> np.ndarray:
+        population = np.zeros((population_size, horizon, 2), dtype=int)
+        num_parents = None
+        if parents is not None:
+            num_parents = len(parents)
+            population[:num_parents] = parents
+        for i in range(num_parents if parents is not None else 0, population_size):
+            population[i] = self.generate_random_individual(previous_rotation, previous_thrust)
+        return population
 
-    def init_population(self, previous_rotation, previous_thrust) -> np.ndarray:
-        population = np.empty((population_size, horizon, 2), dtype=int)
+    def generate_random_individual(self, previous_rotation, previous_thrust) -> np.ndarray:
+        individual = np.zeros((horizon, 2), dtype=int)
+        random_action = np.array([previous_rotation, previous_thrust])
+        for i in range(horizon):
+            random_action = self.env.generate_random_action(random_action[0], random_action[1])
+            individual[i] = random_action
+        return individual
 
-        for i in range(population_size):
-            random_action = np.array([previous_rotation, previous_thrust])
-            for j in range(horizon):
-                random_action = self.env.generate_random_action(random_action[0], random_action[1])
-                population[i, j] = random_action
-
+    def replace_duplicates_with_random(self, population, previous_rotation, previous_thrust):
+        _, unique_indices = np.unique(population, axis=0, return_index=True)
+        duplicate_indices = np.setdiff1d(np.arange(population.shape[0]), unique_indices)
+        for i in duplicate_indices:
+            population[i] = self.generate_random_individual(previous_rotation, previous_thrust)
         return population

@@ -1,7 +1,5 @@
 import math
 import random
-
-import gymnasium
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -9,15 +7,15 @@ from src.GA.graph_handler import create_graph, display_graph, plot_terminal_stat
 from src.GA.math_utils import distance_to_line, distance_2, calculate_intersection
 
 
-class RocketLandingEnv(gymnasium.Env):
+class RocketLandingEnv:
     def __init__(self):
         self.i_intermediate_path = None
-        initial_pos = [500, 2700]
+        initial_pos = [2500, 2700]
         initial_vs = 0
-        initial_hs = 100
-        initial_rotation = -90
+        initial_hs = 0
+        initial_rotation = 0
         initial_thrust = 0
-        self.initial_fuel = 800
+        self.initial_fuel = 550
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
@@ -69,27 +67,14 @@ class RocketLandingEnv(gymnasium.Env):
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-20
-0 1000
-300 1500
-350 1400
-500 2000
-800 1800
-1000 2500
-1200 2100
-1500 2400
-2000 1000
-2200 500
-2500 100
-2900 800
-3000 500
-3200 1000
-3500 2000
-3800 800
-4000 200
-5000 200
-5500 1500
-6999 2800
+7
+0 100
+1000 500
+1500 1500
+3000 1000
+4000 150
+5500 150
+6999 800
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
         # return MultiPoint(points_coordinates), points_coordinates
@@ -127,16 +112,17 @@ class RocketLandingEnv(gymnasium.Env):
         new_vertical_speed = vs + y_acceleration
         new_x = x + hs - 0.5 * x_acceleration
         new_y = y + vs + 0.5 * y_acceleration
-        new_pos = [np.clip(new_x, 0, 7000), np.clip(new_y, 0, 3000)]
+        new_pos = np.clip([new_x, new_y], [0, 0], [7000, 3000])
         new_pos = calculate_intersection(x, y, new_pos, self.surface)
         remaining_fuel = max(remaining_fuel - thrust, 0)
         surface_segments = [self.surface[i:i + 2] for i in range(len(self.surface) - 1)]
+        dist_to_landing_spot = distance_to_line(new_pos, [self.landing_spot])
+        dist_to_surface = distance_to_line(new_pos, surface_segments)
+        dist_to_path = self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)
 
         new_state = [new_pos[0], new_pos[1], new_horizontal_speed, new_vertical_speed,
-                     remaining_fuel, rotation, thrust,
-                     distance_to_line(new_pos, [self.landing_spot]),
-                     distance_to_line(new_pos, surface_segments),
-                     self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)]
+                     remaining_fuel, rotation, thrust, dist_to_landing_spot,
+                     dist_to_surface, dist_to_path]
         return np.array(new_state)
 
     def render(self):
@@ -147,19 +133,13 @@ class RocketLandingEnv(gymnasium.Env):
         self.trajectory_plot = []
         self.rewards_episode = []
 
-    def close(self):
-        pass
-
     def _compute_reward(self, state: np.ndarray) -> tuple[float, bool, bool]:
         terminated, truncated = False, False
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
         shaping = -100 * (1 - norm_reward(dist_path, 0, 1000 ** 2))
-        # (dist_path * (len(self.path_to_the_landing_spot) - self.i_intermediate_path)))
         reward = shaping - self.prev_shaping if self.prev_shaping is not None else 0
         self.prev_shaping = shaping
         reward -= thrust * 0.30
-        # if abs(hs) < 10 and abs(vs) < 10:
-        #     reward -= 1000
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
         is_crashed_on_landing_spot = dist_landing_spot < 1
         is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 5
@@ -173,10 +153,7 @@ class RocketLandingEnv(gymnasium.Env):
             print('Crash on landing side', formatted_list)
             terminated = True
             reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
-            # if rotation == 0:
-            #     reward += 50
         elif is_crashed_anywhere:
-            # print("crash anywhere", [x, y])
             truncated, reward = True, -100
         return reward, terminated, truncated
 
@@ -283,8 +260,8 @@ class RocketLandingEnv(gymnasium.Env):
             return 0
 
     @staticmethod
-    def generate_action_limits(center, delta, min_value, max_value):
-        return [max(center - delta, min_value), min(center + delta, max_value)]
+    def generate_action_limits(center: int, delta: int, min_value: int, max_value: int) -> tuple[int, int]:
+        return max(center - delta, min_value), min(center + delta, max_value)
 
     def limit_actions(self, old_rota: int, old_power_thrust: int, action: np.ndarray) -> tuple[int, int]:
         rotation_limits = self.generate_action_limits(old_rota, 15, -90, 90)
