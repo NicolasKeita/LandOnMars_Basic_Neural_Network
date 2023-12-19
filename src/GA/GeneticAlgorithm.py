@@ -8,10 +8,10 @@ class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
 
-        self.horizon = 50
-        self.offspring_size = 4
+        self.horizon = 55
+        self.offspring_size = 10
         self.n_elites = 4
-        self.n_heuristic_guides = 2
+        self.n_heuristic_guides = 3
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
 
         self.population = self.init_population(self.env.initial_state[5], self.env.initial_state[6])
@@ -19,7 +19,7 @@ class GeneticAlgorithm:
     def crossover(self, population_survivors: np.ndarray, offspring_size):
         offspring = []
         while len(offspring) < offspring_size:
-            indices = np.random.randint(population_survivors.shape[0], size=2)
+            indices = np.random.randint(population_survivors.shape[0], size=(2))
             parents = population_survivors[indices]
             policy = np.zeros((self.horizon, 2), dtype=int)
             for i in range(self.horizon):
@@ -27,21 +27,22 @@ class GeneticAlgorithm:
                 #                                        np.amax(parents[:, i, 0], axis=0) + 10)
                 # offspring_thrust = np.random.randint(np.amin(parents[:, i, 1], axis=0) - 1,
                 #                                      np.amax(parents[:, i, 1], axis=0) + 1)
-                offspring_rotation = np.random.randint(np.amin(parents[:, i, 0], axis=0) - 5,
-                                                       np.amax(parents[:, i, 0], axis=0) + 5)
-                offspring_thrust = np.random.randint(np.amin(parents[:, i, 1], axis=0) - 1,
-                                                     np.amax(parents[:, i, 1], axis=0) + 1)
+                offspring_rotation = np.random.uniform(parents[0, i, 0], parents[1, i, 0])
+                offspring_thrust = np.random.uniform(parents[0, i, 1], parents[1, i, 1])
                 offspring_rotation = np.clip(offspring_rotation, -90, 90)
                 offspring_thrust = np.clip(offspring_thrust, 0, 4)
                 policy[i] = [offspring_rotation, offspring_thrust]
             offspring.append(policy)
         return np.array(offspring)
 
-    def mutation(self, population: list[list[list]]):
+    def mutation(self, population: np.ndarray):
+        individual = population[np.random.randint(population.shape[0])]
+        for action in individual:
+            action[1] = 4
         return population
 
     def heuristic(self, curr_initial_state):
-        heuristics_guides = np.zeros((2, self.horizon, 2), dtype=int)
+        heuristics_guides = np.zeros((3, self.horizon, 2), dtype=int)
         # one guide to slow down full speed, one guide to go toward the target full speed
 
         x = curr_initial_state[0]
@@ -54,6 +55,9 @@ class GeneticAlgorithm:
         for action in heuristics_guides[1]:
             action[1] = 4
             action[0] = np.clip(round(angle_degrees), -90, 90)
+        for action in heuristics_guides[2]:
+            action[1] = 4
+            action[0] = 0
 
         # if dist_landing_spot < 300 ** 2:
         #     policy = np.empty((50, 2))
@@ -81,41 +85,49 @@ class GeneticAlgorithm:
             start_time = time.time()
             while True:
                 start_time_2 = time.time()
+
                 rewards = [self.rollout(individual) for individual in self.population]
-                rewards, side = zip(*rewards)
+                # rewards = zip(*rewards)
                 sorted_indices = np.argsort(rewards)
-                # for i, indiv in enumerate(self.population):
-                #     print("pop", *indiv, rewards[i])
+                # print("sorted indices : ", sorted_indices)
+                for i, indiv in enumerate(self.population):
+                    print("pop", *indiv, rewards[i])
                 parents = self.population[sorted_indices[-self.n_elites:]]
+                for indiv in parents:
+                    print("parents", *indiv)
+
+
                 if (time.time() - start_time) * 1000 >= time_available:
                     break
                 # side = np.array(side)
                 # selected_side_values = side[sorted_indices[-self.n_elites:]]
-                # print("parents : ")
-                # for i, indiv in enumerate(parents):
-                #     print("parents", *indiv)
 
                 heuristic_guides = self.heuristic(curr_initial_state)
+                # for indiv in heuristic_guides:
+                #     print("heuristic", *indiv)
                 heuristic_guides = np.array(
                     [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
+                # for indiv in heuristic_guides:
+                #     print("heuritstic2", *indiv)
                 offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
                 offspring = self.crossover(parents, offspring_size)
+                offspring = self.mutation(offspring)
                 offspring = self.mutation_heuristic(offspring, curr_initial_state[7])
                 # for i, indiv in enumerate(self.population):
                 #     print("after crossover", *indiv)
                 # self.population = np.concatenate((offspring, parents, heuristic_guides))
                 self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
                     heuristic_guides) > 0 else np.concatenate((offspring, parents))
-                # for i, indiv in enumerate(self.population):
-                #     print("after concatenate", *indiv)
+                for i, indiv in enumerate(self.population):
+                    print("after concatenate", *indiv)
                 # self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
                 #                                                       curr_initial_state[6])
                 print("One generation duration:", (time.time() - start_time_2) * 1000, "milliseconds")
             best_individual = parents[-1]
             self.env.reset()
-
-            next_state, _, terminated, truncated, _ = self.env.step(best_individual[0])
-            print("Action chosen : ", best_individual[0], "Here i2", i2)
+            action_to_do = self.final_heuristic_verification(best_individual[0], curr_initial_state)
+            next_state, _, terminated, truncated, _ = self.env.step(action_to_do)
+            print("Action chosen : ", action_to_do, "Here i2", i2)
             # print('State after this action:', next_state)
             policy_global.append(list(best_individual[0]))
             curr_initial_state = next_state
@@ -135,7 +147,7 @@ class GeneticAlgorithm:
         discount_factor = 0.91
 
         for i, action in enumerate(policy):
-            next_state, reward, terminated, truncated, infos = self.env.step(action)
+            next_state, reward, terminated, truncated, _ = self.env.step(action)
             if terminated:
                 total_reward = reward
                 break
@@ -146,8 +158,8 @@ class GeneticAlgorithm:
             else:
                 total_reward += reward * (discount_factor ** i)
             i += 1
-        self.env.render()
-        return total_reward, infos['side']
+        # self.env.render()
+        return total_reward
 
     def init_population(self, previous_rotation, previous_thrust, parents=None) -> np.ndarray:
         population = np.zeros((self.population_size, self.horizon, 2), dtype=int)
@@ -181,3 +193,11 @@ class GeneticAlgorithm:
             for action in individual:
                 action[0] = 0
         return population
+
+    def final_heuristic_verification(self, action_to_do, state):
+        rotation = state[5]
+        if abs(rotation - action_to_do[0]) > 110:
+            action_to_do[1] = 0
+        # else: #TODO remove
+        #     action_to_do[1] = 4#TODO remove
+        return action_to_do

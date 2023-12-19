@@ -61,7 +61,7 @@ class RocketLandingEnv:
 
         fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
         self.fig = fig
-        plt.close(fig)
+        # plt.close(fig)
         # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
@@ -103,6 +103,8 @@ class RocketLandingEnv:
         reward, terminated, truncated = self._compute_reward(self.state)
         self.trajectory_plot.append(self.state)
         self.rewards_episode.append(reward)
+        if terminated or truncated:
+            self.render()
         return self.state, reward, terminated, truncated, {'side': self.straighten_info(self.state)}
 
     def _compute_next_state(self, state, action: np.ndarray):
@@ -129,8 +131,9 @@ class RocketLandingEnv:
         return np.array(new_state)
 
     def render(self):
-        return None
+        # return None
         self.reward_plot.append(np.sum(self.rewards_episode))
+        t = self.rewards_episode
         plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
         display_graph(self.trajectory_plot, 0, self.ax_trajectories)
         self.trajectory_plot = []
@@ -139,7 +142,14 @@ class RocketLandingEnv:
     def _compute_reward(self, state: np.ndarray) -> tuple[float, bool, bool]:
         terminated, truncated = False, False
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
-        shaping = -100 * (1 - norm_reward(dist_path, 0, 1000 ** 2))
+        if dist_landing_spot < 2000 ** 2:
+            shaping = (
+                    -100 * (1 - norm_reward(dist_landing_spot, 0, 1000 ** 2))
+                    - 50 * (1 - norm_reward(abs(vs), 39, 150))
+                    - 50 * (1 - norm_reward(abs(hs), 19, 150))
+            )
+        else:
+            shaping = -100 * (1 - norm_reward(dist_path, 0, 1000 ** 2))
         reward = shaping - self.prev_shaping if self.prev_shaping is not None else 0
         self.prev_shaping = shaping
         # print("Reward before thrust:", reward)
@@ -156,10 +166,12 @@ class RocketLandingEnv:
             formatted_list = [f"{label}: {value:04f}" for label, value in
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
             print('Crash on landing side', formatted_list)
-            terminated = True
-            reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
+            # terminated = True
+            truncated = True
+            reward = -100
+            # reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
         elif is_crashed_anywhere:
-            # print("Crash anywhere", x, y)
+            print("Crash anywhere", x, y)
             truncated, reward = True, -100
         return reward, terminated, truncated
 
