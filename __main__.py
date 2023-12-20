@@ -10,6 +10,6 @@ if __name__ == '__main__':
 
     my_GA = GeneticAlgorithm(env)
     try:
-        my_GA.learn(330)
+        my_GA.learn(8300)
     except KeyboardInterrupt:
         pass
