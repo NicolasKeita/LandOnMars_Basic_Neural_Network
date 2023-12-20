@@ -9,4 +9,7 @@ if __name__ == '__main__':
     env = RocketLandingEnv()
 
     my_GA = GeneticAlgorithm(env)
-    my_GA.learn(3000)
+    try:
+        my_GA.learn(5000)
+    except KeyboardInterrupt:
+        pass

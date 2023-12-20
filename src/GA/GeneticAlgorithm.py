@@ -8,7 +8,7 @@ class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
 
-        self.horizon = 55
+        self.horizon = 20
         self.offspring_size = 10
         self.n_elites = 4
         self.n_heuristic_guides = 3
@@ -27,8 +27,8 @@ class GeneticAlgorithm:
                 #                                        np.amax(parents[:, i, 0], axis=0) + 10)
                 # offspring_thrust = np.random.randint(np.amin(parents[:, i, 1], axis=0) - 1,
                 #                                      np.amax(parents[:, i, 1], axis=0) + 1)
-                offspring_rotation = np.random.uniform(parents[0, i, 0], parents[1, i, 0])
-                offspring_thrust = np.random.uniform(parents[0, i, 1], parents[1, i, 1])
+                offspring_rotation = my_random_int(parents[0, i, 0], parents[1, i, 0])
+                offspring_thrust = my_random_int(parents[0, i, 1], parents[1, i, 1])
                 offspring_rotation = np.clip(offspring_rotation, -90, 90)
                 offspring_thrust = np.clip(offspring_thrust, 0, 4)
                 policy[i] = [offspring_rotation, offspring_thrust]
@@ -36,9 +36,19 @@ class GeneticAlgorithm:
         return np.array(offspring)
 
     def mutation(self, population: np.ndarray):
+        mutation_rate = 0.1
+
         individual = population[np.random.randint(population.shape[0])]
         for action in individual:
             action[1] = 4
+        for individual in population:
+        # individual = population[np.random.randint(population.shape[0])]
+            for action in individual:
+                if np.random.rand() < mutation_rate:
+                    action[0] += np.random.randint(-5, 6)
+                    action[1] += np.random.randint(-1, 2)
+                    action[0] = np.clip(action[0], -90, 90)
+                    action[1] = np.clip(action[1], 0, 4)
         return population
 
     def heuristic(self, curr_initial_state):
@@ -87,11 +97,11 @@ class GeneticAlgorithm:
                 start_time_2 = time.time()
 
                 rewards = [self.rollout(individual) for individual in self.population]
-                # rewards = zip(*rewards)
+                rewards, rewards_direct = zip(*rewards)
                 sorted_indices = np.argsort(rewards)
-                # print("sorted indices : ", sorted_indices)
+                print("sorted indices : ", sorted_indices)
                 for i, indiv in enumerate(self.population):
-                    print("pop", *indiv, rewards[i])
+                    print("pop", *indiv, rewards[i], "direct:", rewards_direct[i])
                 parents = self.population[sorted_indices[-self.n_elites:]]
                 for indiv in parents:
                     print("parents", *indiv)
@@ -143,23 +153,27 @@ class GeneticAlgorithm:
         self.env.reset()
         total_reward = 0
         infos = None
-        next_state = None
+        first_reward = None
         discount_factor = 0.91
 
         for i, action in enumerate(policy):
             next_state, reward, terminated, truncated, _ = self.env.step(action)
+            if i == 1:
+                first_reward = reward
             if terminated:
                 total_reward = reward
                 break
             if truncated:
-                total_reward += reward * (discount_factor ** i)
+                # total_reward += reward * (discount_factor ** i)
+                total_reward = reward
                 # print("ONE DONE", total_reward)
                 break
             else:
-                total_reward += reward * (discount_factor ** i)
+                total_reward = reward
+                # total_reward += reward * (discount_factor ** i)
             i += 1
-        # self.env.render()
-        return total_reward
+        self.env.render()
+        return total_reward, first_reward
 
     def init_population(self, previous_rotation, previous_thrust, parents=None) -> np.ndarray:
         population = np.zeros((self.population_size, self.horizon, 2), dtype=int)
@@ -201,3 +215,10 @@ class GeneticAlgorithm:
         # else: #TODO remove
         #     action_to_do[1] = 4#TODO remove
         return action_to_do
+
+
+def my_random_int(a, b):
+    if a == b:
+        return a
+    else:
+        return np.random.randint(min(a, b), max(a, b))

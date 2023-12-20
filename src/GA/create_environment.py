@@ -103,8 +103,9 @@ class RocketLandingEnv:
         reward, terminated, truncated = self._compute_reward(self.state)
         self.trajectory_plot.append(self.state)
         self.rewards_episode.append(reward)
-        if terminated or truncated:
-            self.render()
+        # self.render()
+        # if terminated or truncated:
+        #     self.render()
         return self.state, reward, terminated, truncated, {'side': self.straighten_info(self.state)}
 
     def _compute_next_state(self, state, action: np.ndarray):
@@ -133,7 +134,6 @@ class RocketLandingEnv:
     def render(self):
         # return None
         self.reward_plot.append(np.sum(self.rewards_episode))
-        t = self.rewards_episode
         plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
         display_graph(self.trajectory_plot, 0, self.ax_trajectories)
         self.trajectory_plot = []
@@ -144,7 +144,7 @@ class RocketLandingEnv:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
         if dist_landing_spot < 2000 ** 2:
             shaping = (
-                    -100 * (1 - norm_reward(dist_landing_spot, 0, 1000 ** 2))
+                    -100 * (1 - norm_reward(dist_landing_spot, 0, 7000 ** 2))
                     - 50 * (1 - norm_reward(abs(vs), 39, 150))
                     - 50 * (1 - norm_reward(abs(hs), 19, 150))
             )
@@ -153,11 +153,13 @@ class RocketLandingEnv:
         reward = shaping - self.prev_shaping if self.prev_shaping is not None else 0
         self.prev_shaping = shaping
         # print("Reward before thrust:", reward)
-        reward -= thrust * 0.30
+        # reward -= thrust * 0.30
         # print("reward = ", reward)
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
         is_crashed_on_landing_spot = dist_landing_spot < 1
         is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 5
+
+        reward = norm_reward(dist_landing_spot, 0, 7000 ** 2) + norm_reward(abs(vs), 39, 150) + norm_reward(abs(hs), 19, 150)
 
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
@@ -167,12 +169,13 @@ class RocketLandingEnv:
                               zip(['vs', 'hs', 'rotation'], [vs, hs, rotation])]
             print('Crash on landing side', formatted_list)
             # terminated = True
-            truncated = True
-            reward = -100
+            terminated = True
+            # reward = -100
             # reward = 1000 + norm_reward(abs(vs), 39, 150) * 100 + norm_reward(abs(hs), 19, 150) * 100
         elif is_crashed_anywhere:
             print("Crash anywhere", x, y)
-            truncated, reward = True, -100
+            truncated = True
+            # truncated, reward = True, -100
         return reward, terminated, truncated
 
     def generate_random_action(self, old_rota: int, old_power_thrust: int) -> np.ndarray:
