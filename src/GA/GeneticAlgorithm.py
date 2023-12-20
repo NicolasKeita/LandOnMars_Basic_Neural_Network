@@ -8,10 +8,11 @@ class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
 
-        self.horizon = 20
+        self.horizon = 25
         self.offspring_size = 10
         self.n_elites = 4
         self.n_heuristic_guides = 3
+        self.mutation_rate = 0.3
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
 
         self.population = self.init_population(self.env.initial_state[5], self.env.initial_state[6])
@@ -36,7 +37,6 @@ class GeneticAlgorithm:
         return np.array(offspring)
 
     def mutation(self, population: np.ndarray):
-        mutation_rate = 0.1
 
         individual = population[np.random.randint(population.shape[0])]
         for action in individual:
@@ -44,8 +44,8 @@ class GeneticAlgorithm:
         for individual in population:
         # individual = population[np.random.randint(population.shape[0])]
             for action in individual:
-                if np.random.rand() < mutation_rate:
-                    action[0] += np.random.randint(-5, 6)
+                if np.random.rand() < self.mutation_rate:
+                    action[0] += np.random.randint(-15, 16)
                     action[1] += np.random.randint(-1, 2)
                     action[0] = np.clip(action[0], -90, 90)
                     action[1] = np.clip(action[1], 0, 4)

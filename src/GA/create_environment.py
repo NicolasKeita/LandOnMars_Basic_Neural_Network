@@ -61,7 +61,7 @@ class RocketLandingEnv:
 
         fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
         self.fig = fig
-        # plt.close(fig)
+        plt.close(fig)
         # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
@@ -132,7 +132,7 @@ class RocketLandingEnv:
         return np.array(new_state)
 
     def render(self):
-        # return None
+        return None
         self.reward_plot.append(np.sum(self.rewards_episode))
         plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
         display_graph(self.trajectory_plot, 0, self.ax_trajectories)
