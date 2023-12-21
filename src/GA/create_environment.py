@@ -11,12 +11,12 @@ class RocketLandingEnv:
     def __init__(self):
         self.n_intermediate_path = 6
         self.i_intermediate_path = None
-        initial_pos = [500, 2700]
-        initial_hs = 100
+        initial_pos = [6500, 2700]
+        initial_hs = -50
         initial_vs = 0
-        initial_rotation = -90
+        initial_rotation = 90
         initial_thrust = 0
-        self.initial_fuel = 800
+        self.initial_fuel = 1000
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
@@ -28,7 +28,7 @@ class RocketLandingEnv:
         self.path_to_the_landing_spot = self.search_path(initial_pos, self.surface, self.landing_spot, [])
 
         self.path_to_the_landing_spot = np.array(
-            [np.array([x, y + 300]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
+            [np.array([x, y + 200]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
         surface_segments = [self.surface[i:i + 2] for i in range(len(self.surface) - 1)]
 
@@ -75,23 +75,23 @@ class RocketLandingEnv:
 0 1000
 300 1500
 350 1400
-500 2000
-800 1800
-1000 2500
-1200 2100
-1500 2400
-2000 1000
-2200 500
-2500 100
-2900 800
-3000 500
+500 2100
+1500 2100
+2000 200
+2500 500
+2900 300
+3000 200
 3200 1000
-3500 2000
+3500 500
 3800 800
 4000 200
-5000 200
-5500 1500
-6999 2800
+4200 800
+4800 600
+5000 1200
+5500 900
+6000 500
+6500 300
+6999 500
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
         # return MultiPoint(points_coordinates), points_coordinates
@@ -108,7 +108,7 @@ class RocketLandingEnv:
 
     def reset(self, seed=None, options=None):
         self.prev_shaping = None
-        self.trajectory_plot = []
+        # self.trajectory_plot = []
         self.state = self.initial_state
         return self.state, {}
 
@@ -171,16 +171,23 @@ class RocketLandingEnv:
         # print("reward = ", reward)
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
         is_crashed_on_landing_spot = dist_landing_spot < 1
-        is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 5
+        is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 4
+        is_close_to_land = dist_landing_spot < 1500 ** 2 #todo 1000
 
         # reward = (norm_reward(dist_landing_spot, 0, 7000 ** 2)
         #           + norm_reward(abs(vs), 39, 150)
         #           + norm_reward(abs(hs), 19, 150)
         # )
-        reward = (norm_reward(dist_path, 0, 3000 ** 2)
-                  + norm_reward(abs(vs), 39, 150)
-                  + norm_reward(abs(hs), 19, 150)
-        )
+        if is_close_to_land:
+            reward = (norm_reward(dist_landing_spot, 0, 7500 ** 2)
+                      +  0.65 * norm_reward(abs(vs), 39, 140)
+                      + 0.35 * norm_reward(abs(hs), 19, 140)
+            )
+        else:
+            reward = (norm_reward(dist_path, 0, 7500 ** 2)
+                      +  0.65 * norm_reward(abs(vs), 39, 150)
+                      + 0.35 * norm_reward(abs(hs), 19, 150)
+            )
 
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
@@ -258,7 +265,7 @@ class RocketLandingEnv:
                     path.append(random.choice([segment2[0], segment2[1]]))
                 break
         if len(path) == 0:
-            t = np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)
+            t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
             if len(my_path) == 0:
                 return t
             else:
@@ -266,15 +273,15 @@ class RocketLandingEnv:
                 return np.concatenate((my_path, t))
         else:
             path[0][1] = path[0][1]
-            t = np.linspace(initial_pos, path[0], self.n_intermediate_path)
+            t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
             return self.search_path(path[0], surface, landing_spot, t)
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
         highest = None
 
         for i, point in enumerate(path_to_the_landing_spot):
-            # print(np.array_equal(point, path_to_the_landing_spot[0]), point, path_to_the_landing_spot[0])
-            if new_pos[1] >= point[1]:
+            if new_pos[1] >= point[1] and not distance_2(new_pos, point) < 25 ** 2:
+            # if new_pos[1] >= point[1]:
                 highest = point
                 self.i_intermediate_path = i
                 break

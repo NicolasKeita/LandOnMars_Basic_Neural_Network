@@ -9,10 +9,10 @@ class GeneticAlgorithm:
         self.env: RocketLandingEnv = env
 
         self.horizon = 25
-        self.offspring_size = 10
-        self.n_elites = 4
+        self.offspring_size = 30
+        self.n_elites = 6
         self.n_heuristic_guides = 3
-        self.mutation_rate = 0.3
+        self.mutation_rate = 0.4
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
 
         self.population = self.init_population(self.env.initial_state[5], self.env.initial_state[6])
@@ -97,16 +97,12 @@ class GeneticAlgorithm:
                 start_time_2 = time.time()
 
                 rewards = [self.rollout(individual) for individual in self.population]
+                self.env.render()
                 rewards, rewards_direct = zip(*rewards)
-                sorted_indices = np.argsort(rewards)
-                print("sorted indices : ", sorted_indices)
+                rewards = np.array(rewards)
                 for i, indiv in enumerate(self.population):
                     print("pop", *indiv, rewards[i], "direct:", rewards_direct[i])
-                parents = self.population[sorted_indices[-self.n_elites:]]
-                for indiv in parents:
-                    print("parents", *indiv)
-
-
+                parents = self.selection(rewards)
                 if (time.time() - start_time) * 1000 >= time_available:
                     break
                 # side = np.array(side)
@@ -128,8 +124,8 @@ class GeneticAlgorithm:
                 # self.population = np.concatenate((offspring, parents, heuristic_guides))
                 self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
                     heuristic_guides) > 0 else np.concatenate((offspring, parents))
-                for i, indiv in enumerate(self.population):
-                    print("after concatenate", *indiv)
+                # for i, indiv in enumerate(self.population):
+                #     print("after concatenate", *indiv)
                 # self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
                 #                                                       curr_initial_state[6])
                 print("One generation duration:", (time.time() - start_time_2) * 1000, "milliseconds")
@@ -172,7 +168,7 @@ class GeneticAlgorithm:
                 total_reward = reward
                 # total_reward += reward * (discount_factor ** i)
             i += 1
-        self.env.render()
+        # self.env.render()
         return total_reward, first_reward
 
     def init_population(self, previous_rotation, previous_thrust, parents=None) -> np.ndarray:
@@ -215,6 +211,31 @@ class GeneticAlgorithm:
         # else: #TODO remove
         #     action_to_do[1] = 4#TODO remove
         return action_to_do
+
+    def selection(self, rewards):
+        sorted_indices = np.argsort(rewards)
+        parents = self.population[sorted_indices[-self.n_elites:]]
+        for indiv in parents:
+            print("parents", *indiv)
+        return parents
+        random_fraction = 0.2
+        sorted_indices = np.argsort(rewards)
+        elites = self.population[sorted_indices[-self.n_elites - 5:]]
+
+        # Calculate the number of random individuals to select
+        num_random_individuals = 5
+
+        # Randomly select individuals from the remaining population
+        random_indices = np.random.choice(sorted_indices[:-self.n_elites], num_random_individuals, replace=False)
+        random_individuals = self.population[random_indices]
+
+        selected_parents = np.concatenate((elites, random_individuals), axis=0)
+
+        for indiv in selected_parents:
+            print("parents", *indiv)
+
+        return selected_parents
+
 
 
 def my_random_int(a, b):

@@ -3,7 +3,6 @@ import matplotlib
 from matplotlib import pyplot as plt, cm
 matplotlib.use('Qt5Agg')
 
-
 def create_graph(line: np.ndarray, title: str, ax, path_to_the_landing_spot):
     ax.set_xlim(0, 7000)
     ax.set_ylim(0, 3000)
@@ -22,6 +21,7 @@ def create_graph(line: np.ndarray, title: str, ax, path_to_the_landing_spot):
 
 
 def plot_terminal_state_rewards(rewards, ax, window_size=100):
+    return
     ax.clear()
     ax.plot(rewards, color='red', label='Episode Reward')
 
@@ -45,6 +45,8 @@ def plot_terminal_state_rewards(rewards, ax, window_size=100):
 def display_graph(trajectories, id_lines_color: int, ax):
     cmap = cm.get_cmap('Set1')
     color = cmap(id_lines_color % 9)
+    # if g_heuristic_global_plot:
+    #     color = 'purple'
 
     # Clear previous trajectories
     for line in ax.lines:
@@ -57,3 +59,4 @@ def display_graph(trajectories, id_lines_color: int, ax):
     ax.plot(x_values, y_values, marker='o',
             markersize=2, color=color, label='Rocket')
     plt.pause(0.001)
+
