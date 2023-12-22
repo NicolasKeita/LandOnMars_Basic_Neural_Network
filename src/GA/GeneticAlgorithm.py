@@ -1,3 +1,4 @@
+import sys
 import time
 import numpy as np
 
@@ -8,9 +9,11 @@ class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
 
-        self.horizon = 25
-        self.offspring_size = 30
-        self.n_elites = 6
+        # self.horizon = 25
+        self.horizon = 10
+        # self.offspring_size = 30
+        self.offspring_size = 10
+        self.n_elites = 3
         self.n_heuristic_guides = 3
         self.mutation_rate = 0.4
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
@@ -83,52 +86,26 @@ class GeneticAlgorithm:
         i2 = 0
         policy_global = []
         parents = None
-
-        # _, unique_indices = np.unique(self.population, axis=0, return_index=True)
-        # if len(unique_indices) != self.population.shape[0]:
-        #     raise ValueError("Duplicate individuals found in the population.")
-        # population = np.concatenate((self.population, heuristic_guides))
         while not (terminated or truncated):
             i2 += 1
             self.env.initial_state = curr_initial_state
             self.population = self.init_population(curr_initial_state[5], curr_initial_state[6], parents)
             start_time = time.time()
             while True:
-                start_time_2 = time.time()
-
-                rewards = [self.rollout(individual) for individual in self.population]
+                rewards = np.array([self.rollout(individual) for individual in self.population])
                 self.env.render()
-                rewards, rewards_direct = zip(*rewards)
-                rewards = np.array(rewards)
-                for i, indiv in enumerate(self.population):
-                    print("pop", *indiv, rewards[i], "direct:", rewards_direct[i])
                 parents = self.selection(rewards)
                 if (time.time() - start_time) * 1000 >= time_available:
                     break
-                # side = np.array(side)
-                # selected_side_values = side[sorted_indices[-self.n_elites:]]
-
                 heuristic_guides = self.heuristic(curr_initial_state)
-                # for indiv in heuristic_guides:
-                #     print("heuristic", *indiv)
                 heuristic_guides = np.array(
                     [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
-                # for indiv in heuristic_guides:
-                #     print("heuritstic2", *indiv)
                 offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
                 offspring = self.crossover(parents, offspring_size)
                 offspring = self.mutation(offspring)
                 offspring = self.mutation_heuristic(offspring, curr_initial_state[7])
-                # for i, indiv in enumerate(self.population):
-                #     print("after crossover", *indiv)
-                # self.population = np.concatenate((offspring, parents, heuristic_guides))
                 self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
                     heuristic_guides) > 0 else np.concatenate((offspring, parents))
-                # for i, indiv in enumerate(self.population):
-                #     print("after concatenate", *indiv)
-                # self.population = self.replace_duplicates_with_random(self.population, curr_initial_state[5],
-                #                                                       curr_initial_state[6])
-                print("One generation duration:", (time.time() - start_time_2) * 1000, "milliseconds")
             best_individual = parents[-1]
             self.env.reset()
             action_to_do = self.final_heuristic_verification(best_individual[0], curr_initial_state)
@@ -145,31 +122,15 @@ class GeneticAlgorithm:
         print(policy_global)
         return None
 
-    def rollout(self, policy: np.ndarray) -> tuple[int, int]:
+    def rollout(self, policy: np.ndarray[int, 2]) -> float:
         self.env.reset()
-        total_reward = 0
-        infos = None
-        first_reward = None
-        discount_factor = 0.91
+        reward = 0
 
-        for i, action in enumerate(policy):
-            next_state, reward, terminated, truncated, _ = self.env.step(action)
-            if i == 1:
-                first_reward = reward
-            if terminated:
-                total_reward = reward
+        for action in policy:
+            _, reward, terminated, truncated, _ = self.env.step(action)
+            if terminated or truncated:
                 break
-            if truncated:
-                # total_reward += reward * (discount_factor ** i)
-                total_reward = reward
-                # print("ONE DONE", total_reward)
-                break
-            else:
-                total_reward = reward
-                # total_reward += reward * (discount_factor ** i)
-            i += 1
-        # self.env.render()
-        return total_reward, first_reward
+        return reward
 
     def init_population(self, previous_rotation, previous_thrust, parents=None) -> np.ndarray:
         population = np.zeros((self.population_size, self.horizon, 2), dtype=int)
@@ -204,38 +165,17 @@ class GeneticAlgorithm:
                 action[0] = 0
         return population
 
-    def final_heuristic_verification(self, action_to_do, state):
+    @staticmethod
+    def final_heuristic_verification(action_to_do: np.ndarray[int, 1], state: np.ndarray) -> np.ndarray[int, 1]:
         rotation = state[5]
         if abs(rotation - action_to_do[0]) > 110:
             action_to_do[1] = 0
-        # else: #TODO remove
-        #     action_to_do[1] = 4#TODO remove
         return action_to_do
 
     def selection(self, rewards):
         sorted_indices = np.argsort(rewards)
         parents = self.population[sorted_indices[-self.n_elites:]]
-        for indiv in parents:
-            print("parents", *indiv)
         return parents
-        random_fraction = 0.2
-        sorted_indices = np.argsort(rewards)
-        elites = self.population[sorted_indices[-self.n_elites - 5:]]
-
-        # Calculate the number of random individuals to select
-        num_random_individuals = 5
-
-        # Randomly select individuals from the remaining population
-        random_indices = np.random.choice(sorted_indices[:-self.n_elites], num_random_individuals, replace=False)
-        random_individuals = self.population[random_indices]
-
-        selected_parents = np.concatenate((elites, random_individuals), axis=0)
-
-        for indiv in selected_parents:
-            print("parents", *indiv)
-
-        return selected_parents
-
 
 
 def my_random_int(a, b):
