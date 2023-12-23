@@ -1,8 +1,13 @@
 import sys
 import time
+from typing import Tuple
+
 import numpy as np
 import math
 import random
+
+from numpy import ndarray
+
 
 class GeneticAlgorithm:
     def __init__(self, env):
@@ -17,7 +22,7 @@ class GeneticAlgorithm:
 
         self.parents = None
 
-    def crossover(self, population_survivors: np.ndarray, offspring_size):
+    def crossover(self, population_survivors: np.ndarray, offspring_size: int) -> np.ndarray:
         offspring = []
         while len(offspring) < offspring_size:
             indices = np.random.randint(population_survivors.shape[0], size=(2))
@@ -32,7 +37,7 @@ class GeneticAlgorithm:
             offspring.append(policy)
         return np.array(offspring)
 
-    def mutation(self, population: np.ndarray):
+    def mutation(self, population: np.ndarray) -> np.ndarray:
         individual = population[np.random.randint(population.shape[0])]
         for action in individual:
             action[1] = 4
@@ -45,7 +50,7 @@ class GeneticAlgorithm:
                     action[1] = np.clip(action[1], 0, 4)
         return population
 
-    def heuristic(self, curr_initial_state):
+    def heuristic(self, curr_initial_state: np.ndarray) -> np.ndarray:
         heuristics_guides = np.zeros((3, self.horizon, 2), dtype=int)
         x = curr_initial_state[0]
         y = curr_initial_state[1]
@@ -69,7 +74,7 @@ class GeneticAlgorithm:
         start_time = time.time()
         while True:
             rewards = np.array([self.rollout(individual) for individual in self.population])
-            self.parents = self.selection(rewards)
+            self.parents = self.selection(rewards, self.population, self.n_elites)
             if (time.time() - start_time) * 1000 >= time_available:
                 break
             heuristic_guides = self.heuristic(curr_initial_state)
@@ -93,7 +98,7 @@ class GeneticAlgorithm:
             axis=1)
         print(f"{action_to_do[0]} {action_to_do[1]}")
 
-    def rollout(self, policy: np.ndarray[int, 2]) -> float:
+    def rollout(self, policy: np.ndarray) -> float:
         self.env.reset()
         reward = 0
         for action in policy:
@@ -136,15 +141,16 @@ class GeneticAlgorithm:
         return population
 
     @staticmethod
-    def final_heuristic_verification(action_to_do: np.ndarray[int, 1], state: np.ndarray) -> np.ndarray[int, 1]:
+    def final_heuristic_verification(action_to_do: np.ndarray, state: np.ndarray) -> np.ndarray:
         rotation = state[5]
         if abs(rotation - action_to_do[0]) > 110:
             action_to_do[1] = 0
         return action_to_do
 
-    def selection(self, rewards):
+    @staticmethod
+    def selection(population, rewards, n_parents):
         sorted_indices = np.argsort(rewards)
-        parents = self.population[sorted_indices[-self.n_elites:]]
+        parents = population[sorted_indices[-n_parents:]]
         return parents
 
 
@@ -240,13 +246,11 @@ class RocketLandingEnv:
         self.initial_fuel = initial_state[4]
         self.rewards_episode = []
         self.prev_shaping = None
-        self.reward_plot = []
-        self.trajectory_plot = []
         self.surface = surface
         self.surface_segments = list(zip(self.surface[:-1], self.surface[1:]))
         self.landing_spot = self.find_landing_spot(self.surface)
         self.middle_landing_spot = np.mean(self.landing_spot, axis=0)
-        self.path_to_the_landing_spot = self.search_path(initial_pos, self.surface, self.landing_spot, [])
+        self.path_to_the_landing_spot = self.search_path(initial_pos, self.landing_spot, [])
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 200]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
@@ -278,10 +282,10 @@ class RocketLandingEnv:
         self.state = self.initial_state
         return self.state, {}
 
-    def step(self, action_to_do: np.ndarray):
+    def step(self, action_to_do: np.ndarray) -> tuple[ndarray, float, bool, bool, bool]:
         self.state = self._compute_next_state(self.state, action_to_do)
         reward, terminated, truncated = self._compute_reward(self.state)
-        return self.state, reward, terminated, truncated, {}
+        return self.state, reward, terminated, truncated, False
 
     def _compute_next_state(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
         x, y, hs, vs, remaining_fuel, rotation, thrust, _, _, _ = state
@@ -327,14 +331,14 @@ class RocketLandingEnv:
         else:
             return reward, False, False
 
-    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> np.ndarray[int, 1]:
+    def generate_random_action(self, old_rota: int, old_power_thrust: int) -> np.ndarray:
         rotation_limits = self._generate_action_limits(old_rota, 15, -90, 90)
         thrust_limits = self._generate_action_limits(old_power_thrust, 1, 0, 4)
         random_rotation = np.random.randint(rotation_limits[0], rotation_limits[1] + 1)
         random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1)
         return np.array([random_rotation, random_thrust], dtype=int)
 
-    def search_path(self, initial_pos, surface, landing_spot, my_path):
+    def search_path(self, initial_pos, landing_spot, my_path):
         path = next(((s2[0] if s2[0][1] > s2[1][1] else s2[1]) if do_segments_intersect(
             [initial_pos, self.middle_landing_spot], s2) else None) for s2 in self.surface_segments)
 
@@ -343,7 +347,7 @@ class RocketLandingEnv:
             return t if len(my_path) == 0 else np.concatenate((my_path[:-1, :], t))
 
         path[1] = path[1]
-        return self.search_path(path, surface, landing_spot,
+        return self.search_path(path, landing_spot,
                                 np.round(np.linspace(initial_pos, path, self.n_intermediate_path)).astype(int))
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
