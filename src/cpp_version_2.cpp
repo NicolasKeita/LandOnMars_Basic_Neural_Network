@@ -6,6 +6,55 @@
 #include <cstdlib>
 #include <numeric>
 
+int orientation(const std::tuple<int, int>& p, const std::tuple<int, int>& q, const std::tuple<int, int>& r) {
+    int val = (std::get<1>(q) - std::get<1>(p)) * (std::get<0>(r) - std::get<0>(q)) - (std::get<0>(q) - std::get<0>(p)) * (std::get<1>(r) - std::get<1>(q));
+    if (val == 0) {
+        return 0;
+    }
+    return (val > 0) ? 1 : 2;
+}
+
+bool on_segment(const std::tuple<int, int>& p, const std::tuple<int, int>& q, const std::tuple<int, int>& r) {
+    return (std::max(std::get<0>(p), std::get<0>(r)) >= std::get<0>(q) && std::get<0>(q) >= std::min(std::get<0>(p), std::get<0>(r)) &&
+            std::max(std::get<1>(p), std::get<1>(r)) >= std::get<1>(q) && std::get<1>(q) >= std::min(std::get<1>(p), std::get<1>(r)));
+}
+
+bool do_segments_intersect(const std::vector<std::vector<double>>& segment1,
+                           const std::vector<std::vector<double>>& segment2)
+{
+    int x1 = segment1[0][0];
+    int y1 = segment1[0][1];
+    int x2 = segment1[1][0];
+    int y2 = segment1[1][1];
+
+    int x3 = segment2[0][0];
+    int y3 = segment2[0][1];
+    int x4 = segment2[1][0];
+    int y4 = segment2[1][1];
+
+    if (std::tie(x1, y1) == std::tie(x3, y3) || std::tie(x1, y1) == std::tie(x4, y4) ||
+        std::tie(x2, y2) == std::tie(x3, y3) || std::tie(x2, y2) == std::tie(x4, y4)) {
+        return false;
+    }
+
+    int o1 = orientation({x1, y1}, {x2, y2}, {x3, y3});
+    int o2 = orientation({x1, y1}, {x2, y2}, {x4, y4});
+    int o3 = orientation({x3, y3}, {x4, y4}, {x1, y1});
+    int o4 = orientation({x3, y3}, {x4, y4}, {x2, y2});
+
+    if ((o1 != o2 && o3 != o4) || (o1 == 0 && on_segment({x1, y1}, {x3, y3}, {x2, y2})) ||
+        (o2 == 0 && on_segment({x1, y1}, {x4, y4}, {x2, y2})) ||
+        (o3 == 0 && on_segment({x3, y3}, {x1, y1}, {x4, y4})) ||
+        (o4 == 0 && on_segment({x3, y3}, {x2, y2}, {x4, y4}))) {
+        if (!on_segment({x1, y1}, {x2, y2}, {x3, y3}) && !on_segment({x1, y1}, {x2, y2}, {x4, y4})) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 int my_random_int(int a, int b) {
     if (a == b) {
         return a;
@@ -19,20 +68,19 @@ class GeneticAlgorithm;
 class RocketLandingEnv {
 public:
     std::vector<double> initialState;
-    std::vector<int> middleLandingSpot;
+    std::vector<double> middleLandingSpot;
     std::vector<double> state;
-    std::vector<std::vector<std::vector<int>>> surfaceSegments;
+    std::vector<std::vector<std::vector<double>>> surfaceSegments;
     // Member variables...
 
 //RocketLandingEnv(std::vector<int> initial_state, std::vector<std::vector<int>> surface);
-    RocketLandingEnv(std::vector<double> initialState, std::vector<std::vector<int>> surface)
+    RocketLandingEnv(std::vector<double> initialState, std::vector<std::vector<double>> surface)
         : n_intermediate_path(6),
           initialState(std::vector<double>(10, 0.0)),  // Initialize to 0.0
           state(initialState),
           actionConstraints({15, 1}),
           gravity(3.711) {
 
-        // Copy surface data
         this->surface = surface;
 
         // Populate surface_segments
@@ -47,11 +95,15 @@ public:
         // Find landing spot
         this->landingSpot = findLandingSpot(this->surface);
 
-        // Calculate middle landing spot
-        this->middleLandingSpot = {
-            static_cast<int>(std::round(std::accumulate(this->landingSpot.begin(), this->landingSpot.end(), 0.0) / this->landingSpot.size())),
-            static_cast<int>(std::round(std::accumulate(this->landingSpot.begin() + 1, this->landingSpot.end(), 0.0) / this->landingSpot.size()))
-        };
+        std::vector<double> middleLandingSpot(landingSpot[0].size(), 0.0);
+        for (size_t i = 0; i < landingSpot.size(); ++i) {
+            for (size_t j = 0; j < landingSpot[i].size(); ++j) {
+                middleLandingSpot[j] += landingSpot[i][j];
+            }
+        }
+        for (size_t j = 0; j < middleLandingSpot.size(); ++j) {
+            middleLandingSpot[j] /= landingSpot.size();
+        }
 
         // Search path to the landing spot
         this->pathToTheLandingSpot = searchPath(
@@ -82,7 +134,7 @@ public:
         this->initialState[9] = 0.0;  // Initialize to 0.0
     }
 
-    float distance_to_line(float x, float y, const std::vector<std::vector<std::vector<int>>>& line_segments)
+    float distance_to_line(float x, float y, const std::vector<std::vector<std::vector<double>>>& line_segments)
     {
         std::vector<float> x1, y1, x2, y2;
         for (const auto& segment : line_segments) {
@@ -130,7 +182,7 @@ public:
         return min_distance_squared;
     }
 
-    static std::vector<std::vector<int>> findLandingSpot(const std::vector<std::vector<int>>& planetSurface);
+    static std::vector<std::vector<double>> findLandingSpot(const std::vector<std::vector<double>>& planetSurface);
 
     void reset();
 
@@ -155,35 +207,37 @@ public:
         return {randomRotation, randomThrust};
     }
 
-    std::vector<std::vector<int>> searchPath(const std::vector<double>& initial_pos,
-                                            const std::vector<std::vector<int>>& surface,
-                                            const std::vector<std::vector<int>>& landing_spot,
-                                            const std::vector<std::vector<int>>& my_path) {
-        std::vector<std::vector<int>> path;
+    std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos,
+                const std::vector<double>& landing_spot,
+                const std::vector<std::vector<double>>& my_path,
+                const std::vector<std::vector<std::vector<double>>>& surface_segments,
+                int n_intermediate_path)
+    {
+        std::vector<std::vector<double>> path;
 
-        for (const auto& s2 : surface) {
-            std::vector<int> intersection;
-            if (do_segments_intersect({initial_pos, landing_spot}, s2)) {
+        for (const std::vector<std::vector<double>>& s2 : surface_segments) {
+            std::vector<double> intersection;
+            if (do_segments_intersect({initial_pos, middleLandingSpot}, s2)) {
                 intersection = (s2[0][1] > s2[1][1]) ? s2[0] : s2[1];
             }
 
             if (!intersection.empty()) {
-                path.push_back(intersection);
+                path = intersection;
                 break;
             }
         }
 
         if (path.empty()) {
-            const int n_intermediate_path = 6;
-            std::vector<int> t;
+            std::vector<double> t;
             for (int i = 0; i < n_intermediate_path; ++i) {
-                t = {(i * (initial_pos[0] + landing_spot[0]) / (n_intermediate_path - 1)),
-                    (i * (initial_pos[1] + landing_spot[1]) / (n_intermediate_path - 1))};
+                double x = i * (initial_pos[0] + landing_spot[0]) / (n_intermediate_path - 1);
+                double y = i * (initial_pos[1] + landing_spot[1]) / (n_intermediate_path - 1);
+                t = {x, y};
                 path.push_back(t);
             }
 
             if (!my_path.empty()) {
-                path.insert(path.end(), my_path.begin(), my_path.end() - 1);
+                path.insert(path.end(), my_path.end() - 1, my_path.end());
             }
         }
 
@@ -199,11 +253,11 @@ public:
 
 private:
 
-    std::vector<std::vector<int>> surface;
+    std::vector<std::vector<double>> surface;
     double gravity;
     int n_intermediate_path;
-    std::vector<std::vector<int>> landingSpot;
-    std::vector<std::vector<int>> pathToTheLandingSpot;
+    std::vector<std::vector<double>> landingSpot;
+    std::vector<std::vector<double>> pathToTheLandingSpot;
 
     std::vector<int> actionConstraints;
 
@@ -512,9 +566,9 @@ int main() {
     int n;
     std::cin >> n;
 
-    std::vector<std::vector<int>> surface;
+    std::vector<std::vector<double>> surface;
     for (int i = 0; i < n; ++i) {
-        int land_x, land_y;
+        double land_x, land_y;
         std::cin >> land_x >> land_y;
         surface.push_back({land_x, land_y});
     }
