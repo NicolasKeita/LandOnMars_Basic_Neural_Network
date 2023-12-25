@@ -22,15 +22,15 @@ bool on_segment(const std::tuple<int, int>& p, const std::tuple<int, int>& q, co
 bool do_segments_intersect(const std::vector<std::vector<double>>& segment1,
                            const std::vector<std::vector<double>>& segment2)
 {
-    int x1 = segment1[0][0];
-    int y1 = segment1[0][1];
-    int x2 = segment1[1][0];
-    int y2 = segment1[1][1];
+    double x1 = segment1[0][0];
+    double y1 = segment1[0][1];
+    double x2 = segment1[1][0];
+    double y2 = segment1[1][1];
 
-    int x3 = segment2[0][0];
-    int y3 = segment2[0][1];
-    int x4 = segment2[1][0];
-    int y4 = segment2[1][1];
+    double x3 = segment2[0][0];
+    double y3 = segment2[0][1];
+    double x4 = segment2[1][0];
+    double y4 = segment2[1][1];
 
     if (std::tie(x1, y1) == std::tie(x3, y3) || std::tie(x1, y1) == std::tie(x4, y4) ||
         std::tie(x2, y2) == std::tie(x3, y3) || std::tie(x2, y2) == std::tie(x4, y4)) {
@@ -50,7 +50,6 @@ bool do_segments_intersect(const std::vector<std::vector<double>>& segment1,
             return true;
         }
     }
-
     return false;
 }
 
@@ -68,8 +67,8 @@ class GeneticAlgorithm;
 class RocketLandingEnv {
 public:
     std::vector<double> initialState;
-    std::vector<double> middleLandingSpot;
     std::vector<double> state;
+    std::vector<double> middleLandingSpot;
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
     // Member variables...
 
@@ -78,6 +77,7 @@ public:
         : n_intermediate_path(6),
           initialState(std::vector<double>(10, 0.0)),  // Initialize to 0.0
           state(initialState),
+          middleLandingSpot(2, 0.0),
           actionConstraints({15, 1}),
           gravity(3.711)
     {
@@ -96,17 +96,9 @@ public:
         // Find landing spot
         this->landingSpot = findLandingSpot(this->surface);
 
-        std::vector<double> middleLandingSpot(landingSpot[0].size(), 0.0);
-        for (size_t i = 0; i < landingSpot.size(); ++i) {
-            for (size_t j = 0; j < landingSpot[i].size(); ++j) {
-                middleLandingSpot[j] += landingSpot[i][j];
-            }
-        }
-        for (size_t j = 0; j < middleLandingSpot.size(); ++j) {
-            middleLandingSpot[j] /= landingSpot.size();
-        }
+        middleLandingSpot[0] = landingSpot[0][0];
+        middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
 
-        // Search path to the landing spot
         this->pathToTheLandingSpot = searchPath({initialState[0], initialState[1]});
         this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialState[0], initialState[1]});
         // TODO np.linspace
@@ -371,11 +363,10 @@ public:
 
     std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos)
     {
-        std::vector<std::vector<double>> path;
+        for (const std::vector<std::vector<double>>& segment : surfaceSegments) {
 
-        for (const std::vector<std::vector<double>>& segment_2 : surfaceSegments) {
-            if (do_segments_intersect({ initial_pos, middleLandingSpot }, segment_2)) {
-                auto intersection = (segment_2[0][1] > segment_2[1][1]) ? segment_2[0] : segment_2[1];
+            if (do_segments_intersect({initial_pos, middleLandingSpot}, segment)) {
+                auto intersection = (segment[0][1] > segment[1][1]) ? segment[0] : segment[1];
                 auto result = searchPath(intersection);
                 result.insert(result.begin(), initial_pos);
                 return result;
@@ -478,7 +469,6 @@ public:
             for (const std::vector<std::array<int, 2>>& individual : population) {
                 rewards.push_back(rollout(individual));
             }
-
             parents = selection(population, rewards, n_elites);
 
             if ((std::time(0) - start_time) * 1000 >= time_available) {
@@ -748,12 +738,15 @@ int main() {
 
     while (true) {
         std::vector<double> state;
-        for (int i = 0; i < 8; ++i) {
-            double value;
-            std::cin >> value;
-            state.push_back(value);
-        }
-
+        double x;
+        double y;
+        double hs; // the horizontal speed (in m/s), can be negative.
+        double vs; // the vertical speed (in m/s), can be negative.
+        double f; // the quantity of remaining fuel in liters.
+        double r; // the rotation angle in degrees (-90 to 90).
+        double p; // the thrust power (0 to 4).
+        std::cin >> x >> y >> hs >> vs >> f >> r >> p; std::cin.ignore();
+        state = {x, y, hs, vs, f, r, p};
         if (i2 == 0) {
             env = new RocketLandingEnv(state, surface);
             my_GA = new GeneticAlgorithm(env);
