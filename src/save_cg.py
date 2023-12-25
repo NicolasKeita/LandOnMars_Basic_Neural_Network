@@ -181,7 +181,8 @@ def distance_to_line(x: float, y: float, line_segments: np.ndarray):
 
     return min_distance_squared
 
-def calculate_intersection(previous_pos: np.ndarray, new_pos: np.ndarray, surface: np.ndarray):
+
+def calculate_intersection(previous_pos: np.ndarray, new_pos: np.ndarray, surface: np.ndarray) -> np.ndarray:
     x1, y1 = previous_pos
     x2, y2 = new_pos
 
@@ -203,6 +204,7 @@ def calculate_intersection(previous_pos: np.ndarray, new_pos: np.ndarray, surfac
         new_pos = np.array([intersection_x[0], intersection_y[0]])
     return new_pos
 
+
 def orientation(p, q, r):
     val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
     if val == 0:
@@ -213,6 +215,7 @@ def orientation(p, q, r):
 def on_segment(p, q, r):
     return (max(p[0], r[0]) >= q[0] >= min(p[0], r[0]) and
             max(p[1], r[1]) >= q[1] >= min(p[1], r[1]))
+
 
 def do_segments_intersect(segment1, segment2):
     x1, y1 = segment1[0]
@@ -278,9 +281,9 @@ class RocketLandingEnv:
                 return np.array([[x1, y1], [x2, y2]])
         raise Exception('No landing site on test-case data')
 
-    def reset(self):
+    def reset(self) -> tuple[np.ndarray, bool]:
         self.state = self.initial_state
-        return self.state, {}
+        return self.state, False
 
     def step(self, action_to_do: np.ndarray) -> tuple[ndarray, float, bool, bool, bool]:
         self.state = self._compute_next_state(self.state, action_to_do)
@@ -300,9 +303,8 @@ class RocketLandingEnv:
         new_pos = np.clip([new_x, new_y], [0, 0], [7000, 3000])
         new_pos = calculate_intersection(np.array([x, y]), new_pos, self.surface)
         remaining_fuel = max(remaining_fuel - thrust, 0)
-        surface_segments = [self.surface[i:i + 2] for i in range(len(self.surface) - 1)]
         dist_to_landing_spot = distance_to_line(new_pos[0], new_pos[1], [self.landing_spot])
-        dist_to_surface = distance_to_line(new_pos[0], new_pos[1], surface_segments)
+        dist_to_surface = distance_to_line(new_pos[0], new_pos[1], self.surface_segments)
         dist_to_path = self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)
 
         new_state = np.array([new_pos[0], new_pos[1], new_horizontal_speed, new_vertical_speed,
@@ -350,14 +352,13 @@ class RocketLandingEnv:
         return self.search_path(path, landing_spot,
                                 np.round(np.linspace(initial_pos, path, self.n_intermediate_path)).astype(int))
 
-    def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
+    def get_distance_to_path(self, new_pos: np.ndarray, path_to_the_landing_spot: np.ndarray) -> float:
         highest = None
 
         for i, point in enumerate(path_to_the_landing_spot):
             if new_pos[1] >= point[1] and not distance_2(new_pos, point) < 25 ** 2:
             # if new_pos[1] >= point[1]:
                 highest = point
-                self.i_intermediate_path = i
                 break
         if highest is None:
             highest = path_to_the_landing_spot[-1]

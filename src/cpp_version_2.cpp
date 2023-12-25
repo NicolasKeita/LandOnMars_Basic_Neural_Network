@@ -79,7 +79,8 @@ public:
           initialState(std::vector<double>(10, 0.0)),  // Initialize to 0.0
           state(initialState),
           actionConstraints({15, 1}),
-          gravity(3.711) {
+          gravity(3.711)
+    {
 
         this->surface = surface;
 
@@ -106,18 +107,15 @@ public:
         }
 
         // Search path to the landing spot
-        this->pathToTheLandingSpot = searchPath(
-            {initialState[0], initialState[1]},
-            this->surface,
-            this->landingSpot,
-            {}
-        );
+        this->pathToTheLandingSpot = searchPath({initialState[0], initialState[1]});
+        this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialState[0], initialState[1]});
+        // TODO np.linspace
 
         // Modify path to the landing spot
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
 
-            int x = this->pathToTheLandingSpot[i][0];
-            int y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
+            double x = this->pathToTheLandingSpot[i][0];
+            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
 
@@ -182,9 +180,23 @@ public:
         return min_distance_squared;
     }
 
-    static std::vector<std::vector<double>> findLandingSpot(const std::vector<std::vector<double>>& planetSurface);
+    static std::vector<std::vector<double>> findLandingSpot(const std::vector<std::vector<double>>& planetSurface)
+    {
+        for (size_t i = 0; i < planetSurface.size() - 1; ++i) {
+            const auto& point1 = planetSurface[i];
+            const auto& point2 = planetSurface[i + 1];
 
-    void reset();
+            if (point1[1] == point2[1]) {
+                return {point1, point2};
+            }
+        }
+        throw std::runtime_error("No landing site on test-case data");
+    }
+
+    std::pair<std::vector<double>, bool> reset() {
+        state = initialState;
+        return {state, false};
+    }
 
     std::tuple<std::vector<double>, double, bool, bool, bool> step(const std::array<int, 2>& action_to_do)
     {
@@ -193,9 +205,159 @@ public:
         return {state, reward, terminated, truncated, false};
     }
 
-    std::vector<double> computeNextState(const std::vector<double>& state, const std::array<int, 2>& action);
+    double distance_2(const std::vector<double>& point1, const std::vector<double>& point2) {
+        double dx = point1[0] - point2[0];
+        double dy = point1[1] - point2[1];
+        return dx * dx + dy * dy;
+    }
 
-    std::tuple<float, bool, bool> computeReward(const std::vector<double>& state);
+    double getDistanceToPath(const std::vector<double>& newPos, const std::vector<std::vector<double>>& pathToTheLandingSpot) {
+        const double threshold = 25.0 * 25.0;
+
+        std::vector<double> highest = {0.0, 0.0};
+
+        for (std::size_t i = 0; i < pathToTheLandingSpot.size(); ++i) {
+            const auto& point = pathToTheLandingSpot[i];
+            if (newPos[1] >= point[1] && distance_2(newPos, point) >= threshold) {
+                highest = point;
+                break;
+            }
+        }
+
+        if (highest[0] == 0.0 && highest[1] == 0.0) {
+            highest = pathToTheLandingSpot.back();
+        }
+
+        return distance_2(highest, newPos);
+    }
+
+    std::vector<double> computeNextState(const std::vector<double>& state, const std::array<int, 2>& action) {
+        double x = state[0];
+        double y = state[1];
+        double hs = state[2];
+        double vs = state[3];
+        double remainingFuel = state[4];
+        double rotation = state[5];
+        double thrust = state[6];
+
+        std::tie(rotation, thrust) = limitActions(rotation, thrust, action);
+
+        double radians = M_PI / 180.0 * rotation;
+        double xAcceleration = std::sin(radians) * thrust;
+        double yAcceleration = std::cos(radians) * thrust - gravity;
+
+        double newHorizontalSpeed = hs - xAcceleration;
+        double newVerticalSpeed = vs + yAcceleration;
+
+        double newX = x + hs - 0.5 * xAcceleration;
+        double newY = y + vs + 0.5 * yAcceleration;
+
+        std::vector<double> newPos = {std::clamp(newX, 0.0, 7000.0), std::clamp(newY, 0.0, 3000.0)};
+        newPos = calculateIntersection({x, y}, newPos, surface);
+
+        remainingFuel = std::max(remainingFuel - thrust, 0.0);
+
+        double distToLandingSpot = distance_to_line(newPos[0], newPos[1], {landingSpot});
+        double distToSurface = distance_to_line(newPos[0], newPos[1], surfaceSegments);
+        double distToPath = getDistanceToPath(newPos, pathToTheLandingSpot);
+
+        return {newPos[0], newPos[1], newHorizontalSpeed, newVerticalSpeed,
+                remainingFuel, rotation, thrust, distToLandingSpot,
+                distToSurface, distToPath};
+    }
+
+    std::vector<double> calculateIntersection(const std::vector<double>& previousPos,
+                                            const std::vector<double>& newPos,
+                                            const std::vector<std::vector<double>>& surface) {
+        double x1 = previousPos[0];
+        double y1 = previousPos[1];
+        double x2 = newPos[0];
+        double y2 = newPos[1];
+
+        std::vector<double> x3(surface.size() - 1), y3(surface.size() - 1);
+        std::vector<double> x4(surface.size() - 1), y4(surface.size() - 1);
+
+        for (size_t i = 0; i < surface.size() - 1; ++i) {
+            x3[i] = surface[i][0];
+            y3[i] = surface[i][1];
+            x4[i] = surface[i + 1][0];
+            y4[i] = surface[i + 1][1];
+        }
+
+        std::vector<double> denominator(surface.size() - 1);
+        std::vector<bool> mask(surface.size() - 1);
+
+        for (size_t i = 0; i < surface.size() - 1; ++i) {
+            denominator[i] = (x1 - x2) * (y3[i] - y4[i]) - (y1 - y2) * (x3[i] - x4[i]);
+            mask[i] = denominator[i] != 0;
+        }
+
+        std::vector<double> t(surface.size() - 1);
+        std::vector<double> u(surface.size() - 1);
+
+        for (size_t i = 0; i < surface.size() - 1; ++i) {
+            if (mask[i]) {
+                t[i] = ((x1 - x3[i]) * (y3[i] - y4[i]) - (y1 - y3[i]) * (x3[i] - x4[i])) / denominator[i];
+                u[i] = -((x1 - x2) * (y1 - y3[i]) - (y1 - y2) * (x1 - x3[i])) / denominator[i];
+            }
+        }
+
+        std::vector<bool> intersectedMask(surface.size() - 1);
+
+        for (size_t i = 0; i < surface.size() - 1; ++i) {
+            intersectedMask[i] = (0 <= t[i]) && (t[i] <= 1) && (0 <= u[i]) && (u[i] <= 1);
+        }
+
+        if (std::any_of(intersectedMask.begin(), intersectedMask.end(), [](bool val) { return val; })) {
+            size_t index = std::find(intersectedMask.begin(), intersectedMask.end(), true) - intersectedMask.begin();
+            double intersectionX = x1 + t[index] * (x2 - x1);
+            double intersectionY = y1 + t[index] * (y2 - y1);
+            return {intersectionX, intersectionY};
+        }
+
+        return newPos;
+    }
+
+    //std::tuple<float, bool, bool> computeReward(const std::vector<double>& state);
+    double norm_reward(double value, double target, double scale) {
+        return std::exp(-0.5 * std::pow((value - target) / scale, 2));
+    }
+
+    std::tuple<double, bool, bool> computeReward(const std::vector<double>& state) {
+        double x = state[0];
+        double y = state[1];
+        double hs = state[2];
+        double vs = state[3];
+        double remainingFuel = state[4];
+        double rotation = state[5];
+        double thrust = state[6];
+        double distLandingSpot = state[7];
+        double distSurface = state[8];
+        double distPath = state[9];
+
+        bool isSuccessfulLanding = distLandingSpot < 1 && rotation == 0 && std::abs(vs) <= 40 && std::abs(hs) <= 20;
+        bool isCrashedOnLandingSpot = distLandingSpot < 1;
+        bool isCrashedAnywhere = y <= 1 || y >= 3000 - 1 || x <= 1 || x >= 7000 - 1 || distSurface < 1 || remainingFuel < 4;
+        bool isCloseToLand = distLandingSpot < 1500 * 1500;
+
+        distPath = isCloseToLand ? distLandingSpot : distPath;
+
+        double reward = (norm_reward(distPath, 0, 7500 * 7500)
+                        + 0.65 * norm_reward(std::abs(vs), 39, 140)
+                        + 0.35 * norm_reward(std::abs(hs), 19, 140));
+
+        if (isSuccessfulLanding) {
+            return {1000 + remainingFuel * 100, true, false};
+        } else if (isCrashedOnLandingSpot) {
+            return {reward - 100, true, false};
+        } else if (isCrashedAnywhere) {
+            return {reward - 100, false, true};
+        } else {
+            return {reward, false, false};
+        }
+    }
+
+
 
     std::array<int, 2> generateRandomAction(int oldRota, int oldPowerThrust) {
         auto rotationLimits = generateActionLimits(oldRota, 15, -90, 90);
@@ -207,20 +369,20 @@ public:
         return {randomRotation, randomThrust};
     }
 
-    std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos,
-                const std::vector<double>& landing_spot,
-                const std::vector<std::vector<double>>& my_path,
-                const std::vector<std::vector<std::vector<double>>>& surface_segments,
-                int n_intermediate_path)
+    std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos)
     {
         std::vector<std::vector<double>> path;
 
-        for (const std::vector<std::vector<double>>& s2 : surface_segments) {
-            std::vector<double> intersection;
-            if (do_segments_intersect({initial_pos, middleLandingSpot}, s2)) {
-                intersection = (s2[0][1] > s2[1][1]) ? s2[0] : s2[1];
+        for (const std::vector<std::vector<double>>& segment_2 : surfaceSegments) {
+            if (do_segments_intersect({ initial_pos, middleLandingSpot }, segment_2)) {
+                auto intersection = (segment_2[0][1] > segment_2[1][1]) ? segment_2[0] : segment_2[1];
+                auto result = searchPath(intersection);
+                result.insert(result.begin(), initial_pos);
+                return result;
             }
-
+        }
+        return std::vector<std::vector<double>>(1, middleLandingSpot);
+        /*
             if (!intersection.empty()) {
                 path = intersection;
                 break;
@@ -242,10 +404,8 @@ public:
         }
 
         return path;
+        */
     }
-
-    int getDistanceToPath(const std::vector<int>& newPos,
-                          const std::vector<std::vector<int>>& pathToTheLandingSpot);
 
     int straightenInfo(const std::vector<int>& state);
 
@@ -270,7 +430,15 @@ private:
         };
     }
 
-    std::tuple<int, int> limitActions(int oldRota, int oldPowerThrust, const std::vector<int>& action);
+    std::tuple<int, int> limitActions(int oldRota, int oldPowerThrust, const std::array<int, 2>& action) {
+        auto rotationLimits = generateActionLimits(oldRota, 15, -90, 90);
+        auto thrustLimits = generateActionLimits(oldPowerThrust, 1, 0, 4);
+
+        int rotation = std::clamp(action[0], std::get<0>(rotationLimits), std::get<1>(rotationLimits));
+        int thrust = std::clamp(action[1], std::get<0>(thrustLimits), std::get<1>(thrustLimits));
+
+        return {rotation, thrust};
+    }
 
     double normReward(double feature, double intervalLow, double intervalHigh);
 };
@@ -392,7 +560,8 @@ public:
         const std::vector<std::vector<std::array<int, 2>>>& population,
         const std::vector<double>& rewards,
         int n_parents
-    ) {
+    )
+    {
         // Initialize sortedIndices manually
         std::vector<size_t> sortedIndices(rewards.size());
         for (size_t i = 0; i < sortedIndices.size(); ++i) {
@@ -578,9 +747,9 @@ int main() {
     int i2 = 0;
 
     while (true) {
-        std::vector<int> state;
+        std::vector<double> state;
         for (int i = 0; i < 8; ++i) {
-            int value;
+            double value;
             std::cin >> value;
             state.push_back(value);
         }
