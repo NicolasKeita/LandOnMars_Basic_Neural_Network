@@ -5,6 +5,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <numeric>
+#include <chrono>
 
 int orientation(const std::tuple<int, int>& p, const std::tuple<int, int>& q, const std::tuple<int, int>& r) {
     int val = (std::get<1>(q) - std::get<1>(p)) * (std::get<0>(r) - std::get<0>(q)) - (std::get<0>(q) - std::get<0>(p)) * (std::get<1>(r) - std::get<1>(q));
@@ -447,8 +448,8 @@ public:
 
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
-          horizon(15),
-          offspring_size(9),
+          horizon(30),
+          offspring_size(10),
           n_elites(3),
           n_heuristic_guides(3),
           mutation_rate(0.4),
@@ -462,19 +463,54 @@ public:
         env->reset();
         auto curr_initial_state = env->initialState;
         population = init_population(curr_initial_state[5], curr_initial_state[6], parents);
-        auto start_time = std::time(0);
+        auto start_time = std::chrono::steady_clock::now();
 
         while (true) {
+
+
+            std::cerr << "Parents after selection:" << std::endl;
+            for (const auto& parent : parents) {
+                std::cerr << "[";
+                for (std::size_t j = 0; j < std::min(parent.size(), static_cast<std::size_t>(4)); ++j) {
+                    const auto& gene = parent[j];
+                    std::cerr << "[" << gene[0] << ", " << gene[1] << "] ";
+                }
+                std::cerr << "...]" << std::endl;
+            }
+            std::cerr << "Parent size : " << parents.size() << std::endl;
+
+
             std::vector<double> rewards;
+            auto start_time_2 = std::chrono::steady_clock::now();
             for (const std::vector<std::array<int, 2>>& individual : population) {
                 rewards.push_back(rollout(individual));
             }
+
+
+            for (std::size_t i = 0; i < population.size(); ++i) {
+                const std::vector<std::array<int, 2>>& individual = population[i];
+                double reward = rewards[i];
+
+                std::cerr << "Individual " << i << ": ";
+                for (std::size_t j = 0; j < std::min(individual.size(), static_cast<std::size_t>(4)); ++j) {
+                    const auto& gene = individual[j];
+                    std::cerr << "[" << gene[0] << ", " << gene[1] << "] ";
+                }
+                std::cerr << "... ";
+                std::cerr << "Reward: " << reward << std::endl;
+            }
+            std::cerr << "population size : " << population.size() << std::endl;
+
+            auto end_time2 = std::chrono::steady_clock::now();
+            auto elapsed_time2 = std::chrono::duration_cast<std::chrono::milliseconds>(end_time2 - start_time_2).count();
+            std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
+
             parents = selection(population, rewards, n_elites);
 
-            if ((std::time(0) - start_time) * 1000 >= time_available) {
+            auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
+            if (elapsed_time >= time_available) {
                 break;
             }
-
             auto heuristic_guides = heuristic(curr_initial_state);
 
             heuristic_guides.erase(std::remove_if(heuristic_guides.begin(), heuristic_guides.end(),
@@ -485,33 +521,36 @@ public:
                                                                         });
                                                 }), heuristic_guides.end());
 
+            //std::cerr << offspring_size << std::endl;
             auto offspring_size = this->offspring_size + this->n_heuristic_guides - heuristic_guides.size();
+            //std::cerr << offspring_size << std::endl;
             auto offspring = crossover(parents, offspring_size);
+            //std::cerr << offspring.size() << " " <<  std::endl;
             offspring = mutation(offspring);
             offspring = mutation_heuristic(offspring, curr_initial_state[7]);
 
-            if (!heuristic_guides.empty()) {
-                population.insert(population.end(), heuristic_guides.begin(), heuristic_guides.end());
-            }
-
+            population.clear();
+            population.insert(population.end(), heuristic_guides.begin(), heuristic_guides.end());
             population.insert(population.end(), offspring.begin(), offspring.end());
+            population.insert(population.end(), parents.begin(), parents.end());
         }
-
         auto best_individual = parents.back();
         env->reset();
         auto action_to_do = final_heuristic_verification(best_individual[0], curr_initial_state);
-        //auto [next_state, _, _, _, _] = env->step(action_to_do);
         std::vector<double> next_state;
         double reward;
         bool terminated, truncated, unused;
         std::tie(next_state, reward, terminated, truncated, unused) = env->step(action_to_do);
         env->initialState = next_state;
         for (auto& individual : parents) {
-            individual.erase(individual.begin()); // Remove the first element of each individual
+            individual.erase(individual.begin());
         }
-        //parents = std::vector(best_individual.begin() + 1, best_individual.end());
-        auto last_elements_tuple = parents.back();
-        //parents.insert(parents.end(), std::vector<std::vector<int>>({{env->generateRandomAction(last_elements_tuple[0], last_elements_tuple[1])}}));
+
+        //std::vector<std::array<int, 2>> last_elements_tuple = parents.back();
+        std::vector<std::array<int, 2>> last_elements_tuple;
+        for (const std::vector<std::array<int, 2>>& parent : parents) {
+            last_elements_tuple.push_back(parent.back());
+        }
         std::vector<std::array<int, 2>> randomActions;
         for (const auto& item : last_elements_tuple) {
             randomActions.push_back(env->generateRandomAction(item[0], item[1]));
@@ -528,23 +567,15 @@ public:
         env->reset();
         double totalReward = 0.0;
 
-        for (const std::array<int, 2>& action : policy) {
-            std::tuple<std::vector<double>, bool, bool, bool, bool> stepResult = env->step(action);
-            double reward;
-            bool terminated, truncated, unused;
-            std::tie(std::ignore, reward, terminated, truncated, std::ignore) = stepResult;
-            //auto [_, reward, terminated, truncated, _] = env->step(action);
-            //auto [std::ignore, reward, terminated, truncated, std::ignore] = env->step(action);
-
-            totalReward += reward;
-
-            if (terminated || truncated) {
-                break;
-            }
+        for (const auto& action : policy) {
+            auto [_, reward, terminated, truncated, __] = env->step(action);
+            totalReward = reward;
+            if (terminated || truncated) break;
         }
-
+        //std::cerr << totalReward << std::endl;
         return totalReward;
     }
+
 
     std::vector<std::vector<std::array<int, 2>>> selection(
         const std::vector<std::vector<std::array<int, 2>>>& population,
@@ -752,7 +783,7 @@ int main() {
             my_GA = new GeneticAlgorithm(env);
         }
 
-        my_GA->learn(84);
+        my_GA->learn(80);
         i2 += 1;
     }
 
