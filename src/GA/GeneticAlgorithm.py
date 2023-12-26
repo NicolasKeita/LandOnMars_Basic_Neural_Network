@@ -10,7 +10,7 @@ class GeneticAlgorithm:
         self.env: RocketLandingEnv = env
 
         # self.horizon = 25
-        self.horizon = 10
+        self.horizon = 30
         # self.offspring_size = 30
         self.offspring_size = 10
         self.n_elites = 3
@@ -93,6 +93,8 @@ class GeneticAlgorithm:
             start_time = time.time()
             while True:
                 rewards = np.array([self.rollout(individual) for individual in self.population])
+                for ind in self.population:
+                    print(*ind, "REWARD ! ", *rewards)
                 self.env.render()
                 parents = self.selection(rewards)
                 if (time.time() - start_time) * 1000 >= time_available:

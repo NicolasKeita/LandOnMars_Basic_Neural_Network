@@ -63,6 +63,33 @@ int my_random_int(int a, int b) {
     }
 }
 
+std::vector<std::vector<double>> interpolatePoints(const std::vector<std::vector<double>>& points, int numIntermediatePoints) {
+    std::vector<std::vector<double>> result;
+
+    if (points.size() < 2) {
+        // Not enough points for interpolation
+        return points;
+    }
+
+    for (size_t i = 0; i < points.size() - 1; ++i) {
+        double startX = points[i][0];
+        double startY = points[i][1];
+        double endX = points[i + 1][0];
+        double endY = points[i + 1][1];
+
+        for (int j = 0; j <= numIntermediatePoints; ++j) {
+            double x = startX + j * (endX - startX) / numIntermediatePoints;
+            double y = startY + j * (endY - startY) / numIntermediatePoints;
+            result.push_back({x, y});
+        }
+    }
+
+    // Add the last point
+    result.push_back(points.back());
+
+    return result;
+}
+
 class GeneticAlgorithm;
 
 class RocketLandingEnv {
@@ -71,13 +98,11 @@ public:
     std::vector<double> state;
     std::vector<double> middleLandingSpot;
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
-    // Member variables...
 
-//RocketLandingEnv(std::vector<int> initial_state, std::vector<std::vector<int>> surface);
-    RocketLandingEnv(std::vector<double> initialState, std::vector<std::vector<double>> surface)
+    RocketLandingEnv(std::vector<double> initialStateInput, std::vector<std::vector<double>> surface)
         : n_intermediate_path(6),
-          initialState(std::vector<double>(10, 0.0)),  // Initialize to 0.0
-          state(initialState),
+          initialState(std::vector<double>(10, 0.0)),
+          state(initialStateInput),
           middleLandingSpot(2, 0.0),
           actionConstraints({15, 1}),
           gravity(3.711)
@@ -97,12 +122,15 @@ public:
         // Find landing spot
         this->landingSpot = findLandingSpot(this->surface);
 
-        middleLandingSpot[0] = landingSpot[0][0];
-        middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
+        this->middleLandingSpot[0] = landingSpot[0][0];
+        this->middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
 
-        this->pathToTheLandingSpot = searchPath({initialState[0], initialState[1]});
-        this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialState[0], initialState[1]});
-        // TODO np.linspace
+        this->pathToTheLandingSpot = searchPath({initialStateInput[0], initialStateInput[1]});
+        this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialStateInput[0], initialStateInput[1]});
+        this->pathToTheLandingSpot = interpolatePoints(this->pathToTheLandingSpot, this->n_intermediate_path);
+        for (const auto& point : this->pathToTheLandingSpot) {
+            //std::cerr << "X: " << point[0] << ", Y: " << point[1] << std::endl;
+        }
 
         // Modify path to the landing spot
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
@@ -111,66 +139,45 @@ public:
             double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
+        for (const auto& point : this->pathToTheLandingSpot) {
+            std::cerr << "X: " << point[0] << ", Y: " << point[1] << std::endl;
+        }
+
 
         // Initialize initial_state
-        this->initialState[0] = static_cast<double>(initialState[0]);  // x
-        this->initialState[1] = static_cast<double>(initialState[1]);  // y
-        this->initialState[2] = static_cast<double>(initialState[2]);  // horizontal speed
-        this->initialState[3] = static_cast<double>(initialState[3]);  // vertical speed
-        this->initialState[4] = static_cast<double>(initialState[4]);  // fuel remaining
-        this->initialState[5] = static_cast<double>(initialState[5]);  // rotation
-        this->initialState[6] = static_cast<double>(initialState[6]);  // thrust power
-        this->initialState[7] = static_cast<double>(distance_to_line(initialState[0], initialState[1], {this->landingSpot}));  // distance to landing spot
-        this->initialState[8] = static_cast<double>(distance_to_line(initialState[0], initialState[1], this->surfaceSegments));  // distance to surface
-        this->initialState[9] = 0.0;  // Initialize to 0.0
+        this->initialState[0] = static_cast<double>(initialStateInput[0]);  // x
+        this->initialState[1] = static_cast<double>(initialStateInput[1]);  // y
+        this->initialState[2] = static_cast<double>(initialStateInput[2]);  // horizontal speed
+        this->initialState[3] = static_cast<double>(initialStateInput[3]);  // vertical speed
+        this->initialState[4] = static_cast<double>(initialStateInput[4]);  // fuel remaining
+        this->initialState[5] = static_cast<double>(initialStateInput[5]);  // rotation
+        this->initialState[6] = static_cast<double>(initialStateInput[6]);  // thrust power
+        this->initialState[7] = static_cast<double>(distance_to_line(initialStateInput[0], initialStateInput[1], {this->landingSpot}));  // distance to landing spot
+        this->initialState[8] = static_cast<double>(distance_to_line(initialStateInput[0], initialStateInput[1], this->surfaceSegments));  // distance to surface
+        this->initialState[9] = 0.0;
     }
 
-    float distance_to_line(float x, float y, const std::vector<std::vector<std::vector<double>>>& line_segments)
-    {
-        std::vector<float> x1, y1, x2, y2;
-        for (const auto& segment : line_segments) {
-            x1.push_back(segment[0][0]);
-            y1.push_back(segment[0][1]);
-            x2.push_back(segment[1][0]);
-            y2.push_back(segment[1][1]);
+    double distance_to_line(double x, double y, const std::vector<std::vector<std::vector<double>>>& lineSegments) {
+        double minDistanceSquared = std::numeric_limits<double>::infinity();
+
+        for (const auto& segment : lineSegments) {
+            for (size_t i = 0; i < segment.size() - 1; ++i) {
+                const std::vector<double>& point1 = segment[i];
+                const std::vector<double>& point2 = segment[i + 1];
+
+                double dx = point2[0] - point1[0];
+                double dy = point2[1] - point1[1];
+
+                double dotProduct = (x - point1[0]) * dx + (y - point1[1]) * dy;
+                double t = std::max(0.0, std::min(1.0, dotProduct / (dx * dx + dy * dy)));
+                std::vector<double> closestPoint = {point1[0] + t * dx, point1[1] + t * dy};
+
+                double segmentDistanceSquared = distance_2({x, y}, closestPoint);
+                minDistanceSquared = std::min(minDistanceSquared, segmentDistanceSquared);
+            }
         }
 
-        std::vector<float> dx = x2;
-        std::transform(x1.begin(), x1.end(), dx.begin(), dx.begin(), std::minus<float>());
-        std::vector<float> dy = y2;
-        std::transform(y1.begin(), y1.end(), dy.begin(), dy.begin(), std::minus<float>());
-
-        std::vector<float> dot_product(line_segments.size());
-        for (size_t i = 0; i < line_segments.size(); ++i) {
-            dot_product[i] = (x - x1[i]) * dx[i] + (y - y1[i]) * dy[i];
-        }
-
-        std::vector<float> t(line_segments.size());
-        for (size_t i = 0; i < line_segments.size(); ++i) {
-            t[i] = std::clamp(dot_product[i] / (dx[i] * dx[i] + dy[i] * dy[i]), 0.0f, 1.0f);
-        }
-
-        std::vector<float> closest_point_x(line_segments.size());
-        std::transform(x1.begin(), x1.end(), dx.begin(), closest_point_x.begin(),
-                    [](float a, float b) { return a + b; });
-        std::transform(t.begin(), t.end(), dx.begin(), closest_point_x.begin(),
-                    [](float a, float b) { return a * b; });
-
-        std::vector<float> closest_point_y(line_segments.size());
-        std::transform(y1.begin(), y1.end(), dy.begin(), closest_point_y.begin(),
-                    [](float a, float b) { return a + b; });
-        std::transform(t.begin(), t.end(), dy.begin(), closest_point_y.begin(),
-                    [](float a, float b) { return a * b; });
-
-        std::vector<float> segment_distance_squared(line_segments.size());
-        std::transform(x1.begin(), x1.end(), closest_point_x.begin(), segment_distance_squared.begin(),
-                    [](float a, float b) { return (a - b) * (a - b); });
-        std::transform(y1.begin(), y1.end(), closest_point_y.begin(), segment_distance_squared.begin(),
-                    [](float a, float b) { return (a - b) * (a - b); });
-
-        float min_distance_squared = *std::min_element(segment_distance_squared.begin(), segment_distance_squared.end());
-
-        return min_distance_squared;
+        return minDistanceSquared;
     }
 
     static std::vector<std::vector<double>> findLandingSpot(const std::vector<std::vector<double>>& planetSurface)
@@ -205,13 +212,13 @@ public:
     }
 
     double getDistanceToPath(const std::vector<double>& newPos, const std::vector<std::vector<double>>& pathToTheLandingSpot) {
-        const double threshold = 25.0 * 25.0;
+        //const double threshold = 25.0 * 25.0;
 
         std::vector<double> highest = {0.0, 0.0};
 
         for (std::size_t i = 0; i < pathToTheLandingSpot.size(); ++i) {
             const auto& point = pathToTheLandingSpot[i];
-            if (newPos[1] >= point[1] && distance_2(newPos, point) >= threshold) {
+            if (newPos[1] >= point[1] /*&& distance_2(newPos, point) >= threshold*/) {
                 highest = point;
                 break;
             }
@@ -220,7 +227,7 @@ public:
         if (highest[0] == 0.0 && highest[1] == 0.0) {
             highest = pathToTheLandingSpot.back();
         }
-
+        //std::cerr << "here height" << highest[0] << ' ' << highest[1] << ' ' <<newPos[0] << ' ' <<newPos[1] << std::endl;
         return distance_2(highest, newPos);
     }
 
@@ -250,9 +257,13 @@ public:
 
         remainingFuel = std::max(remainingFuel - thrust, 0.0);
 
+
         double distToLandingSpot = distance_to_line(newPos[0], newPos[1], {landingSpot});
         double distToSurface = distance_to_line(newPos[0], newPos[1], surfaceSegments);
         double distToPath = getDistanceToPath(newPos, pathToTheLandingSpot);
+
+        //std::cerr << "distToLandingSpot " << distToLandingSpot << std::endl;
+        //std::cerr << "distToPath " << distToPath << std::endl;
 
         return {newPos[0], newPos[1], newHorizontalSpeed, newVerticalSpeed,
                 remainingFuel, rotation, thrust, distToLandingSpot,
@@ -334,6 +345,12 @@ public:
         bool isCloseToLand = distLandingSpot < 1500 * 1500;
 
         distPath = isCloseToLand ? distLandingSpot : distPath;
+
+        /*
+        std::cerr << "distance : " << (norm_reward(distPath, 0, 7500 * 7500)) << std::endl;
+        std::cerr << "distance_2 : " << distPath << std::endl;
+        std::cerr << "distance_4 : " << distLandingSpot << std::endl;
+        */
 
         double reward = (norm_reward(distPath, 0, 7500 * 7500)
                         + 0.65 * norm_reward(std::abs(vs), 39, 140)
@@ -466,8 +483,8 @@ public:
         auto start_time = std::chrono::steady_clock::now();
 
         while (true) {
-
-
+            parents.clear();
+            /*
             std::cerr << "Parents after selection:" << std::endl;
             for (const auto& parent : parents) {
                 std::cerr << "[";
@@ -478,7 +495,7 @@ public:
                 std::cerr << "...]" << std::endl;
             }
             std::cerr << "Parent size : " << parents.size() << std::endl;
-
+            */
 
             std::vector<double> rewards;
             auto start_time_2 = std::chrono::steady_clock::now();
@@ -490,20 +507,30 @@ public:
             for (std::size_t i = 0; i < population.size(); ++i) {
                 const std::vector<std::array<int, 2>>& individual = population[i];
                 double reward = rewards[i];
-
+                /*
                 std::cerr << "Individual " << i << ": ";
                 for (std::size_t j = 0; j < std::min(individual.size(), static_cast<std::size_t>(4)); ++j) {
                     const auto& gene = individual[j];
                     std::cerr << "[" << gene[0] << ", " << gene[1] << "] ";
                 }
                 std::cerr << "... ";
-                std::cerr << "Reward: " << reward << std::endl;
+                */
+
+                /*
+                std::cerr << "Individual " << i << ": ";
+                for (std::size_t j = 0; j < individual.size(); ++j) {
+                    const auto& gene = individual[j];
+                    std::cerr << "[" << gene[0] << ", " << gene[1] << "] ";
+                }
+                std::cerr << "... ";
+                    std::cerr << "Reward: " << reward << std::endl;
+                  */
             }
-            std::cerr << "population size : " << population.size() << std::endl;
+            //std::cerr << "population size : " << population.size() << std::endl;
 
             auto end_time2 = std::chrono::steady_clock::now();
             auto elapsed_time2 = std::chrono::duration_cast<std::chrono::milliseconds>(end_time2 - start_time_2).count();
-            std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
+            //std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
 
             parents = selection(population, rewards, n_elites);
 
@@ -546,7 +573,6 @@ public:
             individual.erase(individual.begin());
         }
 
-        //std::vector<std::array<int, 2>> last_elements_tuple = parents.back();
         std::vector<std::array<int, 2>> last_elements_tuple;
         for (const std::vector<std::array<int, 2>>& parent : parents) {
             last_elements_tuple.push_back(parent.back());
@@ -771,11 +797,11 @@ int main() {
         std::vector<double> state;
         double x;
         double y;
-        double hs; // the horizontal speed (in m/s), can be negative.
-        double vs; // the vertical speed (in m/s), can be negative.
-        double f; // the quantity of remaining fuel in liters.
-        double r; // the rotation angle in degrees (-90 to 90).
-        double p; // the thrust power (0 to 4).
+        double hs;
+        double vs;
+        double f;
+        double r;
+        double p;
         std::cin >> x >> y >> hs >> vs >> f >> r >> p; std::cin.ignore();
         state = {x, y, hs, vs, f, r, p};
         if (i2 == 0) {
@@ -783,7 +809,7 @@ int main() {
             my_GA = new GeneticAlgorithm(env);
         }
 
-        my_GA->learn(80);
+        my_GA->learn(95);
         i2 += 1;
     }
 

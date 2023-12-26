@@ -165,7 +165,7 @@ def distance_2(a, b) -> float:
     return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
 
 
-def distance_to_line(x: float, y: float, line_segments: np.ndarray):
+def distance_to_line(x: float, y: float, line_segments: np.ndarray) -> float:
     min_distance_squared = float('inf')
 
     for segment in line_segments:
