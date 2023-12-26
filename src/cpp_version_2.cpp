@@ -100,7 +100,7 @@ public:
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
 
     RocketLandingEnv(std::vector<double> initialStateInput, std::vector<std::vector<double>> surface)
-        : n_intermediate_path(6),
+        : n_intermediate_path(1),
           initialState(std::vector<double>(10, 0.0)),
           state(initialStateInput),
           middleLandingSpot(2, 0.0),
@@ -126,6 +126,9 @@ public:
         this->middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
 
         this->pathToTheLandingSpot = searchPath({initialStateInput[0], initialStateInput[1]});
+        for (const auto& point : this->pathToTheLandingSpot) {
+            std::cerr << "1 - X: " << point[0] << ", Y: " << point[1] << std::endl;
+        }
         this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialStateInput[0], initialStateInput[1]});
         this->pathToTheLandingSpot = interpolatePoints(this->pathToTheLandingSpot, this->n_intermediate_path);
         for (const auto& point : this->pathToTheLandingSpot) {
@@ -382,11 +385,10 @@ public:
     std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos)
     {
         for (const std::vector<std::vector<double>>& segment : surfaceSegments) {
-
             if (do_segments_intersect({initial_pos, middleLandingSpot}, segment)) {
                 auto intersection = (segment[0][1] > segment[1][1]) ? segment[0] : segment[1];
                 auto result = searchPath(intersection);
-                result.insert(result.begin(), initial_pos);
+                result.insert(result.begin(), intersection);
                 return result;
             }
         }
@@ -466,8 +468,8 @@ public:
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
           horizon(30),
-          offspring_size(10),
-          n_elites(3),
+          offspring_size(15),
+          n_elites(4),
           n_heuristic_guides(3),
           mutation_rate(0.4),
           population_size(offspring_size + n_elites + n_heuristic_guides),
