@@ -100,7 +100,7 @@ public:
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
 
     RocketLandingEnv(std::vector<double> initialStateInput, std::vector<std::vector<double>> surface)
-        : n_intermediate_path(1),
+        : n_intermediate_path(4),
           initialState(std::vector<double>(10, 0.0)),
           state(initialStateInput),
           middleLandingSpot(2, 0.0),
@@ -139,7 +139,7 @@ public:
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
 
             double x = this->pathToTheLandingSpot[i][0];
-            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
+            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 100 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
         for (const auto& point : this->pathToTheLandingSpot) {
@@ -346,6 +346,7 @@ public:
         bool isCrashedOnLandingSpot = distLandingSpot < 1;
         bool isCrashedAnywhere = y <= 1 || y >= 3000 - 1 || x <= 1 || x >= 7000 - 1 || distSurface < 1 || remainingFuel < 4;
         bool isCloseToLand = distLandingSpot < 1500 * 1500;
+        bool isUnderLandingSpot = y < landingSpot[0][1];
 
         distPath = isCloseToLand ? distLandingSpot : distPath;
 
@@ -355,10 +356,13 @@ public:
         std::cerr << "distance_4 : " << distLandingSpot << std::endl;
         */
 
-        double reward = (norm_reward(distPath, 0, 7500 * 7500)
+        double reward = (norm_reward(distPath, 0, 8500 * 8000)
                         + 0.65 * norm_reward(std::abs(vs), 39, 140)
                         + 0.35 * norm_reward(std::abs(hs), 19, 140));
 
+        if (isUnderLandingSpot) {
+            reward -= 1000;
+        }
         if (isSuccessfulLanding) {
             return {1000 + remainingFuel * 100, true, false};
         } else if (isCrashedOnLandingSpot) {
@@ -467,9 +471,9 @@ public:
 
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
-          horizon(30),
-          offspring_size(15),
-          n_elites(4),
+          horizon(40),
+          offspring_size(20),
+          n_elites(5),
           n_heuristic_guides(3),
           mutation_rate(0.4),
           population_size(offspring_size + n_elites + n_heuristic_guides),
@@ -532,7 +536,7 @@ public:
 
             auto end_time2 = std::chrono::steady_clock::now();
             auto elapsed_time2 = std::chrono::duration_cast<std::chrono::milliseconds>(end_time2 - start_time_2).count();
-            //std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
+            std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
 
             parents = selection(population, rewards, n_elites);
 
