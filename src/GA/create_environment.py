@@ -12,12 +12,12 @@ from src.GA.math_utils import distance_to_line, distance_2, calculate_intersecti
 class RocketLandingEnv:
     def __init__(self):
         self.n_intermediate_path = 6
-        initial_pos = [2500, 2700]
-        initial_hs = 0
+        initial_pos = [6500, 2800]
+        initial_hs = -90
         initial_vs = 0
-        initial_rotation = 0
+        initial_rotation = 90
         initial_thrust = 0
-        self.initial_fuel = 550
+        self.initial_fuel = 750
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []

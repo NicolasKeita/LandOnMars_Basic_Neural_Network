@@ -93,8 +93,8 @@ class GeneticAlgorithm:
             start_time = time.time()
             while True:
                 rewards = np.array([self.rollout(individual) for individual in self.population])
-                for ind in self.population:
-                    print(*ind, "REWARD ! ", *rewards)
+                for i, ind in enumerate(self.population):
+                    print(*ind, "REWARD ! ", rewards[i])
                 self.env.render()
                 parents = self.selection(rewards)
                 if (time.time() - start_time) * 1000 >= time_available:

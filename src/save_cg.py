@@ -394,7 +394,7 @@ class RocketLandingEnv:
         return rotation, thrust
 
 
-def norm_reward(feature, interval_low, interval_high) -> float:
+def norm_reward(feature: float, interval_low: float, interval_high: float) -> float:
     feature = np.clip(feature, interval_low, interval_high)
     return 1.0 - ((feature - interval_low) / (interval_high - interval_low))
 

@@ -107,24 +107,13 @@ public:
           actionConstraints({15, 1}),
           gravity(3.711)
     {
-
         this->surface = surface;
-
-        // Populate surface_segments
-        /*
-        for (size_t i = 0; i < this->surface.size() - 1; ++i) {
-            this->surfaceSegments.push_back({this->surface[i], this->surface[i + 1]});
-        }*/
         for (size_t i = 0; i < this->surface.size() - 1; ++i) {
             this->surfaceSegments.push_back({this->surface[i], this->surface[i + 1]});
         }
-
-        // Find landing spot
         this->landingSpot = findLandingSpot(this->surface);
-
         this->middleLandingSpot[0] = landingSpot[0][0];
         this->middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
-
         this->pathToTheLandingSpot = searchPath({initialStateInput[0], initialStateInput[1]});
         for (const auto& point : this->pathToTheLandingSpot) {
             std::cerr << "1 - X: " << point[0] << ", Y: " << point[1] << std::endl;
@@ -139,13 +128,12 @@ public:
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
 
             double x = this->pathToTheLandingSpot[i][0];
-            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 100 : this->pathToTheLandingSpot[i][1];
+            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
         for (const auto& point : this->pathToTheLandingSpot) {
             std::cerr << "X: " << point[0] << ", Y: " << point[1] << std::endl;
         }
-
 
         // Initialize initial_state
         this->initialState[0] = static_cast<double>(initialStateInput[0]);  // x
@@ -215,13 +203,13 @@ public:
     }
 
     double getDistanceToPath(const std::vector<double>& newPos, const std::vector<std::vector<double>>& pathToTheLandingSpot) {
-        //const double threshold = 25.0 * 25.0;
+        const double threshold = 25.0 * 25.0;
 
         std::vector<double> highest = {0.0, 0.0};
 
         for (std::size_t i = 0; i < pathToTheLandingSpot.size(); ++i) {
             const auto& point = pathToTheLandingSpot[i];
-            if (newPos[1] >= point[1] /*&& distance_2(newPos, point) >= threshold*/) {
+            if (newPos[1] >= point[1] && distance_2(newPos, point) >= threshold) {
                 highest = point;
                 break;
             }
@@ -325,9 +313,9 @@ public:
         return newPos;
     }
 
-    //std::tuple<float, bool, bool> computeReward(const std::vector<double>& state);
-    double norm_reward(double value, double target, double scale) {
-        return std::exp(-0.5 * std::pow((value - target) / scale, 2));
+    double norm_reward(double feature, double interval_low, double interval_high) {
+        feature = std::clamp(feature, interval_low, interval_high);
+        return 1.0 - ((feature - interval_low) / (interval_high - interval_low));
     }
 
     std::tuple<double, bool, bool> computeReward(const std::vector<double>& state) {
@@ -356,9 +344,11 @@ public:
         std::cerr << "distance_4 : " << distLandingSpot << std::endl;
         */
 
-        double reward = (norm_reward(distPath, 0, 8500 * 8000)
+        //std::cerr << "distpath : " << distPath << std::endl;
+        double reward = (norm_reward(distPath, 0, 3000 * 3000)
                         + 0.65 * norm_reward(std::abs(vs), 39, 140)
                         + 0.35 * norm_reward(std::abs(hs), 19, 140));
+        //std::cerr << norm_reward(39, 39, 150) << std::endl;
 
         if (isUnderLandingSpot) {
             reward -= 1000;
@@ -373,8 +363,6 @@ public:
             return {reward, false, false};
         }
     }
-
-
 
     std::array<int, 2> generateRandomAction(int oldRota, int oldPowerThrust) {
         auto rotationLimits = generateActionLimits(oldRota, 15, -90, 90);
@@ -397,34 +385,7 @@ public:
             }
         }
         return std::vector<std::vector<double>>(1, middleLandingSpot);
-        /*
-            if (!intersection.empty()) {
-                path = intersection;
-                break;
-            }
-        }
-
-        if (path.empty()) {
-            std::vector<double> t;
-            for (int i = 0; i < n_intermediate_path; ++i) {
-                double x = i * (initial_pos[0] + landing_spot[0]) / (n_intermediate_path - 1);
-                double y = i * (initial_pos[1] + landing_spot[1]) / (n_intermediate_path - 1);
-                t = {x, y};
-                path.push_back(t);
-            }
-
-            if (!my_path.empty()) {
-                path.insert(path.end(), my_path.end() - 1, my_path.end());
-            }
-        }
-
-        return path;
-        */
     }
-
-    int straightenInfo(const std::vector<int>& state);
-
-    // Member functions...
 
 private:
 
@@ -471,16 +432,15 @@ public:
 
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
-          horizon(40),
-          offspring_size(20),
-          n_elites(5),
+          horizon(30),
+          offspring_size(9),
+          n_elites(3),
           n_heuristic_guides(3),
           mutation_rate(0.4),
           population_size(offspring_size + n_elites + n_heuristic_guides),
           population(init_population(env->initialState[5], env->initialState[6])),
-          parents(std::vector<std::vector<std::array<int, 2>>>()) {
-        // Additional initialization if needed
-    }
+          parents(std::vector<std::vector<std::array<int, 2>>>())
+          {}
 
     void learn(int time_available) {
         env->reset();
@@ -489,7 +449,7 @@ public:
         auto start_time = std::chrono::steady_clock::now();
 
         while (true) {
-            parents.clear();
+            //parents.clear();
             /*
             std::cerr << "Parents after selection:" << std::endl;
             for (const auto& parent : parents) {
@@ -513,13 +473,16 @@ public:
             for (std::size_t i = 0; i < population.size(); ++i) {
                 const std::vector<std::array<int, 2>>& individual = population[i];
                 double reward = rewards[i];
+
                 /*
                 std::cerr << "Individual " << i << ": ";
+
                 for (std::size_t j = 0; j < std::min(individual.size(), static_cast<std::size_t>(4)); ++j) {
                     const auto& gene = individual[j];
                     std::cerr << "[" << gene[0] << ", " << gene[1] << "] ";
                 }
-                std::cerr << "... ";
+
+                std::cerr << "... Reward: " << reward << std::endl;
                 */
 
                 /*
@@ -536,16 +499,13 @@ public:
 
             auto end_time2 = std::chrono::steady_clock::now();
             auto elapsed_time2 = std::chrono::duration_cast<std::chrono::milliseconds>(end_time2 - start_time_2).count();
-            std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
-
+            //std::cerr << "Time taken for the loop: " << elapsed_time2 << " milliseconds" << std::endl;
             parents = selection(population, rewards, n_elites);
-
             auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
             if (elapsed_time >= time_available) {
                 break;
             }
             auto heuristic_guides = heuristic(curr_initial_state);
-
             heuristic_guides.erase(std::remove_if(heuristic_guides.begin(), heuristic_guides.end(),
                                                 [this](const auto& item) {
                                                     return std::any_of(parents.begin(), parents.end(),
@@ -553,7 +513,6 @@ public:
                                                                             return item == parent;
                                                                         });
                                                 }), heuristic_guides.end());
-
             //std::cerr << offspring_size << std::endl;
             auto offspring_size = this->offspring_size + this->n_heuristic_guides - heuristic_guides.size();
             //std::cerr << offspring_size << std::endl;
@@ -561,7 +520,6 @@ public:
             //std::cerr << offspring.size() << " " <<  std::endl;
             offspring = mutation(offspring);
             offspring = mutation_heuristic(offspring, curr_initial_state[7]);
-
             population.clear();
             population.insert(population.end(), heuristic_guides.begin(), heuristic_guides.end());
             population.insert(population.end(), offspring.begin(), offspring.end());
@@ -578,7 +536,6 @@ public:
         for (auto& individual : parents) {
             individual.erase(individual.begin());
         }
-
         std::vector<std::array<int, 2>> last_elements_tuple;
         for (const std::vector<std::array<int, 2>>& parent : parents) {
             last_elements_tuple.push_back(parent.back());
@@ -615,22 +572,16 @@ public:
         int n_parents
     )
     {
-        // Initialize sortedIndices manually
         std::vector<size_t> sortedIndices(rewards.size());
         for (size_t i = 0; i < sortedIndices.size(); ++i) {
             sortedIndices[i] = i;
         }
-
-        // Sort the indices based on rewards
         std::sort(sortedIndices.begin(), sortedIndices.end(),
                 [&rewards](size_t i, size_t j) { return rewards[i] < rewards[j]; });
-
-        // Extract the top n_parents individuals from the sorted population
         std::vector<std::vector<std::array<int, 2>>> parents(n_parents);
         for (int i = 0; i < n_parents; ++i) {
             parents[i] = population[sortedIndices[sortedIndices.size() - n_parents + i]];
         }
-
         return parents;
     }
 
@@ -665,15 +616,12 @@ public:
     std::vector<std::vector<std::array<int, 2>>> crossover(const std::vector<std::vector<std::array<int, 2>>>& population_survivors, int offspring_size)
     {
         std::vector<std::vector<std::array<int, 2>>> offspring;
-
         while (offspring.size() < offspring_size) {
             std::vector<std::array<int, 2>> policy(horizon, {0, 0});
             std::vector<int> indices(2);
-
             for (int i = 0; i < 2; ++i) {
                 indices[i] = rand() % population_survivors.size();
             }
-
             for (int i = 0; i < horizon; ++i) {
                 int offspring_rotation = my_random_int(population_survivors[indices[0]][i][0], population_survivors[indices[1]][i][0]);
                 int offspring_thrust = my_random_int(population_survivors[indices[0]][i][1], population_survivors[indices[1]][i][1]);
@@ -681,34 +629,23 @@ public:
                 offspring_thrust = std::clamp(offspring_thrust, 0, 4);
                 policy[i] = {offspring_rotation, offspring_thrust};
             }
-
             offspring.push_back(policy);
         }
-
         return offspring;
     }
 
     std::vector<std::vector<std::array<int, 2>>> mutation(const std::vector<std::vector<std::array<int, 2>>>& population)
     {
         std::vector<std::vector<std::array<int, 2>>> mutatedPopulation = population;
-
-        // Select a random individual from the population
         std::vector<std::array<int, 2>>& individual = mutatedPopulation[std::rand() % mutatedPopulation.size()];
-
-        // Set the second element of each action in the selected individual to 4
         for (auto& action : individual) {
             action[1] = 4;
         }
-
-        // Mutate the entire population
         for (auto& ind : mutatedPopulation) {
             for (auto& action : ind) {
-                // Apply mutation with a certain probability
                 if (static_cast<double>(std::rand()) / RAND_MAX < mutation_rate) {
-                    action[0] += std::rand() % 31 - 15;  // Random value in the range [-15, 15]
-                    action[1] += std::rand() % 3 - 1;    // Random value in the range [-1, 1]
-
-                    // Clip values to specified ranges
+                    action[0] += std::rand() % 31 - 15;
+                    action[1] += std::rand() % 3 - 1;
                     action[0] = std::clamp(action[0], -90, 90);
                     action[1] = std::clamp(action[1], 0, 4);
                 }
@@ -722,52 +659,38 @@ public:
     {
         if (dist_landing_spot < 300 * 300) {
             std::vector<std::vector<std::array<int, 2>>> mutatedPopulation = population;
-
-            // Select a random individual from the population
             std::vector<std::array<int, 2>>& individual = mutatedPopulation[std::rand() % mutatedPopulation.size()];
-
-            // Set the first element of each action in the selected individual to 0
             for (auto& action : individual) {
                 action[0] = 0;
             }
-
             return mutatedPopulation;
         }
-
         return population;
     }
 
     std::array<int, 2> final_heuristic_verification(const std::array<int, 2>& action_to_do, const std::vector<double>& state) {
         int rotation = state[5];
         std::array<int, 2> result = action_to_do;
-
         if (std::abs(rotation - result[0]) > 110) {
             result[1] = 0;
         }
-
         return result;
     }
 
-    // Other member functions...
-
 private:
     std::vector<std::vector<std::array<int, 2>>> population;
-
     std::vector<std::vector<std::array<int, 2>>> init_population(int previous_rotation, int previous_thrust,
                                                                 const std::vector<std::vector<std::array<int, 2>>>& parents = {}) {
         std::vector<std::vector<std::array<int, 2>>> population(population_size, std::vector<std::array<int, 2>>(horizon, {0, 0}));
         int num_parents = parents.size();
-
         if (num_parents > 0) {
             for (int i = 0; i < num_parents; ++i) {
                 population[i] = parents[i];
             }
         }
-
         for (int i = num_parents; i < population_size; ++i) {
             population[i] = generate_random_individual(previous_rotation, previous_thrust);
         }
-
         return population;
     }
 
@@ -780,8 +703,6 @@ private:
         }
         return individual;
     }
-
-    // Other private member functions...
 };
 
 int main() {
