@@ -12,12 +12,12 @@ from src.GA.math_utils import distance_to_line, distance_2, calculate_intersecti
 class RocketLandingEnv:
     def __init__(self):
         self.n_intermediate_path = 6
-        initial_pos = [6500, 2800]
-        initial_hs = -90
+        initial_pos = [500, 2700]
+        initial_hs = 100
         initial_vs = 0
-        initial_rotation = 90
+        initial_rotation = -90
         initial_thrust = 0
-        self.initial_fuel = 750
+        self.initial_fuel = 800
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
@@ -31,6 +31,7 @@ class RocketLandingEnv:
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 200]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
+
 
         self.initial_state = np.array([
             float(initial_pos[0]),  # x
@@ -71,14 +72,27 @@ class RocketLandingEnv:
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-7
-0 100
-1000 500
-1500 1500
-3000 1000
-4000 150
-5500 150
-6999 800
+20
+0 1000
+300 1500
+350 1400
+500 2000
+800 1800
+1000 2500
+1200 2100
+1500 2400
+2000 1000
+2200 500
+2500 100
+2900 800
+3000 500
+3200 1000
+3500 2000
+3800 800
+4000 200
+5000 200
+5500 1500
+6999 2800
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
 
@@ -177,42 +191,42 @@ class RocketLandingEnv:
         random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1)
         return np.array([random_rotation, random_thrust], dtype=int)
 
-    # def search_path(self, initial_pos, surface, landing_spot, my_path):
-    #     path = []
-    #     for segment in self.surface_segments:
-    #         segment1 = [initial_pos, self.middle_landing_spot]
-    #         segment2 = segment
-    #         if do_segments_intersect(segment1, segment2):
-    #             if segment2[0][1] > segment2[1][1]:
-    #                 path.append(segment2[0])
-    #             elif segment2[0][1] < segment2[1][1]:
-    #                 path.append(segment2[1])
-    #             else:
-    #                 path.append(random.choice([segment2[0], segment2[1]]))
-    #             break
-    #     if len(path) == 0:
-    #         t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
-    #         if len(my_path) == 0:
-    #             return t
-    #         else:
-    #             my_path = my_path[:-1, :]
-    #             return np.concatenate((my_path, t))
-    #     else:
-    #         path[0][1] = path[0][1]
-    #         t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
-    #         return self.search_path(path[0], surface, landing_spot, t)
-
-    def search_path(self, initial_pos: np.ndarray[int, 1], landing_spot, my_path):
-        path = next(((s2[0] if s2[0][1] > s2[1][1] else s2[1]) if do_segments_intersect(
-            [initial_pos, self.middle_landing_spot], s2) else None) for s2 in self.surface_segments)
-
-        if path is None:
+    def search_path(self, initial_pos, landing_spot, my_path):
+        path = []
+        for segment in self.surface_segments:
+            segment1 = [initial_pos, self.middle_landing_spot]
+            segment2 = segment
+            if do_segments_intersect(segment1, segment2):
+                if segment2[0][1] > segment2[1][1]:
+                    path.append(segment2[0])
+                elif segment2[0][1] < segment2[1][1]:
+                    path.append(segment2[1])
+                else:
+                    path.append(random.choice([segment2[0], segment2[1]]))
+                break
+        if len(path) == 0:
             t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
-            return t if len(my_path) == 0 else np.concatenate((my_path[:-1, :], t))
+            if len(my_path) == 0:
+                return t
+            else:
+                my_path = my_path[:-1, :]
+                return np.concatenate((my_path, t))
+        else:
+            path[0][1] = path[0][1]
+            t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
+            return self.search_path(path[0], landing_spot, t)
 
-        path[1] = path[1]
-        return self.search_path(path, landing_spot,
-                                np.round(np.linspace(initial_pos, path, self.n_intermediate_path)).astype(int))
+    # def search_path(self, initial_pos: np.ndarray[int, 1], landing_spot, my_path):
+    #     path = next(((s2[0] if s2[0][1] > s2[1][1] else s2[1]) if do_segments_intersect(
+    #         [initial_pos, self.middle_landing_spot], s2) else None) for s2 in self.surface_segments)
+    #
+    #     if path is None:
+    #         t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
+    #         return t if len(my_path) == 0 else np.concatenate((my_path[:-1, :], t))
+    #
+    #     path[1] = path[1]
+    #     return self.search_path(path, landing_spot,
+    #                             np.round(np.linspace(initial_pos, path, self.n_intermediate_path)).astype(int))
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
         highest = None

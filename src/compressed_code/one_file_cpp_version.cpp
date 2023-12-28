@@ -98,6 +98,7 @@ public:
     std::vector<double> state;
     std::vector<double> middleLandingSpot;
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
+    int counterToForceMovement;
 
     RocketLandingEnv(std::vector<double> initialStateInput, std::vector<std::vector<double>> surface)
         : n_intermediate_path(4),
@@ -105,37 +106,27 @@ public:
           state(initialStateInput),
           middleLandingSpot(2, 0.0),
           actionConstraints({15, 1}),
-          gravity(3.711)
+          gravity(3.711),
+          counterToForceMovement(0)
     {
         this->surface = surface;
         for (size_t i = 0; i < this->surface.size() - 1; ++i) {
             this->surfaceSegments.push_back({this->surface[i], this->surface[i + 1]});
         }
         this->landingSpot = findLandingSpot(this->surface);
-        this->middleLandingSpot[0] = landingSpot[0][0];
-        this->middleLandingSpot[1] = (landingSpot[0][1] + landingSpot[1][1]) / 2.0;
+        this->middleLandingSpot[0] = (landingSpot[0][0] + landingSpot[1][0]) / 2.0;
+        this->middleLandingSpot[1] = landingSpot[0][1];
         this->pathToTheLandingSpot = searchPath({initialStateInput[0], initialStateInput[1]});
-        for (const auto& point : this->pathToTheLandingSpot) {
-            std::cerr << "1 - X: " << point[0] << ", Y: " << point[1] << std::endl;
-        }
         this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialStateInput[0], initialStateInput[1]});
         this->pathToTheLandingSpot = interpolatePoints(this->pathToTheLandingSpot, this->n_intermediate_path);
-        for (const auto& point : this->pathToTheLandingSpot) {
-            //std::cerr << "X: " << point[0] << ", Y: " << point[1] << std::endl;
-        }
 
         // Modify path to the landing spot
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
-
             double x = this->pathToTheLandingSpot[i][0];
             double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
-        for (const auto& point : this->pathToTheLandingSpot) {
-            std::cerr << "X: " << point[0] << ", Y: " << point[1] << std::endl;
-        }
 
-        // Initialize initial_state
         this->initialState[0] = static_cast<double>(initialStateInput[0]);  // x
         this->initialState[1] = static_cast<double>(initialStateInput[1]);  // y
         this->initialState[2] = static_cast<double>(initialStateInput[2]);  // horizontal speed
@@ -186,6 +177,7 @@ public:
 
     std::pair<std::vector<double>, bool> reset() {
         state = initialState;
+        counterToForceMovement = 0;
         return {state, false};
     }
 
@@ -203,13 +195,13 @@ public:
     }
 
     double getDistanceToPath(const std::vector<double>& newPos, const std::vector<std::vector<double>>& pathToTheLandingSpot) {
-        const double threshold = 25.0 * 25.0;
+        //const double threshold = 40.0 * 40.0;
 
         std::vector<double> highest = {0.0, 0.0};
 
         for (std::size_t i = 0; i < pathToTheLandingSpot.size(); ++i) {
             const auto& point = pathToTheLandingSpot[i];
-            if (newPos[1] >= point[1] && distance_2(newPos, point) >= threshold) {
+            if (newPos[1] >= point[1] /*&& distance_2(newPos, point) >= threshold*/) {
                 highest = point;
                 break;
             }
@@ -347,9 +339,16 @@ public:
         //std::cerr << "distpath : " << distPath << std::endl;
         double reward = (norm_reward(distPath, 0, 3000 * 3000)
                         + 0.65 * norm_reward(std::abs(vs), 39, 140)
-                        + 0.35 * norm_reward(std::abs(hs), 19, 140));
+                        + 0.35 * norm_reward(std::abs(hs), 19, 140)
+                        //+ 0.05 * norm_reward(std::abs(rotation), 0, 90)
+        );
         //std::cerr << norm_reward(39, 39, 150) << std::endl;
-
+        if (distance_2({this->initialState[0], this->initialState[1]}, {x, y}) < 150 * 150) {
+            counterToForceMovement += 1;
+        }
+        if (counterToForceMovement > 20) {
+            reward -= 1000;
+        }
         if (isUnderLandingSpot) {
             reward -= 1000;
         }
@@ -433,10 +432,10 @@ public:
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
           horizon(30),
-          offspring_size(9),
-          n_elites(3),
+          offspring_size(15),
+          n_elites(5),
           n_heuristic_guides(3),
-          mutation_rate(0.4),
+          mutation_rate(0.5),
           population_size(offspring_size + n_elites + n_heuristic_guides),
           population(init_population(env->initialState[5], env->initialState[6])),
           parents(std::vector<std::vector<std::array<int, 2>>>())
