@@ -1,5 +1,5 @@
-from src.GeneticAlgorithm import GeneticAlgorithm
-from src.create_environment import RocketLandingEnv
+from source_code.GeneticAlgorithm import GeneticAlgorithm
+from source_code.create_environment import RocketLandingEnv
 
 
 if __name__ == '__main__':
