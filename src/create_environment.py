@@ -1,12 +1,11 @@
 import math
 import random
-import time
 
 import numpy as np
 from matplotlib import pyplot as plt
 
-from src.GA.graph_handler import create_graph, display_graph, plot_terminal_state_rewards
-from src.GA.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect
+from src.graph_handler import create_graph, display_graph
+from src.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect
 
 
 class RocketLandingEnv:
@@ -140,9 +139,7 @@ class RocketLandingEnv:
         return np.array(new_state)
 
     def render(self):
-        # return None
         self.reward_plot.append(np.sum(self.rewards_episode))
-        plot_terminal_state_rewards(self.reward_plot, self.ax_terminal_state_rewards)
         display_graph(self.trajectory_plot, 0, self.ax_trajectories)
         self.trajectory_plot = []
         self.rewards_episode = []
@@ -179,7 +176,6 @@ class RocketLandingEnv:
             reward -= 100
 
         elif is_crashed_anywhere:
-            print("Crash anywhere", x, y)
             truncated = True
             reward -= 100
         return reward, terminated, truncated
