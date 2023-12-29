@@ -6,7 +6,6 @@ from src.create_environment import RocketLandingEnv
 class GeneticAlgorithm:
     def __init__(self, env):
         self.env: RocketLandingEnv = env
-
         self.horizon = 30
         self.offspring_size = 10
         self.n_elites = 4
