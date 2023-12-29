@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from src.create_environment import RocketLandingEnv
+from source_code.create_environment import RocketLandingEnv
 
 
 class GeneticAlgorithm:

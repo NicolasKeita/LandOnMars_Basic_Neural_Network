@@ -4,8 +4,8 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 
-from src.graph_handler import create_graph, display_graph
-from src.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect
+from source_code.graph_handler import create_graph, display_graph
+from source_code.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect
 
 
 class RocketLandingEnv:
