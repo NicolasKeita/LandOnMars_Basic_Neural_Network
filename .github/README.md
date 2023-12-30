@@ -1,12 +1,21 @@
-# Rocket landing AI
+# Rocket landing, AI spin-off : Genetic Algorithm
 
-Preparing for the next programming contest in AI,
+This GitHub repository addresses the classic Rocket Landing trajectory **optimization** problem,   
+enriching the challenge with additional complexities, including: 
+- **Landscapes:** Navigate through varying terrains such as mountains, hollows, and tunnels.
+- **Time Constraint:** Solve the optimization problem within a rigorously defined time limit.  
+(This is why I've opted for a Genetic Algorithm approach rather than Reinforcement Learning)
 
-Reinforcement learning is fun, so let's code the newest (2017 ? :D) algorithm by OpenAI engineers : Proximal Policy Optimization
 
-...
-Currently working on it; nothing to see yet...
+![Rocket Landing](https://github.com/NicolasKeita/Rocket_Landing_Reinforcement_Learning/assets/26335370/fa999f0f-a258-4660-9f7c-dbf18389d16b)
 
-![landing_1](https://github.com/NicolasKeita/LandOnMars_Basic_Neural_Network/assets/26335370/115a28d1-573e-4218-ab13-962caa431480)
 
-![landing](https://github.com/NicolasKeita/LandOnMars_Basic_Neural_Network/assets/26335370/04848efc-5d4d-413a-a8b3-618ed6e080eb)
+## Usage
+```
+#  download repository then do
+python -m venv env
+source env/bin/activate  # on Unix
+./env/Scripts/activate  # on Windows
+pip install -r requirements.txt
+python ./__main__.py
+```
