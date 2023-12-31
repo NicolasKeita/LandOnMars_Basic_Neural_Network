@@ -19,7 +19,6 @@ class GeneticAlgorithm:
         self.mutation_rate = 0.4
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
         self.population = self.init_population(self.env.initial_state[5], self.env.initial_state[6])
-
         self.parents = None
 
     def crossover(self, population_survivors: np.ndarray, offspring_size: int) -> np.ndarray:

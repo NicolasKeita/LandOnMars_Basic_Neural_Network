@@ -8,7 +8,10 @@
 #include <chrono>
 
 int orientation(const std::tuple<int, int>& p, const std::tuple<int, int>& q, const std::tuple<int, int>& r) {
-    int val = (std::get<1>(q) - std::get<1>(p)) * (std::get<0>(r) - std::get<0>(q)) - (std::get<0>(q) - std::get<0>(p)) * (std::get<1>(r) - std::get<1>(q));
+    int val = (std::get<1>(q) - std::get<1>(p)) *
+              (std::get<0>(r) - std::get<0>(q)) -
+              (std::get<0>(q) - std::get<0>(p)) *
+              (std::get<1>(r) - std::get<1>(q));
     if (val == 0) {
         return 0;
     }
@@ -734,10 +737,8 @@ int main() {
             env = new RocketLandingEnv(state, surface);
             my_GA = new GeneticAlgorithm(env);
         }
-
         my_GA->learn(95);
         i2 += 1;
     }
-
     return 0;
 }
