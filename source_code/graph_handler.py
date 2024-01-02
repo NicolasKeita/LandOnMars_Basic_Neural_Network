@@ -1,10 +1,9 @@
-import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt, cm
 matplotlib.use('Qt5Agg')
 
 
-def create_graph(line: np.ndarray, title: str, ax, path_to_the_landing_spot):
+def create_graph(line, title: str, ax, path_to_the_landing_spot):
     ax.set_xlim(0, 7000)
     ax.set_ylim(0, 3000)
     ax.set_xlabel('X Coordinate')
