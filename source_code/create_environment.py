@@ -1,6 +1,5 @@
 import math
 import random
-
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -11,12 +10,12 @@ from source_code.math_utils import distance_to_line, distance_2, calculate_inter
 class RocketLandingEnv:
     def __init__(self):
         self.n_intermediate_path = 6
-        initial_pos = [500, 2700]
-        initial_hs = 100
+        initial_pos = [6500, 2000]
+        initial_hs = 0
         initial_vs = 0
-        initial_rotation = -90
+        initial_rotation = 0
         initial_thrust = 0
-        self.initial_fuel = 800
+        self.initial_fuel = 1200
         self.rewards_episode = []
         self.prev_shaping = None
         self.reward_plot = []
@@ -71,27 +70,25 @@ class RocketLandingEnv:
     @staticmethod
     def parse_planet_surface():
         input_file = '''
-20
-0 1000
-300 1500
-350 1400
-500 2000
-800 1800
-1000 2500
-1200 2100
-1500 2400
-2000 1000
-2200 500
-2500 100
-2900 800
-3000 500
-3200 1000
-3500 2000
-3800 800
-4000 200
-5000 200
-5500 1500
-6999 2800
+18
+0 1800
+300 1200
+1000 1550
+2000 1200
+2500 1650
+3700 220
+4700 220
+4750 1000
+4700 1650
+4000 1700
+3700 1600
+3750 1900
+4000 2100
+4900 2050
+5100 1000
+5500 500
+6200 800
+6999 600
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
 
