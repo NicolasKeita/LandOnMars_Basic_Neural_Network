@@ -24,7 +24,7 @@ class RocketLandingEnv:
         self.surface_segments = list(zip(self.surface[:-1], self.surface[1:]))
         self.landing_spot = self.find_landing_spot(self.surface)
         self.middle_landing_spot = np.mean(self.landing_spot, axis=0)
-        self.path_to_the_landing_spot = self.search_path(initial_pos, self.landing_spot, [])
+        self.path_to_the_landing_spot = self.search_path(initial_pos)
 
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 200]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
@@ -184,42 +184,57 @@ class RocketLandingEnv:
         random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1)
         return np.array([random_rotation, random_thrust], dtype=int)
 
-    def search_path(self, initial_pos, landing_spot, my_path):
-        path = []
-        for segment in self.surface_segments:
-            segment1 = [initial_pos, self.middle_landing_spot]
-            segment2 = segment
-            if do_segments_intersect(segment1, segment2):
-                if segment2[0][1] > segment2[1][1]:
-                    path.append(segment2[0])
-                elif segment2[0][1] < segment2[1][1]:
-                    path.append(segment2[1])
-                else:
-                    path.append(random.choice([segment2[0], segment2[1]]))
-                break
-        if len(path) == 0:
-            t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
-            if len(my_path) == 0:
-                return t
-            else:
-                my_path = my_path[:-1, :]
-                return np.concatenate((my_path, t))
-        else:
-            path[0][1] = path[0][1]
-            t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
-            return self.search_path(path[0], landing_spot, t)
-
-    # def search_path(self, initial_pos: np.ndarray[int, 1], landing_spot, my_path):
-    #     path = next(((s2[0] if s2[0][1] > s2[1][1] else s2[1]) if do_segments_intersect(
-    #         [initial_pos, self.middle_landing_spot], s2) else None) for s2 in self.surface_segments)
-    #
-    #     if path is None:
+    # def search_path(self, initial_pos, landing_spot, my_path):
+    #     path = []
+    #     for segment in self.surface_segments:
+    #         segment1 = [initial_pos, self.middle_landing_spot]
+    #         segment2 = segment
+    #         if do_segments_intersect(segment1, segment2):
+    #             if segment2[0][1] > segment2[1][1]:
+    #                 path.append(segment2[0])
+    #             elif segment2[0][1] < segment2[1][1]:
+    #                 path.append(segment2[1])
+    #             else:
+    #                 path.append(random.choice([segment2[0], segment2[1]]))
+    #             break
+    #     if len(path) == 0:
     #         t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
-    #         return t if len(my_path) == 0 else np.concatenate((my_path[:-1, :], t))
-    #
-    #     path[1] = path[1]
-    #     return self.search_path(path, landing_spot,
-    #                             np.round(np.linspace(initial_pos, path, self.n_intermediate_path)).astype(int))
+    #         if len(my_path) == 0:
+    #             return t
+    #         else:
+    #             my_path = my_path[:-1, :]
+    #             return np.concatenate((my_path, t))
+    #     else:
+    #         path[0][1] = path[0][1]
+    #         t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
+    #         return self.search_path(path[0], landing_spot, t)
+
+    def search_path(self, initial_pos):
+        path = []
+        intersect = False
+        intersect_index = 0
+
+        for idx, segment in enumerate(self.surface_segments):
+            if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
+                intersect = True
+                intersect_index = idx
+                break
+
+        if not intersect:
+            path.extend([initial_pos, self.middle_landing_spot])
+            return path
+
+        print("here", intersect_index)
+
+        idx = intersect_index
+        while idx < len(self.surface_segments):
+            segment = self.surface_segments[idx]
+
+            if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
+                idx += 1
+            else:
+                path.extend([initial_pos, segment[1], self.middle_landing_spot])
+                return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
         highest = None
