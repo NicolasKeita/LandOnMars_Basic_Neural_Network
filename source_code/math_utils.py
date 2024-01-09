@@ -53,6 +53,13 @@ def on_segment(p, q, r):
             max(p[1], r[1]) >= q[1] >= min(p[1], r[1]))
 
 
+def do_segments_intersect_vector(segment1: list[list[int]], list_segments: list[list[list[int]]]) -> bool:
+    for segment in list_segments:
+        if do_segments_intersect(segment1, segment):
+            return True
+    return False
+
+
 def do_segments_intersect(segment1: list[list[int]], segment2: list[list[int]]) -> bool:
     x1, y1 = segment1[0]
     x2, y2 = segment1[1]

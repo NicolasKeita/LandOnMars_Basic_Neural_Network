@@ -4,7 +4,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from source_code.graph_handler import create_graph, display_graph
-from source_code.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect
+from source_code.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect, \
+    do_segments_intersect_vector
 
 
 class RocketLandingEnv:
@@ -213,27 +214,27 @@ class RocketLandingEnv:
         path = []
         intersect = False
         intersect_index = 0
-
+        self.surface_segments.reverse()
+        print(self.surface_segments)
         for idx, segment in enumerate(self.surface_segments):
             if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
                 intersect = True
                 intersect_index = idx
                 break
-
         if not intersect:
-            path.extend([initial_pos, self.middle_landing_spot])
+            path.append(initial_pos)
+            path.append(self.middle_landing_spot)
             return path
-
-        print("here", intersect_index)
-
         idx = intersect_index
         while idx < len(self.surface_segments):
             segment = self.surface_segments[idx]
-
-            if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
+            high_point = segment[0]
+            if do_segments_intersect_vector([high_point, self.middle_landing_spot], self.surface_segments):
                 idx += 1
             else:
-                path.extend([initial_pos, segment[1], self.middle_landing_spot])
+                path.append(initial_pos)
+                path.append(segment[0])
+                path.append(self.middle_landing_spot)
                 return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
