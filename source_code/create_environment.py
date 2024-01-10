@@ -28,7 +28,7 @@ class RocketLandingEnv:
         self.path_to_the_landing_spot = self.search_path(initial_pos)
 
         self.path_to_the_landing_spot = np.array(
-            [np.array([x, y + 200]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
+            [np.array([x, y + 400]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
 
 
@@ -233,8 +233,7 @@ class RocketLandingEnv:
                 idx += 1
             else:
                 path.append(initial_pos)
-                path.append(segment[0])
-                path.append(self.middle_landing_spot)
+                path.extend(np.round(np.linspace(segment[0], self.middle_landing_spot, 3)).astype(int))
                 return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
