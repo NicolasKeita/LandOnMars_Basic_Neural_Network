@@ -26,6 +26,7 @@ class RocketLandingEnv:
         self.landing_spot = self.find_landing_spot(self.surface)
         self.middle_landing_spot = np.mean(self.landing_spot, axis=0)
         self.path_to_the_landing_spot = self.search_path(initial_pos)
+        self.checkpoint = 0
 
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 400]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
@@ -129,6 +130,11 @@ class RocketLandingEnv:
         surface_segments = np.array([self.surface[i:i + 2] for i in range(len(self.surface) - 1)])
         dist_to_landing_spot = distance_to_line(new_pos[0], new_pos[1], np.array([self.landing_spot]))
         dist_to_surface = distance_to_line(new_pos[0], new_pos[1], surface_segments)
+
+        if distance_2(new_pos, self.path_to_the_landing_spot[self.checkpoint]) < 300 * 300:
+            self.checkpoint += 1
+            print("Checkpoint Next", self.path_to_the_landing_spot[self.checkpoint])
+
         dist_to_path = self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)
 
         new_state = [new_pos[0], new_pos[1], new_horizontal_speed, new_vertical_speed,
@@ -239,12 +245,19 @@ class RocketLandingEnv:
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
         highest = None
 
-        for i, point in enumerate(path_to_the_landing_spot):
-            if new_pos[1] >= point[1] and not distance_2(new_pos, point) < 25 ** 2:
-            # if new_pos[1] >= point[1]:
-                highest = point
-                self.i_intermediate_path = i
-                break
+        # for i, point in enumerate(path_to_the_landing_spot):
+        #     if new_pos[1] >= point[1] and not distance_2(new_pos, point) < 25 ** 2:
+        #     # if new_pos[1] >= point[1]:
+        #         highest = point
+        #         self.i_intermediate_path = i
+        #         break
+
+        if self.checkpoint >= len(self.path_to_the_landing_spot):
+            self.checkpoint = len(self.path_to_the_landing_spot) - 1
+        # highest = pathToTheLandingSpot[checkpoint];
+        highest = self.path_to_the_landing_spot[self.checkpoint]
+        # print(distance_2(highest, new_pos))
+
         if highest is None:
             highest = path_to_the_landing_spot[-1]
         return distance_2(highest, new_pos)
