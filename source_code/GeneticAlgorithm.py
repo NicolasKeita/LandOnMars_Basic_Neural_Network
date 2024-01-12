@@ -92,7 +92,7 @@ class GeneticAlgorithm:
             self.env.reset()
             action_to_do = self.final_heuristic_verification(best_individual[0], curr_initial_state)
             next_state, _, terminated, truncated, _ = self.env.step(action_to_do)
-            print("Action chosen : ", action_to_do, " i2 : ", i2)
+            # print("Action chosen : ", action_to_do, " i2 : ", i2)
             policy_global.append(list(best_individual[0]))
             curr_initial_state = next_state
             parents = parents[:, 1:, :]

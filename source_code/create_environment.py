@@ -29,7 +29,7 @@ class RocketLandingEnv:
         self.checkpoint = 0
 
         self.path_to_the_landing_spot = np.array(
-            [np.array([x, y + 400]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
+            [np.array([x, y + 600]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
 
 
@@ -132,8 +132,9 @@ class RocketLandingEnv:
         dist_to_surface = distance_to_line(new_pos[0], new_pos[1], surface_segments)
 
         if distance_2(new_pos, self.path_to_the_landing_spot[self.checkpoint]) < 300 * 300:
-            self.checkpoint += 1
-            print("Checkpoint Next", self.path_to_the_landing_spot[self.checkpoint])
+            if self.checkpoint < len(self.path_to_the_landing_spot) - 1:
+                self.checkpoint += 1
+                print("Checkpoint Next", self.path_to_the_landing_spot[self.checkpoint])
 
         dist_to_path = self.get_distance_to_path(new_pos, self.path_to_the_landing_spot)
 
@@ -238,8 +239,9 @@ class RocketLandingEnv:
             if do_segments_intersect_vector([high_point, self.middle_landing_spot], self.surface_segments):
                 idx += 1
             else:
-                path.append(initial_pos)
-                path.extend(np.round(np.linspace(segment[0], self.middle_landing_spot, 3)).astype(int))
+                # path.append(initial_pos)
+                path.extend(np.round(np.linspace(initial_pos, segment[0], 5)).astype(int))
+                path.extend(np.round(np.linspace(segment[0], self.middle_landing_spot, 5)).astype(int))
                 return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
