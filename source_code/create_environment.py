@@ -131,7 +131,7 @@ class RocketLandingEnv:
         dist_to_landing_spot = distance_to_line(new_pos[0], new_pos[1], np.array([self.landing_spot]))
         dist_to_surface = distance_to_line(new_pos[0], new_pos[1], surface_segments)
 
-        if distance_2(new_pos, self.path_to_the_landing_spot[self.checkpoint]) < 300 * 300:
+        if distance_2(new_pos, self.path_to_the_landing_spot[self.checkpoint]) < 500 * 500:
             if self.checkpoint < len(self.path_to_the_landing_spot) - 1:
                 self.checkpoint += 1
                 print("Checkpoint Next", self.path_to_the_landing_spot[self.checkpoint])
