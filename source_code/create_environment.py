@@ -1,5 +1,4 @@
 import math
-import random
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -29,7 +28,7 @@ class RocketLandingEnv:
         self.checkpoint = 0
 
         self.path_to_the_landing_spot = np.array(
-            [np.array([x, y + 600]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
+            [np.array([x, y + 1000]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
 
 
@@ -222,7 +221,6 @@ class RocketLandingEnv:
         intersect = False
         intersect_index = 0
         self.surface_segments.reverse()
-        print(self.surface_segments)
         for idx, segment in enumerate(self.surface_segments):
             if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
                 intersect = True
