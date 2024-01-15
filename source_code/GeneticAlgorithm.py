@@ -101,6 +101,13 @@ class GeneticAlgorithm:
                 (parents, np.array([self.env.generate_random_action(*item) for item in last_elements_tuple])[:, np.newaxis, :]),
                 axis=1)
         print(policy_global)
+        # formatted_output = [
+        #     "{" + ", ".join(map(str, inner)).replace('[', '{').replace(']', '}') + "}"
+        #     for inner in policy_global
+        # ]
+        #
+        # final_result = "{" + ", ".join(formatted_output) + "}"
+        # print(final_result)
 
     def rollout(self, policy: np.ndarray[int, 2]) -> float:
         self.env.reset()

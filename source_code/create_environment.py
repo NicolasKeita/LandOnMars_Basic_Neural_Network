@@ -154,8 +154,8 @@ class RocketLandingEnv:
         x, y, hs, vs, remaining_fuel, rotation, thrust, dist_landing_spot, dist_surface, dist_path = state
 
         is_successful_landing = dist_landing_spot < 1 and rotation == 0 and abs(vs) <= 40 and abs(hs) <= 20
-        is_crashed_on_landing_spot = dist_landing_spot < 1
-        is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 1 or remaining_fuel < 4
+        is_crashed_on_landing_spot = dist_landing_spot < 2
+        is_crashed_anywhere = y <= 1 or y >= 3000 - 1 or x <= 1 or x >= 7000 - 1 or dist_surface < 2 or remaining_fuel < 4
         is_close_to_land = dist_landing_spot < 1500 ** 2
 
         if is_close_to_land:
