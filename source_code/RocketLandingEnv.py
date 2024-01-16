@@ -30,6 +30,8 @@ class RocketLandingEnv:
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 1000]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
+        # print(self.path_to_the_landing_spot)
+        # exit(0)
 
 
         self.initial_state = np.array([
