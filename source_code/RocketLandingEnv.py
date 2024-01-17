@@ -22,6 +22,8 @@ class RocketLandingEnv:
         self.trajectory_plot = []
         self.surface = self.parse_planet_surface()
         self.surface_segments = list(zip(self.surface[:-1], self.surface[1:]))
+        if initial_pos[0] > 7000 / 2:
+            self.surface_segments.reverse()
         self.landing_spot = self.find_landing_spot(self.surface)
         self.middle_landing_spot = np.mean(self.landing_spot, axis=0)
         self.path_to_the_landing_spot = self.search_path(initial_pos)
@@ -222,7 +224,6 @@ class RocketLandingEnv:
         path = []
         intersect = False
         intersect_index = 0
-        self.surface_segments.reverse()
         for idx, segment in enumerate(self.surface_segments):
             if do_segments_intersect([initial_pos, self.middle_landing_spot], segment):
                 intersect = True
