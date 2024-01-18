@@ -35,7 +35,6 @@ class RocketLandingEnv:
         # print(self.path_to_the_landing_spot)
         # exit(0)
 
-
         self.initial_state = np.array([
             float(initial_pos[0]),  # x
             float(initial_pos[1]),  # y
@@ -67,7 +66,6 @@ class RocketLandingEnv:
         fig, (ax_terminal_state_rewards, ax_trajectories) = plt.subplots(2, 1, figsize=(10, 8))
         self.fig = fig
         # plt.close(fig)
-        # self.ax_rewards = ax_mean_rewards
         self.ax_trajectories = ax_trajectories
         self.ax_terminal_state_rewards = ax_terminal_state_rewards
         create_graph(self.surface, 'Landing on Mars', ax_trajectories, self.path_to_the_landing_spot)
@@ -110,7 +108,7 @@ class RocketLandingEnv:
         self.state = self.initial_state
         return self.state, {}
 
-    def step(self, action_to_do: np.ndarray[int, 1]) -> tuple[np.ndarray, float, bool, bool, bool]:
+    def step(self, action_to_do: np.ndarray) -> tuple[np.ndarray, float, bool, bool, bool]:
         self.state = self._compute_next_state(self.state, action_to_do)
         reward, terminated, truncated = self._compute_reward(self.state)
         self.trajectory_plot.append(self.state)
@@ -195,31 +193,6 @@ class RocketLandingEnv:
         random_thrust = np.random.randint(thrust_limits[0], thrust_limits[1] + 1)
         return np.array([random_rotation, random_thrust], dtype=int)
 
-    # def search_path(self, initial_pos, landing_spot, my_path):
-    #     path = []
-    #     for segment in self.surface_segments:
-    #         segment1 = [initial_pos, self.middle_landing_spot]
-    #         segment2 = segment
-    #         if do_segments_intersect(segment1, segment2):
-    #             if segment2[0][1] > segment2[1][1]:
-    #                 path.append(segment2[0])
-    #             elif segment2[0][1] < segment2[1][1]:
-    #                 path.append(segment2[1])
-    #             else:
-    #                 path.append(random.choice([segment2[0], segment2[1]]))
-    #             break
-    #     if len(path) == 0:
-    #         t = np.round(np.linspace(initial_pos, self.middle_landing_spot, self.n_intermediate_path)).astype(int)
-    #         if len(my_path) == 0:
-    #             return t
-    #         else:
-    #             my_path = my_path[:-1, :]
-    #             return np.concatenate((my_path, t))
-    #     else:
-    #         path[0][1] = path[0][1]
-    #         t = np.round(np.linspace(initial_pos, path[0], self.n_intermediate_path)).astype(int)
-    #         return self.search_path(path[0], landing_spot, t)
-
     def search_path(self, initial_pos):
         path = []
         intersect = False
@@ -240,26 +213,14 @@ class RocketLandingEnv:
             if do_segments_intersect_vector([high_point, self.middle_landing_spot], self.surface_segments):
                 idx += 1
             else:
-                # path.append(initial_pos)
                 path.extend(np.round(np.linspace(initial_pos, segment[0], 5)).astype(int))
                 path.extend(np.round(np.linspace(segment[0], self.middle_landing_spot, 5)).astype(int))
                 return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
-        highest = None
-
-        # for i, point in enumerate(path_to_the_landing_spot):
-        #     if new_pos[1] >= point[1] and not distance_2(new_pos, point) < 25 ** 2:
-        #     # if new_pos[1] >= point[1]:
-        #         highest = point
-        #         self.i_intermediate_path = i
-        #         break
-
         if self.checkpoint >= len(self.path_to_the_landing_spot):
             self.checkpoint = len(self.path_to_the_landing_spot) - 1
-        # highest = pathToTheLandingSpot[checkpoint];
         highest = self.path_to_the_landing_spot[self.checkpoint]
-        # print(distance_2(highest, new_pos))
 
         if highest is None:
             highest = path_to_the_landing_spot[-1]
