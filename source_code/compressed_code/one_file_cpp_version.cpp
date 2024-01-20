@@ -6,12 +6,11 @@
 #include <cstdlib>
 #include <numeric>
 #include <chrono>
+#include <unordered_set>
+
 
 int orientation(const std::tuple<int, int>& p, const std::tuple<int, int>& q, const std::tuple<int, int>& r) {
-    int val = (std::get<1>(q) - std::get<1>(p)) *
-              (std::get<0>(r) - std::get<0>(q)) -
-              (std::get<0>(q) - std::get<0>(p)) *
-              (std::get<1>(r) - std::get<1>(q));
+    int val = (std::get<1>(q) - std::get<1>(p)) * (std::get<0>(r) - std::get<0>(q)) - (std::get<0>(q) - std::get<0>(p)) * (std::get<1>(r) - std::get<1>(q));
     if (val == 0) {
         return 0;
     }
@@ -102,6 +101,7 @@ public:
     std::vector<double> middleLandingSpot;
     std::vector<std::vector<std::vector<double>>> surfaceSegments;
     int counterToForceMovement;
+    int checkpoint;
 
     RocketLandingEnv(std::vector<double> initialStateInput, std::vector<std::vector<double>> surface)
         : n_intermediate_path(4),
@@ -110,25 +110,46 @@ public:
           middleLandingSpot(2, 0.0),
           actionConstraints({15, 1}),
           gravity(3.711),
-          counterToForceMovement(0)
+          counterToForceMovement(0),
+          checkpoint(0)
     {
         this->surface = surface;
+
+        /*
+        std::cerr << "Surface points:" << std::endl;
+        for (const auto& point : this->surface) {
+            std::cerr << "(" << point[0] << ", " << point[1] << ") " << std::endl;
+        }*/
+
         for (size_t i = 0; i < this->surface.size() - 1; ++i) {
             this->surfaceSegments.push_back({this->surface[i], this->surface[i + 1]});
         }
+        //std::reverse(this->surfaceSegments.begin(), this->surfaceSegments.end());
+        /*
+        for (auto it = surfaceSegments.rbegin(); it != surfaceSegments.rend(); ++it) {
+            std::reverse(it->begin(), it->end());
+        }*/
+        if (initialStateInput[0] > 7000.0 / 2) {
+            std::reverse(this->surfaceSegments.begin(), this->surfaceSegments.end());
+        }
+
         this->landingSpot = findLandingSpot(this->surface);
         this->middleLandingSpot[0] = (landingSpot[0][0] + landingSpot[1][0]) / 2.0;
         this->middleLandingSpot[1] = landingSpot[0][1];
         this->pathToTheLandingSpot = searchPath({initialStateInput[0], initialStateInput[1]});
-        this->pathToTheLandingSpot.insert(this->pathToTheLandingSpot.begin(), {initialStateInput[0], initialStateInput[1]});
-        this->pathToTheLandingSpot = interpolatePoints(this->pathToTheLandingSpot, this->n_intermediate_path);
 
-        // Modify path to the landing spot
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
             double x = this->pathToTheLandingSpot[i][0];
-            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 200 : this->pathToTheLandingSpot[i][1];
+            double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 1000 : this->pathToTheLandingSpot[i][1];
             this->pathToTheLandingSpot[i] = {x, y};
         }
+        removeDuplicates(this->pathToTheLandingSpot);
+
+        std::cerr << " 2 - Interpolated path to the landing spot:" << std::endl;
+        for (const auto& point : this->pathToTheLandingSpot) {
+            std::cerr << "(" << point[0] << ", " << point[1] << ") " << std::endl;
+        }
+        //exit(0);
 
         this->initialState[0] = static_cast<double>(initialStateInput[0]);  // x
         this->initialState[1] = static_cast<double>(initialStateInput[1]);  // y
@@ -141,6 +162,29 @@ public:
         this->initialState[8] = static_cast<double>(distance_to_line(initialStateInput[0], initialStateInput[1], this->surfaceSegments));  // distance to surface
         this->initialState[9] = 0.0;
     }
+
+    void removeDuplicates(std::vector<std::vector<double>>& pathToTheLandingSpot) {
+        std::vector<std::vector<double>> uniquePath;
+        std::unordered_set<std::vector<double>, VectorHash> seenPoints;
+
+        for (const auto& point : pathToTheLandingSpot) {
+            if (seenPoints.insert(point).second) {
+                uniquePath.push_back(point);
+            }
+        }
+
+        pathToTheLandingSpot = std::move(uniquePath);
+    }
+    struct VectorHash {
+        size_t operator()(const std::vector<double>& v) const {
+            std::hash<double> hasher;
+            size_t seed = 0;
+            for (double d : v) {
+                seed ^= hasher(d) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            }
+            return seed;
+        }
+    };
 
     double distance_to_line(double x, double y, const std::vector<std::vector<std::vector<double>>>& lineSegments) {
         double minDistanceSquared = std::numeric_limits<double>::infinity();
@@ -181,6 +225,7 @@ public:
     std::pair<std::vector<double>, bool> reset() {
         state = initialState;
         counterToForceMovement = 0;
+        //checkpoint = 0;
         return {state, false};
     }
 
@@ -198,22 +243,12 @@ public:
     }
 
     double getDistanceToPath(const std::vector<double>& newPos, const std::vector<std::vector<double>>& pathToTheLandingSpot) {
-        //const double threshold = 40.0 * 40.0;
+        std::vector<double> highest = pathToTheLandingSpot[this->checkpoint];
 
-        std::vector<double> highest = {0.0, 0.0};
-
-        for (std::size_t i = 0; i < pathToTheLandingSpot.size(); ++i) {
-            const auto& point = pathToTheLandingSpot[i];
-            if (newPos[1] >= point[1] /*&& distance_2(newPos, point) >= threshold*/) {
-                highest = point;
-                break;
-            }
-        }
-
-        if (highest[0] == 0.0 && highest[1] == 0.0) {
-            highest = pathToTheLandingSpot.back();
-        }
-        //std::cerr << "here height" << highest[0] << ' ' << highest[1] << ' ' <<newPos[0] << ' ' <<newPos[1] << std::endl;
+        //if (highest[0] != 6500 && highest[1] != 3000) {
+            //std::cerr << this->checkpoint;
+           //std::cerr << "here heightest : " << highest[0] << ' ' << highest[1] << ' ' <<newPos[0] << ' ' <<newPos[1] << std::endl;
+        //}
         return distance_2(highest, newPos);
     }
 
@@ -246,6 +281,14 @@ public:
 
         double distToLandingSpot = distance_to_line(newPos[0], newPos[1], {landingSpot});
         double distToSurface = distance_to_line(newPos[0], newPos[1], surfaceSegments);
+
+        if (distance_2(newPos, pathToTheLandingSpot[checkpoint]) < 500 * 500) {
+            if (this->checkpoint < this->pathToTheLandingSpot.size() - 1) {
+                this->checkpoint += 1;
+                std::cerr << this->checkpoint << std::endl;
+            }
+        }
+
         double distToPath = getDistanceToPath(newPos, pathToTheLandingSpot);
 
         //std::cerr << "distToLandingSpot " << distToLandingSpot << std::endl;
@@ -341,8 +384,8 @@ public:
 
         //std::cerr << "distpath : " << distPath << std::endl;
         double reward = (norm_reward(distPath, 0, 3000 * 3000)
-                        + 0.65 * norm_reward(std::abs(vs), 39, 140)
-                        + 0.35 * norm_reward(std::abs(hs), 19, 140)
+                        //+ 0.65 * norm_reward(std::abs(vs), 39, 140)
+                        //+ 0.35 * norm_reward(std::abs(hs), 19, 140)
                         //+ 0.05 * norm_reward(std::abs(rotation), 0, 90)
         );
         //std::cerr << norm_reward(39, 39, 150) << std::endl;
@@ -350,7 +393,7 @@ public:
             counterToForceMovement += 1;
         }
         if (counterToForceMovement > 20) {
-            reward -= 1000;
+            //reward -= 1000;
         }
         if (isUnderLandingSpot) {
             reward -= 1000;
@@ -376,29 +419,100 @@ public:
         return {randomRotation, randomThrust};
     }
 
-    std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos)
-    {
-        for (const std::vector<std::vector<double>>& segment : surfaceSegments) {
-            if (do_segments_intersect({initial_pos, middleLandingSpot}, segment)) {
-                auto intersection = (segment[0][1] > segment[1][1]) ? segment[0] : segment[1];
-                auto result = searchPath(intersection);
-                result.insert(result.begin(), intersection);
-                return result;
+    bool do_segments_intersect_vector(const std::vector<std::vector<double>>& segment1,
+                                    const std::vector<std::vector<std::vector<double>>>& list_segments) {
+        for (const auto& segment : list_segments) {
+            if (do_segments_intersect(segment1, segment)) {
+                return true;
             }
         }
-        return std::vector<std::vector<double>>(1, middleLandingSpot);
+        return false;
+    }
+
+void extendPath(std::vector<std::vector<double>>& path,
+                const std::vector<double>& initial_pos,
+                const std::vector<double>& segmentEnd,
+                int numPoints) {
+    // Equivalent to np.round(np.linspace(initial_pos, segmentEnd, 5)) in Python
+    for (int i = 0; i <= numPoints; ++i) {
+        std::vector<double> values;
+        for (size_t j = 0; j < initial_pos.size(); ++j) {
+            double value = std::round(initial_pos[j] + i * (segmentEnd[j] - initial_pos[j]) / numPoints);
+            values.push_back(value);
+        }
+        path.push_back(values);
+    }
+}
+
+    std::vector<std::vector<double>> linspace(std::vector<double> start, std::vector<double> end, int numPoints) {
+        std::vector<std::vector<double>> result;
+        if (numPoints <= 1) {
+            result.push_back(start);
+            return result;
+        }
+
+        std::vector<double> step;
+        for (size_t i = 0; i < start.size(); ++i) {
+            step.push_back((end[i] - start[i]) / (numPoints - 1));
+        }
+
+        for (int i = 0; i < numPoints; ++i) {
+            std::vector<double> currentPoint;
+            for (size_t j = 0; j < start.size(); ++j) {
+                currentPoint.push_back(start[j] + i * step[j]);
+            }
+            result.push_back(currentPoint);
+        }
+
+        return result;
+    }
+
+
+    std::vector<std::vector<double>> searchPath(const std::vector<double>& initial_pos)
+    {
+        std::vector<std::vector<double>> path;
+
+        bool intersect = false;
+        int intersect_index = 0;
+
+        for (size_t idx = 0; idx < surfaceSegments.size() - 1; ++idx) {
+            const std::vector<std::vector<double>>& segment = surfaceSegments[idx];
+            if (do_segments_intersect({initial_pos, middleLandingSpot}, segment)) {
+                intersect = true;
+                intersect_index = idx;
+                break;
+            }
+        }
+        if (!intersect) {
+            path.push_back(initial_pos);
+            path.push_back(middleLandingSpot);
+            return path;
+        }
+
+        size_t idx = intersect_index;
+        while (idx < surfaceSegments.size()) {
+            const std::vector<std::vector<double>>& segment = surfaceSegments[idx];
+            const std::vector<double>high_point = segment[0];
+
+            if (do_segments_intersect_vector({high_point, middleLandingSpot}, surfaceSegments)) {
+                ++idx;
+            } else {
+                std::vector<std::vector<double>> result_1 = linspace(initial_pos, high_point, 5);
+                std::vector<std::vector<double>> result_2 = linspace(high_point, middleLandingSpot, 5);
+                result_1.insert(result_1.end(), result_2.begin(), result_2.end());
+                path = result_1;
+                return path;
+            }
+        }
     }
 
 private:
-
     std::vector<std::vector<double>> surface;
     double gravity;
     int n_intermediate_path;
     std::vector<std::vector<double>> landingSpot;
     std::vector<std::vector<double>> pathToTheLandingSpot;
-
     std::vector<int> actionConstraints;
-
     double initialFuel;
 
     std::array<int, 2> generateActionLimits(int center, int delta, int minValue, int maxValue) {
@@ -417,8 +531,6 @@ private:
 
         return {rotation, thrust};
     }
-
-    double normReward(double feature, double intervalLow, double intervalHigh);
 };
 
 class GeneticAlgorithm {
@@ -435,10 +547,10 @@ public:
     GeneticAlgorithm(RocketLandingEnv* env)
         : env(env),
           horizon(30),
-          offspring_size(15),
-          n_elites(5),
+          offspring_size(10),
+          n_elites(4),
           n_heuristic_guides(3),
-          mutation_rate(0.5),
+          mutation_rate(0.4),
           population_size(offspring_size + n_elites + n_heuristic_guides),
           population(init_population(env->initialState[5], env->initialState[6])),
           parents(std::vector<std::vector<std::array<int, 2>>>())
@@ -710,17 +822,21 @@ private:
 int main() {
     int n;
     std::cin >> n;
+    std::cerr << n << std::endl;
 
     std::vector<std::vector<double>> surface;
     for (int i = 0; i < n; ++i) {
         double land_x, land_y;
         std::cin >> land_x >> land_y;
+        std::cerr << land_x << " " << land_y << std::endl;
         surface.push_back({land_x, land_y});
     }
 
     RocketLandingEnv* env = nullptr;
     GeneticAlgorithm* my_GA = nullptr;
     int i2 = 0;
+//std::vector<std::vector<int>> data = {{0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {0, 4}, {5, 4}, {1, 4}, {1, 4}, {0, 4}, {14, 3}, {22, 4}, {27, 4}, {31, 4}, {18, 4}, {-18, 4}, {20, 4}, {-29, 4}, {12, 4}, {35, 4}, {-9, 4}, {33, 4}, {-47, 4}, {43, 4}, {64, 4}, {-11, 4}, {50, 3}, {46, 4}, {-1, 4}, {2, 4}, {28, 4}, {45, 4}, {1, 4}, {42, 4}, {72, 4}, {-45, 4}, {3, 3}, {61, 4}, {-81, 0}, {-79, 3}, {-83, 4}, {-90, 4}, {-47, 4}, {1, 3}, {-12, 3}, {12, 4}, {9, 4}, {-13, 4}, {-43, 4}, {-2, 4}, {17, 4}, {2, 3}, {5, 4}, {10, 3}, {3, 4}, {-23, 4}, {-13, 4}, {-1, 4}, {-1, 3}, {-10, 4}, {-6, 4}, {-50, 4}, {-31, 3}, {-18, 3}, {-12, 4}, {-15, 3}, {-2, 3}, {3, 3}, {-16, 4}, {18, 4}, {13, 4}, {-8, 1}, {-14, 2}, {15, 4}, {-12, 4}, {-38, 4}, {-5, 1}, {24, 2}, {1, 3}, {-21, 3}, {3, 4}, {-37, 4}, {-42, 3}, {-37, 4}, {14, 2}, {-32, 3}, {-11, 3}, {-23, 2}, {-44, 2}, {-35, 3}, {-19, 4}, {-9, 2}, {6, 2}, {-6, 3}, {-8, 2}, {-16, 4}, {-8, 3}, {-40, 3}, {-36, 4}, {-27, 4}, {-12, 4}, {-20, 4}, {-34, 2}, {-7, 4}, {-34, 4}, {-31, 1}, {-47, 3}, {8, 2}, {-4, 4}, {-51, 3}, {10, 4}, {-27, 4}, {-20, 4}, {-14, 4}, {0, 4}, {-7, 4}, {-6, 4}, {-9, 3}, {5, 4}, {-11, 3}, {-8, 4}, {6, 3}, {-8, 4}, {10, 2}, {-1, 4}, {8, 4}, {1, 4}, {-15, 4}, {-8, 4}, {-4, 4}, {1, 2}, {14, 4}, {2, 0}, {-5, 4}, {-9, 3}, {4, 4}, {0, 3}, {-4, 4}, {26, 3}, {-2, 4}, {11, 1}, {0, 4}, {0, 4}};
+
 
     while (true) {
         std::vector<double> state;
@@ -738,7 +854,9 @@ int main() {
             my_GA = new GeneticAlgorithm(env);
         }
         my_GA->learn(95);
+        //std::cout << data[i2][0] << ' ' << data[i2][1] << std::endl;
         i2 += 1;
     }
+
     return 0;
 }

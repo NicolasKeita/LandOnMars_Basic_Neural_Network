@@ -31,8 +31,6 @@ class RocketLandingEnv:
         self.path_to_the_landing_spot = np.array(
             [np.array([x, y + 1000]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
              enumerate(self.path_to_the_landing_spot)])
-        # print(self.path_to_the_landing_spot)
-        # exit(0)
 
         self.initial_state = np.array([
             float(initial_pos[0]),  # x
@@ -214,6 +212,10 @@ class RocketLandingEnv:
             else:
                 path.extend(np.round(np.linspace(initial_pos, high_point, 5)).astype(int))
                 path.extend(np.round(np.linspace(high_point, self.middle_landing_spot, 5)).astype(int))
+                for item in path:
+                    print(item)
+                # print(path)
+                # exit(0)
                 return path
 
     def get_distance_to_path(self, new_pos, path_to_the_landing_spot):
@@ -223,6 +225,9 @@ class RocketLandingEnv:
 
         if highest is None:
             highest = path_to_the_landing_spot[-1]
+        # print(highest, new_pos)
+        if highest[0] != 6500 and highest[1] != 3000:
+            print(highest, new_pos)
         return distance_2(highest, new_pos)
 
     def straighten_info(self, state):
