@@ -282,11 +282,9 @@ public:
         double distToLandingSpot = distance_to_line(newPos[0], newPos[1], {landingSpot});
         double distToSurface = distance_to_line(newPos[0], newPos[1], surfaceSegments);
 
-        if (distance_2(newPos, pathToTheLandingSpot[checkpoint]) < 500 * 500) {
-            if (this->checkpoint < this->pathToTheLandingSpot.size() - 1) {
-                this->checkpoint += 1;
-                std::cerr << this->checkpoint << std::endl;
-            }
+        if (checkpoint < pathToTheLandingSpot.size() - 1 && distance_2(newPos, pathToTheLandingSpot[checkpoint]) < 400 * 400) {
+            this->checkpoint += 1;
+            std::cerr << this->checkpoint << std::endl;
         }
 
         double distToPath = getDistanceToPath(newPos, pathToTheLandingSpot);
@@ -383,9 +381,9 @@ public:
         */
 
         //std::cerr << "distpath : " << distPath << std::endl;
-        double reward = (norm_reward(distPath, 0, 3000 * 3000)
-                        //+ 0.65 * norm_reward(std::abs(vs), 39, 140)
-                        //+ 0.35 * norm_reward(std::abs(hs), 19, 140)
+        double reward = (norm_reward(distPath, 0, 7500 * 7500)
+                        + 0.65 * norm_reward(std::abs(vs), 39, 140)
+                        + 0.35 * norm_reward(std::abs(hs), 19, 140)
                         //+ 0.05 * norm_reward(std::abs(rotation), 0, 90)
         );
         //std::cerr << norm_reward(39, 39, 150) << std::endl;

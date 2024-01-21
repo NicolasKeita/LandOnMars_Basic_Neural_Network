@@ -29,7 +29,8 @@ class RocketLandingEnv:
         self.checkpoint = 0
 
         self.path_to_the_landing_spot = np.array(
-            [np.array([x, y + 1000]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y) in
+            [np.array([x, y + 1000]) if i < len(self.path_to_the_landing_spot) - 1 else np.array([x, y]) for i, (x, y)
+             in
              enumerate(self.path_to_the_landing_spot)])
 
         self.initial_state = np.array([
@@ -40,8 +41,10 @@ class RocketLandingEnv:
             float(self.initial_fuel),  # fuel remaining
             float(initial_rotation),  # rotation
             float(initial_thrust),  # thrust power
-            float(distance_to_line(initial_pos[0], initial_pos[1], np.array([self.landing_spot]))),  # distance to landing spot
-            float(distance_to_line(initial_pos[0], initial_pos[1], np.array(self.surface_segments))),  # distance to surface
+            float(distance_to_line(initial_pos[0], initial_pos[1], np.array([self.landing_spot]))),
+            # distance to landing spot
+            float(distance_to_line(initial_pos[0], initial_pos[1], np.array(self.surface_segments))),
+            # distance to surface
             float(0)
         ])
         self.state_intervals = [
@@ -91,7 +94,6 @@ class RocketLandingEnv:
 6999 600
         '''
         return np.fromstring(input_file, sep='\n', dtype=int)[1:].reshape(-1, 2)
-
 
     @staticmethod
     def find_landing_spot(planet_surface: np.ndarray) -> np.ndarray:
@@ -160,13 +162,11 @@ class RocketLandingEnv:
         if is_close_to_land:
             reward = (norm_reward(dist_landing_spot, 0, 7500 ** 2)
                       + 0.65 * norm_reward(abs(vs), 39, 140)
-                      + 0.35 * norm_reward(abs(hs), 19, 140)
-            )
+                      + 0.35 * norm_reward(abs(hs), 19, 140))
         else:
             reward = (norm_reward(dist_path, 0, 7500 ** 2)
                       + 0.65 * norm_reward(abs(vs), 39, 150)
-                      + 0.35 * norm_reward(abs(hs), 19, 150)
-            )
+                      + 0.35 * norm_reward(abs(hs), 19, 150))
 
         if is_successful_landing:
             print("SUCCESSFUL LANDING !", state)
@@ -212,8 +212,8 @@ class RocketLandingEnv:
             else:
                 path.extend(np.round(np.linspace(initial_pos, high_point, 5)).astype(int))
                 path.extend(np.round(np.linspace(high_point, self.middle_landing_spot, 5)).astype(int))
-                for item in path:
-                    print(item)
+                # for item in path:
+                #     print(item)
                 # print(path)
                 # exit(0)
                 return path
@@ -226,8 +226,8 @@ class RocketLandingEnv:
         if highest is None:
             highest = path_to_the_landing_spot[-1]
         # print(highest, new_pos)
-        if highest[0] != 6500 and highest[1] != 3000:
-            print(highest, new_pos)
+        # if highest[0] != 6500 and highest[1] != 3000:
+        #     print(highest, new_pos)
         return distance_2(highest, new_pos)
 
     def straighten_info(self, state):
@@ -264,8 +264,10 @@ def norm_reward(feature, interval_low, interval_high) -> float:
     feature = np.clip(feature, interval_low, interval_high)
     return 1.0 - ((feature - interval_low) / (interval_high - interval_low))
 
+
 import matplotlib
 from matplotlib import pyplot as plt, cm
+
 matplotlib.use('Qt5Agg')
 
 
