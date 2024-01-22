@@ -141,6 +141,10 @@ public:
         for (size_t i = 0; i < this->pathToTheLandingSpot.size(); ++i) {
             double x = this->pathToTheLandingSpot[i][0];
             double y = (i < this->pathToTheLandingSpot.size() - 1) ? this->pathToTheLandingSpot[i][1] + 1000 : this->pathToTheLandingSpot[i][1];
+
+            if (y > 3000.0) {
+                y = 3000.0;
+            }
             this->pathToTheLandingSpot[i] = {x, y};
         }
         removeDuplicates(this->pathToTheLandingSpot);
