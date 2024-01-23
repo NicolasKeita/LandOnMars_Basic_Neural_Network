@@ -60,16 +60,13 @@ class GeneticAlgorithm:
             action[0] = 0
         return heuristics_guides
 
-    def learn(self, time_available: int):
+    def learn(self, time_available_in_ms: int):
         curr_initial_state = self.env.initial_state
         terminated = False
         truncated = False
-        global i2
-        i2 = 0
         policy_global = []
         parents = None
         while not (terminated or truncated):
-            i2 += 1
             self.env.initial_state = curr_initial_state
             self.population = self.init_population(curr_initial_state, parents)
             start_time = time.time()
@@ -77,7 +74,7 @@ class GeneticAlgorithm:
                 rewards = np.array([self.rollout(individual) for individual in self.population])
                 self.env.render()
                 parents = self.selection(rewards)
-                if (time.time() - start_time) * 1000 >= time_available:
+                if (time.time() - start_time) * 1000 >= time_available_in_ms:
                     break
                 heuristic_guides = self.heuristic(curr_initial_state)
                 heuristic_guides = np.array(
@@ -92,7 +89,6 @@ class GeneticAlgorithm:
             self.env.reset()
             action_to_do = self.final_heuristic_verification(best_individual[0], curr_initial_state)
             next_state, _, terminated, truncated, _ = self.env.step(action_to_do)
-            # print("Action chosen : ", action_to_do, " i2 : ", i2)
             policy_global.append(list(best_individual[0]))
             curr_initial_state = next_state
             parents = parents[:, 1:, :]
@@ -101,13 +97,6 @@ class GeneticAlgorithm:
                 (parents, np.array([self.env.generate_random_action(*item) for item in last_elements_tuple])[:, np.newaxis, :]),
                 axis=1)
         print(policy_global)
-        # formatted_output = [
-        #     "{" + ", ".join(map(str, inner)).replace('[', '{').replace(']', '}') + "}"
-        #     for inner in policy_global
-        # ]
-        #
-        # final_result = "{" + ", ".join(formatted_output) + "}"
-        # print(final_result)
 
     def rollout(self, policy: np.ndarray[int, 2]) -> float:
         self.env.reset()
