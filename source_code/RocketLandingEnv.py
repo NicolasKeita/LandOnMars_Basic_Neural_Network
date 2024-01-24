@@ -34,19 +34,18 @@ class RocketLandingEnv:
              enumerate(self.path_to_the_landing_spot)])
 
         self.initial_state = np.array([
-            float(initial_pos[0]),  # x
-            float(initial_pos[1]),  # y
-            float(initial_hs),  # horizontal speed
-            float(initial_vs),  # vertical speed
-            float(self.initial_fuel),  # fuel remaining
-            float(initial_rotation),  # rotation
-            float(initial_thrust),  # thrust power
-            float(distance_to_line(initial_pos[0], initial_pos[1], np.array([self.landing_spot]))),
-            # distance to landing spot
-            float(distance_to_line(initial_pos[0], initial_pos[1], np.array(self.surface_segments))),
-            # distance to surface
-            float(0)
-        ])
+            initial_pos[0],  # x
+            initial_pos[1],  # y
+            initial_hs,  # horizontal speed
+            initial_vs,  # vertical speed
+            self.initial_fuel,  # fuel remaining
+            initial_rotation,  # rotation
+            initial_thrust,  # thrust power
+            distance_to_line(initial_pos[0], initial_pos[1], np.array([self.landing_spot])),  # distance to landing spot
+            distance_to_line(initial_pos[0], initial_pos[1], np.array(self.surface_segments)),  # distance to surface
+            0
+        ], dtype=int)
+
         self.state_intervals = [
             [0, 7000],  # x
             [0, 3000],  # y

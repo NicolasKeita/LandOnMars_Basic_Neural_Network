@@ -120,13 +120,14 @@ class GeneticAlgorithm:
             population[i] = self.generate_random_individual(initial_rotation, initial_thrust)
         return population
 
-    def generate_random_individual(self, previous_rotation, previous_thrust) -> np.ndarray:
-        individual = np.zeros((self.horizon, 2), dtype=int)
-        random_action = np.array([previous_rotation, previous_thrust])
-        for i in range(self.horizon):
-            random_action = self.env.generate_random_action(random_action[0], random_action[1])
-            individual[i] = random_action
-        return individual
+    def generate_random_individual(self, previous_rotation: int, previous_thrust: int) -> np.ndarray:
+        individual = []
+        for _ in range(self.horizon):
+            random_action = self.env.generate_random_action(previous_rotation, previous_thrust)
+            previous_rotation = random_action[0]
+            previous_thrust = random_action[1]
+            individual.append(random_action)
+        return np.array(individual)
 
     def replace_duplicates_with_random(self, population, previous_rotation, previous_thrust):
         _, unique_indices = np.unique(population, axis=0, return_index=True)
