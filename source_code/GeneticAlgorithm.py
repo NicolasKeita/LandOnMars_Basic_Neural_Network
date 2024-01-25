@@ -70,12 +70,10 @@ class GeneticAlgorithm:
             self.env.initial_state = curr_initial_state
             self.population = self.init_population(curr_initial_state, parents)
             start_time = time.time()
-            while True:
+            while (time.time() - start_time) * 1000 < time_available_in_ms:
                 rewards = np.array([self.rollout(individual) for individual in self.population])
                 self.env.render()
                 parents = self.selection(rewards)
-                if (time.time() - start_time) * 1000 >= time_available_in_ms:
-                    break
                 heuristic_guides = self.heuristic(curr_initial_state)
                 heuristic_guides = np.array(
                     [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
@@ -124,9 +122,9 @@ class GeneticAlgorithm:
         individual = []
         for _ in range(self.horizon):
             random_action = self.env.generate_random_action(previous_rotation, previous_thrust)
+            individual.append(random_action)
             previous_rotation = random_action[0]
             previous_thrust = random_action[1]
-            individual.append(random_action)
         return np.array(individual)
 
     def replace_duplicates_with_random(self, population, previous_rotation, previous_thrust):
