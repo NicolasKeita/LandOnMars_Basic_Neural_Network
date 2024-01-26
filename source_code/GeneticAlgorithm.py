@@ -61,40 +61,38 @@ class GeneticAlgorithm:
         return heuristics_guides
 
     def learn(self, time_available_in_ms: int):
-        curr_initial_state = self.env.initial_state
+        policy = []
+        parents = None
         terminated = False
         truncated = False
-        policy_global = []
-        parents = None
         while not (terminated or truncated):
-            self.env.initial_state = curr_initial_state
-            self.population = self.init_population(curr_initial_state, parents)
+            self.population = self.init_population(self.env.initial_state, parents)
             start_time = time.time()
             while (time.time() - start_time) * 1000 < time_available_in_ms:
                 rewards = np.array([self.rollout(individual) for individual in self.population])
                 self.env.render()
                 parents = self.selection(rewards)
-                heuristic_guides = self.heuristic(curr_initial_state)
+                heuristic_guides = self.heuristic(self.env.initial_state)
                 heuristic_guides = np.array(
                     [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
                 offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
                 offspring = self.crossover(parents, offspring_size)
                 offspring = self.mutation(offspring, self.mutation_rate)
-                offspring = self.mutation_heuristic(offspring, curr_initial_state[7])
+                offspring = self.mutation_heuristic(offspring, self.env.initial_state[7])
                 self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
                     heuristic_guides) > 0 else np.concatenate((offspring, parents))
             best_individual = parents[-1]
             self.env.reset()
-            action_to_do = self.final_heuristic_verification(best_individual[0], curr_initial_state)
+            action_to_do = self.final_heuristic_verification(best_individual[0], self.env.initial_state)
             next_state, _, terminated, truncated, _ = self.env.step(action_to_do)
-            policy_global.append(list(best_individual[0]))
-            curr_initial_state = next_state
+            self.env.initial_state = next_state
             parents = parents[:, 1:, :]
             last_elements_tuple = parents[:, -1, :]
             parents = np.concatenate(
                 (parents, np.array([self.env.generate_random_action(*item) for item in last_elements_tuple])[:, np.newaxis, :]),
                 axis=1)
-        print(policy_global)
+            policy.append(list(best_individual[0]))
+        print(policy)
 
     def rollout(self, policy: np.ndarray[int, 2]) -> float:
         self.env.reset()
