@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from nptyping import NDArray, Int, Shape
 from source_code.RocketLandingEnv import RocketLandingEnv
 
 
@@ -94,7 +95,7 @@ class GeneticAlgorithm:
             policy.append(list(best_individual[0]))
         print(policy)
 
-    def rollout(self, policy: np.ndarray[int, 2]) -> float:
+    def rollout(self, policy) -> float:
         self.env.reset()
         reward = 0
 
