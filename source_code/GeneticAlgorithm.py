@@ -90,7 +90,8 @@ class GeneticAlgorithm:
             parents = parents[:, 1:, :]
             last_elements_tuple = parents[:, -1, :]
             parents = np.concatenate(
-                (parents, np.array([self.env.generate_random_action(*item) for item in last_elements_tuple])[:, np.newaxis, :]),
+                (parents,
+                 np.array([self.env.generate_random_action(*item) for item in last_elements_tuple])[:, np.newaxis, :]),
                 axis=1)
             policy.append(list(best_individual[0]))
         print(policy)
@@ -155,7 +156,4 @@ class GeneticAlgorithm:
 
 
 def my_random_int(a, b):
-    if a == b:
-        return a
-    else:
-        return np.random.randint(min(a, b), max(a, b))
+    return np.random.randint(min(a, b), max(a, b)) if a != b else a
