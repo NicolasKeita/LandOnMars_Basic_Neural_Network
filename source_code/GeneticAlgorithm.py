@@ -1,6 +1,5 @@
 import time
 import numpy as np
-from nptyping import NDArray, Int, Shape
 from source_code.RocketLandingEnv import RocketLandingEnv
 
 
@@ -22,8 +21,8 @@ class GeneticAlgorithm:
             parents = population_survivors[indices]
             policy = np.zeros((self.horizon, 2), dtype=int)
             for i in range(self.horizon):
-                offspring_rotation = my_random_int(parents[0, i, 0], parents[1, i, 0])
-                offspring_thrust = my_random_int(parents[0, i, 1], parents[1, i, 1])
+                offspring_rotation = randint(parents[0, i, 0], parents[1, i, 0])
+                offspring_thrust = randint(parents[0, i, 1], parents[1, i, 1])
                 offspring_rotation = np.clip(offspring_rotation, -90, 90)
                 offspring_thrust = np.clip(offspring_thrust, 0, 4)
                 policy[i] = [offspring_rotation, offspring_thrust]
@@ -155,5 +154,5 @@ class GeneticAlgorithm:
         return parents
 
 
-def my_random_int(a, b):
+def randint(a, b):
     return np.random.randint(min(a, b), max(a, b)) if a != b else a
