@@ -80,3 +80,7 @@ def do_segments_intersect(segment1: list[list[int]], segment2: list[list[int]]) 
         if not on_segment((x1, y1), (x2, y2), (x3, y3)) and not on_segment((x1, y1), (x2, y2), (x4, y4)):
             return True
     return False
+
+
+def randint(a, b):
+    return np.random.randint(min(a, b), max(a, b)) if a != b else a

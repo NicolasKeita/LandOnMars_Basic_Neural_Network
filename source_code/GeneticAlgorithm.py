@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from source_code.RocketLandingEnv import RocketLandingEnv
+from source_code.math_utils import randint
 
 
 class GeneticAlgorithm:
@@ -152,7 +153,3 @@ class GeneticAlgorithm:
         sorted_indices = np.argsort(rewards)
         parents = self.population[sorted_indices[-self.n_elites:]]
         return parents
-
-
-def randint(a, b):
-    return np.random.randint(min(a, b), max(a, b)) if a != b else a
