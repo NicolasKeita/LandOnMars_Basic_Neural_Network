@@ -151,7 +151,7 @@ class GeneticAlgorithm:
             action_to_do[1] = 0
         return action_to_do
 
-    def selection(self, rewards: np.ndarray):
+    def selection(self, rewards: ArrayLike):
         sorted_indices = np.argsort(rewards)
         parents = self.population[sorted_indices[-self.n_elites:]]
         return parents
