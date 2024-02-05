@@ -1,6 +1,5 @@
 import time
 import numpy as np
-from numpy.typing import ArrayLike
 
 from source_code.RocketLandingEnv import RocketLandingEnv
 from source_code.math_utils import randint
@@ -145,13 +144,13 @@ class GeneticAlgorithm:
         return population
 
     @staticmethod
-    def final_heuristic_verification(action_to_do: np.ndarray[int, 1], state: np.ndarray) -> np.ndarray[int, 1]:
+    def final_heuristic_verification(action_to_do: np.ndarray, state: np.ndarray) -> np.ndarray:
         rotation = state[5]
         if abs(rotation - action_to_do[0]) > 110:
             action_to_do[1] = 0
         return action_to_do
 
-    def selection(self, rewards: ArrayLike):
+    def selection(self, rewards: np.ndarray):
         sorted_indices = np.argsort(rewards)
         parents = self.population[sorted_indices[-self.n_elites:]]
         return parents
