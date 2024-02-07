@@ -16,13 +16,14 @@ class GeneticAlgorithm:
         self.population_size = self.offspring_size + self.n_elites + self.n_heuristic_guides
         self.population = self.init_population(self.env.initial_state)
 
-    def crossover(self, population_survivors: np.ndarray, offspring_size):
+    @staticmethod
+    def crossover(population_survivors, offspring_size: int, horizon: int):
         offspring = []
         while len(offspring) < offspring_size:
             indices = np.random.randint(population_survivors.shape[0], size=2)
             parents = population_survivors[indices]
-            policy = np.zeros((self.horizon, 2), dtype=int)
-            for i in range(self.horizon):
+            policy = np.zeros((horizon, 2), dtype=int)
+            for i in range(horizon):
                 offspring_rotation = randint(parents[0, i, 0], parents[1, i, 0])
                 offspring_thrust = randint(parents[0, i, 1], parents[1, i, 1])
                 offspring_rotation = np.clip(offspring_rotation, -90, 90)
@@ -78,7 +79,7 @@ class GeneticAlgorithm:
                 heuristic_guides = np.array(
                     [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
                 offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
-                offspring = self.crossover(parents, offspring_size)
+                offspring = self.crossover(parents, offspring_size, self.horizon)
                 offspring = self.mutation(offspring, self.mutation_rate)
                 offspring = self.mutation_heuristic(offspring, self.env.initial_state[7])
                 self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
