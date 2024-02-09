@@ -63,6 +63,21 @@ class GeneticAlgorithm:
             action[0] = 0
         return heuristics_guides
 
+    def four_GA_steps(self):
+        rewards = np.array([self.rollout(individual) for individual in self.population])
+        self.env.render()
+        parents = self.selection(rewards)
+        heuristic_guides = self.heuristic(self.env.initial_state)
+        heuristic_guides = np.array(
+            [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
+        offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
+        offspring = self.crossover(parents, offspring_size, self.horizon)
+        offspring = self.mutation(offspring, self.mutation_rate)
+        offspring = self.mutation_heuristic(offspring, self.env.initial_state[7])
+        self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
+            heuristic_guides) > 0 else np.concatenate((offspring, parents))
+        return parents
+
     def learn(self, time_available_in_ms: int):
         policy = []
         parents = None
@@ -72,18 +87,7 @@ class GeneticAlgorithm:
             self.population = self.init_population(self.env.initial_state, parents)
             start_time = time.time()
             while (time.time() - start_time) * 1000 < time_available_in_ms:
-                rewards = np.array([self.rollout(individual) for individual in self.population])
-                self.env.render()
-                parents = self.selection(rewards)
-                heuristic_guides = self.heuristic(self.env.initial_state)
-                heuristic_guides = np.array(
-                    [item for item in heuristic_guides if not np.any(np.all(item == parents, axis=(1, 2)))])
-                offspring_size = self.offspring_size + self.n_heuristic_guides - len(heuristic_guides)
-                offspring = self.crossover(parents, offspring_size, self.horizon)
-                offspring = self.mutation(offspring, self.mutation_rate)
-                offspring = self.mutation_heuristic(offspring, self.env.initial_state[7])
-                self.population = np.concatenate((offspring, parents, heuristic_guides)) if len(
-                    heuristic_guides) > 0 else np.concatenate((offspring, parents))
+                parents = self.four_GA_steps()
             best_individual = parents[-1]
             self.env.reset()
             action_to_do = self.final_heuristic_verification(best_individual[0], self.env.initial_state)
