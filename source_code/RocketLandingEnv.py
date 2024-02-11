@@ -1,7 +1,6 @@
 import math
 import numpy as np
 
-# from source_code.graph_handler import create_graph, display_graph
 from source_code.math_utils import distance_to_line, distance_2, calculate_intersection, do_segments_intersect, \
     do_segments_intersect_vector
 
